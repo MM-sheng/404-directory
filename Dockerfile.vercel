@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1
+
+FROM mcr.microsoft.com/playwright:v1.62.1-jammy AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY tsconfig.service.json ./
+COPY src ./src
+RUN npx tsc -p tsconfig.service.json
+
+FROM mcr.microsoft.com/playwright:v1.62.1-jammy
+WORKDIR /app
+
+ENV NODE_ENV=production \
+    HOST=0.0.0.0 \
+    HEADLESS=true \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+COPY --from=build /app/dist ./dist
+COPY README.md .env.example ./
+
+USER pwuser
+CMD ["node", "dist/server.js"]

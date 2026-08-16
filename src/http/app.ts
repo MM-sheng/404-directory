@@ -148,6 +148,13 @@ export async function buildApp(
     })
   })
 
+  app.setNotFoundHandler((_request, reply) =>
+    reply.status(404).send({
+      error: "not_found",
+      message: "Route not found",
+    })
+  )
+
   await app.register(rateLimit, {
     max: config.RATE_LIMIT_MAX,
     timeWindow: config.RATE_LIMIT_WINDOW_MS,

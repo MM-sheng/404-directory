@@ -331,4 +331,19 @@ describe("HTTP API", () => {
       message: expect.any(String),
     })
   })
+
+  it("returns the platform error shape for unknown routes", async () => {
+    app = await buildApp(mockRegistry(), loadConfig())
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/does-not-exist",
+    })
+
+    expect(response.statusCode).toBe(404)
+    expect(response.json()).toEqual({
+      error: "not_found",
+      message: "Route not found",
+    })
+  })
 })
