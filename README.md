@@ -137,6 +137,8 @@ Production hardening notes:
 - `understand_webpage` re-resolves and re-validates every browser request, but
   Chromium performs its own DNS lookup when it opens the socket, so the
   application layer cannot fully close the DNS-rebinding window on its own.
+  Browser contexts also set `serviceWorkers: "block"` so Service Workers cannot
+  bypass `browserContext.route()` interception (Playwright recommendation).
   **Production must enforce network-level private-egress blocking** (e.g. an
   egress firewall/proxy denying RFC1918, loopback, link-local, and reserved
   ranges) as the authoritative backstop for this tool

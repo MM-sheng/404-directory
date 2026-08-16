@@ -141,7 +141,7 @@ function mockRegistry(): ToolRegistry {
     ],
     inputSchema: VerifyIn,
     outputSchema: VerifyOut,
-    handler: async ({ url, expected_status }) => ({
+    handler: async ({ expected_status }) => ({
       verified: true,
       checks: {
         reachable: true,

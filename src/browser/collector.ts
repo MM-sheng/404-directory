@@ -246,6 +246,10 @@ export class PageCollector {
     try {
       context = await browser.newContext({
         javaScriptEnabled: true,
+        // Service Workers can intercept requests before browserContext.route(),
+        // making SSRF/network guards invisible. Playwright recommends blocking
+        // them whenever request interception is used.
+        serviceWorkers: "block",
         userAgent: "404.directory AgentPageModel/0.1",
         viewport: { width: 1365, height: 900 },
       })

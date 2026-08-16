@@ -23,6 +23,14 @@ function rewriteRefs(node: unknown, replace: (ref: string) => string): unknown {
   return node
 }
 
+function omitLocalDefs(schema: JsonRecord): JsonRecord {
+  return Object.fromEntries(
+    Object.entries(schema).filter(
+      ([key]) => key !== "definitions" && key !== "$defs"
+    )
+  )
+}
+
 function toSharedRef(ref: string): string {
   // Zod emits recursive JsonValue definitions as local `#/definitions/__schema0`
   // (or `#/$defs/...`). Point them at the shared, registered component instead so
@@ -39,8 +47,7 @@ function toSharedRef(ref: string): string {
  */
 export function zodToJsonSchema(schema: z.ZodType): Record<string, unknown> {
   const raw = z.toJSONSchema(schema, { target: "openapi-3.0" }) as JsonRecord
-  const { definitions: _definitions, $defs: _defs, ...rest } = raw
-  return rewriteRefs(rest, toSharedRef) as Record<string, unknown>
+  return rewriteRefs(omitLocalDefs(raw), toSharedRef) as Record<string, unknown>
 }
 
 /**
@@ -51,10 +58,9 @@ export function jsonValueComponentSchema(): Record<string, unknown> {
   const raw = z.toJSONSchema(JsonValueSchema, {
     target: "openapi-3.0",
   }) as JsonRecord
-  const { definitions: _definitions, $defs: _defs, ...rest } = raw
   return {
     $id: JSON_VALUE_SCHEMA_ID,
-    ...(rewriteRefs(rest, (ref) =>
+    ...(rewriteRefs(omitLocalDefs(raw), (ref) =>
       ref === "#" ||
       ref.startsWith("#/definitions/") ||
       ref.startsWith("#/$defs/")
