@@ -84,10 +84,16 @@ function mockRegistry(): ToolRegistry {
     name: "understand_webpage",
     description: "Understand a webpage",
     use_when: "When you need page semantics",
+    do_not_use_when: "When only deployment verification is needed",
     version: "0.1.0",
     endpoint: "/understand",
     method: "POST",
     status: "active",
+    read_only: true,
+    side_effects: [],
+    requires_auth: false,
+    cost: "free",
+    typical_latency_ms: 100,
     examples: [
       {
         description: "Understand example.com",
@@ -120,10 +126,16 @@ function mockRegistry(): ToolRegistry {
     name: "verify_web",
     description: "Verify a website",
     use_when: "After a deploy claim",
+    do_not_use_when: "When page semantics are needed",
     version: "0.1.0",
     endpoint: "/verify/web",
     method: "POST",
     status: "active",
+    read_only: true,
+    side_effects: [],
+    requires_auth: false,
+    cost: "free",
+    typical_latency_ms: 100,
     examples: [
       {
         description: "Verify example.com",
@@ -177,7 +189,7 @@ describe("HTTP API", () => {
     expect(health.statusCode).toBe(200)
     expect(health.json()).toMatchObject({
       status: "ok",
-      version: "0.3.0",
+      version: "0.4.0",
       browser_egress: "pinned_ip_proxy",
       tools: expect.arrayContaining(["understand_webpage", "verify_web"]),
     })
@@ -185,32 +197,33 @@ describe("HTTP API", () => {
     const tools = await app.inject({ method: "GET", url: "/tools" })
     expect(tools.statusCode).toBe(200)
     const catalog = tools.json()
-    expect(catalog.authentication).toEqual({ required: false })
+    expect(Object.keys(catalog)).toEqual(["tools"])
     expect(catalog.tools).toHaveLength(2)
     expect(catalog.tools[0]).toMatchObject({
       name: expect.any(String),
       description: expect.any(String),
       use_when: expect.any(String),
-      version: expect.any(String),
-      endpoint: expect.any(String),
-      status: "active",
-      examples: expect.arrayContaining([
-        expect.objectContaining({
-          description: expect.any(String),
-          input: expect.any(Object),
-          output: expect.any(Object),
-        }),
-      ]),
-      input_schema: expect.any(Object),
-      output_schema: expect.any(Object),
+      href: expect.stringMatching(/^\/tools\//),
     })
+    expect(catalog.tools[0]).not.toHaveProperty("input_schema")
 
     const one = await app.inject({
       method: "GET",
       url: "/tools/verify_web",
     })
     expect(one.statusCode).toBe(200)
-    expect(one.json().endpoint).toBe("/verify/web")
+    expect(one.json()).toMatchObject({
+      endpoint: "/verify/web",
+      do_not_use_when: expect.any(String),
+      read_only: true,
+      side_effects: [],
+      requires_auth: false,
+      cost: "free",
+      typical_latency_ms: expect.any(Number),
+      input_schema: expect.any(Object),
+      output_schema: expect.any(Object),
+      examples: expect.any(Array),
+    })
 
     const openapi = await app.inject({ method: "GET", url: "/openapi.json" })
     expect(openapi.statusCode).toBe(200)
@@ -246,9 +259,34 @@ describe("HTTP API", () => {
       },
     })
     expect(spec.paths["/verify/web"].post.operationId).toBe("verify_web")
-    expect(spec.components.securitySchemes).toMatchObject({
-      ApiKeyAuth: { type: "apiKey", in: "header", name: "X-API-Key" },
-      BearerAuth: { type: "http", scheme: "bearer" },
+    expect(spec.components?.securitySchemes).toBeUndefined()
+
+    const docs = await app.inject({ method: "GET", url: "/docs.md" })
+    expect(docs.statusCode).toBe(200)
+    expect(docs.headers["content-type"]).toContain("text/markdown")
+    expect(docs.body).toContain("Do not use when")
+
+    const privacy = await app.inject({ method: "GET", url: "/privacy" })
+    expect(privacy.statusCode).toBe(200)
+    expect(privacy.body).toContain("does not intentionally persist")
+
+    const terms = await app.inject({ method: "GET", url: "/terms" })
+    expect(terms.statusCode).toBe(200)
+    expect(terms.body).toContain("public HTTP(S) resources")
+
+    const llms = await app.inject({ method: "GET", url: "/llms.txt" })
+    expect(llms.statusCode).toBe(200)
+    expect(llms.body).toContain("MCP endpoint: https://404.directory/mcp")
+
+    const mcpInfo = await app.inject({ method: "GET", url: "/mcp-info" })
+    expect(mcpInfo.statusCode).toBe(200)
+    expect(mcpInfo.json()).toEqual({
+      name: "404.directory",
+      protocol: "MCP",
+      transport: "streamable-http",
+      server_url: "https://404.directory/mcp",
+      requires_auth: false,
+      tools: ["understand_webpage", "verify_web"],
     })
   })
 
@@ -336,7 +374,16 @@ describe("HTTP API", () => {
     })
 
     expect(response.statusCode).toBe(200)
-    expect(response.json().evidence).toHaveLength(4)
+    expect(response.json().evidence).toMatchObject({
+      requested_url: "https://example.com",
+      final_url: "https://example.com/",
+      http: { status: 200, expected_status: 200, matched: true },
+      tls: { requested: true, valid: true },
+      redirects: { count: 0, chain: [] },
+      claims: expect.arrayContaining([
+        expect.objectContaining({ claim: "status_matches", passed: true }),
+      ]),
+    })
   })
 
   it("rejects malformed URLs", async () => {
@@ -410,71 +457,26 @@ describe("HTTP API", () => {
     expect(tool.headers["cache-control"]).toBe("no-store")
   })
 
-  it("keeps discovery public and protects execution when API keys exist", async () => {
-    const key = "test-api-key-with-at-least-24-characters"
-    app = await buildApp(mockRegistry(), loadConfig({ API_KEYS: key }))
-
-    const tools = await app.inject({ method: "GET", url: "/tools" })
-    expect(tools.statusCode).toBe(200)
-    expect(tools.json().authentication).toMatchObject({ required: true })
-
-    const unauthorized = await app.inject({
-      method: "POST",
-      url: "/verify/web",
-      payload: { url: "https://example.com", expected_status: 200 },
-    })
-    expect(unauthorized.statusCode).toBe(401)
-    expect(unauthorized.json()).toEqual({
-      error: "unauthorized",
-      message: "A valid API key is required for tool execution.",
-    })
-
-    const apiKey = await app.inject({
-      method: "POST",
-      url: "/verify/web",
-      headers: { "x-api-key": key },
-      payload: { url: "https://example.com", expected_status: 200 },
-    })
-    expect(apiKey.statusCode).toBe(200)
-
-    const bearer = await app.inject({
-      method: "POST",
-      url: "/understand",
-      headers: { authorization: `Bearer ${key}` },
-      payload: { url: "https://example.com" },
-    })
-    expect(bearer.statusCode).toBe(200)
-
-    const openapi = await app.inject({ method: "GET", url: "/openapi.json" })
-    expect(openapi.json().paths["/verify/web"].post.security).toEqual([
-      { ApiKeyAuth: [] },
-      { BearerAuth: [] },
-    ])
-  })
-
-  it("applies the expensive-tool quota per valid API key", async () => {
-    const firstKey = "first-test-key-with-at-least-24-characters"
-    const secondKey = "second-test-key-with-at-least-24-characters"
+  it("applies the expensive-tool quota per client IP", async () => {
     app = await buildApp(
       mockRegistry(),
       loadConfig({
-        API_KEYS: `${firstKey},${secondKey}`,
         TOOL_RATE_LIMIT_MAX: "1",
       })
     )
 
-    const invoke = (key: string) =>
+    const invoke = (ip: string) =>
       app!.inject({
         method: "POST",
         url: "/verify/web",
-        headers: { "x-api-key": key },
+        headers: { "x-vercel-forwarded-for": ip },
         payload: { url: "https://example.com", expected_status: 200 },
       })
 
-    expect((await invoke(firstKey)).statusCode).toBe(200)
-    const limited = await invoke(firstKey)
+    expect((await invoke("203.0.113.1")).statusCode).toBe(200)
+    const limited = await invoke("203.0.113.1")
     expect(limited.statusCode, limited.body).toBe(429)
-    expect((await invoke(secondKey)).statusCode).toBe(200)
+    expect((await invoke("203.0.113.2")).statusCode).toBe(200)
   })
 
   it("does not expose handler exception details over HTTP", async () => {
@@ -485,10 +487,16 @@ describe("HTTP API", () => {
       description:
         "Test tool that always fails so HTTP error sanitization can be verified.",
       use_when: "Only in automated tests.",
+      do_not_use_when: "Outside automated tests.",
       version: "1.0.0",
       endpoint: "/failing",
       method: "POST",
       status: "active",
+      read_only: true,
+      side_effects: [],
+      requires_auth: false,
+      cost: "free",
+      typical_latency_ms: 1,
       examples: [],
       inputSchema: input,
       outputSchema: output,

@@ -37,6 +37,8 @@ npm start
 curl -sS http://127.0.0.1:4040/tools | jq
 curl -sS http://127.0.0.1:4040/tools/understand_webpage | jq
 curl -sS http://127.0.0.1:4040/openapi.json | jq '.paths | keys'
+curl -sS http://127.0.0.1:4040/mcp-info | jq
+curl -sS http://127.0.0.1:4040/llms.txt
 curl -sS http://127.0.0.1:4040/health
 ```
 
@@ -55,28 +57,13 @@ curl -sS http://127.0.0.1:4040/verify/web \
   -d '{"url":"https://example.com","expected_status":200,"expected_text":"Example Domain"}'
 ```
 
-`verify_web` returns both compact booleans in `checks` and 3–4 explicit
-`evidence` items (`reachable`, `status`, `https`, and optional `text`) with
-expected/observed values.
+`verify_web` returns compact booleans in `checks` plus a structured `evidence`
+object containing requested/final URLs, HTTP status comparison, expected-text
+matching, TLS validation, the complete redirect chain, timestamp, and explicit
+Claim → Evidence paths.
 
-## Optional execution authentication
-
-Set one or more comma-separated keys (minimum 24 characters each):
-
-```bash
-API_KEYS='replace-with-a-random-key-at-least-24-characters'
-```
-
-When configured, Tool REST endpoints and `/mcp` require either:
-
-```text
-Authorization: Bearer <key>
-X-API-Key: <key>
-```
-
-Discovery remains public: `/`, `/health`, `/tools`, `/openapi.json`, and
-`/docs`. Valid keys get independent rate-limit identities; without auth,
-limits use Vercel's client-IP header (or the socket IP locally).
+Tool execution is currently public and free. Rate limits use Vercel's trusted
+client-IP header (or the socket IP locally).
 
 ## MCP
 
@@ -107,7 +94,8 @@ not require hand-writing separate MCP adapters.
 2. Create a `ToolDefinition` in `src/tools/definitions/`
 3. Register it in `src/tools/create-registry.ts`
 
-REST, OpenAPI, `/tools`, and MCP pick it up from the registry.
+REST, OpenAPI, `/tools/:name`, and MCP pick it up from the registry. Keep
+`/tools` compact so discovery cost does not grow with every schema.
 
 ## Docker / production
 
@@ -130,7 +118,6 @@ docker compose up --build -d
 Production hardening notes:
 
 - Keep `BROWSER_EGRESS_ALLOWED_PORTS` narrow (default `80,443`)
-- Set `API_KEYS` before exposing paid/high-volume access
 - Tune `RATE_LIMIT_*` and verify/browser timeouts for your traffic
 - Tool execution has a stricter `TOOL_RATE_LIMIT_MAX` than discovery
 
@@ -153,8 +140,8 @@ Production hardening notes:
   A provider/network egress firewall is still recommended as an independent
   second layer when the hosting platform supports one
 - Unexpected 500/MCP execution errors are sanitized; full details stay in logs
-- Structured Tool logs include route, status, duration, Tool name and auth mode,
-  never raw API keys
+- Structured Tool logs include route, status, duration and Tool name, never
+  request bodies
 - Responses include request IDs, `Server-Timing`, no-sniff/frame/referrer/
   permissions/CSP headers; REST Tool results use `Cache-Control: no-store`,
   while MCP streaming uses the SDK's `no-cache, no-transform` policy

@@ -41,6 +41,7 @@ export const EntitySchema = z
     ]),
     name: z.string().min(1).max(500),
     attributes: z.record(z.string(), JsonValueSchema),
+    evidence_ids: z.array(z.string().max(40)).max(10).optional(),
   })
   .strict()
 
@@ -48,6 +49,7 @@ export const StateSchema = z
   .object({
     login_status: z.enum(["authenticated", "anonymous", "unknown"]),
     properties: z.record(z.string(), JsonValueSchema),
+    evidence_ids: z.array(z.string().max(40)).max(10).optional(),
   })
   .strict()
 
@@ -67,11 +69,13 @@ export const ActionSchema = z
     target: z.string().max(500).optional(),
     enabled: z.boolean(),
     required_inputs: z.array(z.string().max(200)).max(30),
+    evidence_ids: z.array(z.string().max(40)).max(10).optional(),
   })
   .strict()
 
 export const EvidenceSchema = z
   .object({
+    id: z.string().max(40).optional(),
     source: z.enum([
       "url",
       "title",
@@ -89,6 +93,7 @@ export const EvidenceSchema = z
     role: z.string().max(100).optional(),
     label: z.string().max(500).optional(),
     raw_value: JsonValueSchema.optional(),
+    supports: z.array(z.string().max(100)).max(20).optional(),
   })
   .strict()
 

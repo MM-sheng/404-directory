@@ -1,6 +1,6 @@
-import type { ToolCatalogEntry } from "../tools/types.js"
+import type { ToolCatalogEntry, ToolDiscoveryEntry } from "../tools/types.js"
 
-export function renderHomepage(tools: ToolCatalogEntry[]): string {
+export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
   const toolLines = tools
     .map(
       (tool) =>
@@ -97,7 +97,7 @@ ${toolLines}
     </ul>
     <nav>
       <a href="/tools">Tools</a>
-      <a href="/mcp">MCP</a>
+      <a href="/mcp-info">MCP</a>
       <a href="/openapi.json">OpenAPI</a>
       <a href="/docs">Docs</a>
       <a href="/health">Health</a>
@@ -107,10 +107,7 @@ ${toolLines}
 </html>`
 }
 
-export function renderDocs(
-  tools: ToolCatalogEntry[],
-  options: { authRequired: boolean }
-): string {
+export function renderDocs(tools: ToolCatalogEntry[]): string {
   const sections = tools
     .map(
       (tool) => `## ${tool.name}
@@ -119,9 +116,16 @@ ${tool.description}
 
 **When to use:** ${tool.use_when}
 
+**Do not use when:** ${tool.do_not_use_when}
+
 - Endpoint: \`${tool.method} ${tool.endpoint}\`
 - Version: \`${tool.version}\`
 - Status: \`${tool.status}\`
+- Read only: \`${tool.read_only}\`
+- Side effects: \`${tool.side_effects.length === 0 ? "none" : tool.side_effects.join(", ")}\`
+- Authentication: \`${tool.requires_auth ? "required" : "not required"}\`
+- Cost: \`${tool.cost}\`
+- Typical latency: \`${tool.typical_latency_ms} ms\`
 - Discovery: \`GET /tools/${tool.name}\`
 `
     )
@@ -133,18 +137,48 @@ Tools built for AI agents.
 
 Machine discovery:
 
-- \`GET /tools\` — catalog with schemas
+- \`GET /tools\` — compact discovery catalog
+- \`GET /tools/:name\` — complete metadata and schemas
 - \`GET /openapi.json\` — OpenAPI 3
-- \`GET|POST /mcp\` — MCP Streamable HTTP
+- \`GET /mcp-info\` — MCP discovery metadata
+- \`POST /mcp\` — MCP Streamable HTTP protocol endpoint
 - stdio MCP: \`npm run mcp\`
 
-Authentication: ${
-    options.authRequired
-      ? "tool execution requires `Authorization: Bearer <key>` or `X-API-Key: <key>`; discovery remains public."
-      : "not currently required."
-  }
+Authentication: not currently required.
 
 ${sections}
+`
+}
+
+export function renderPrivacy(): string {
+  return `# Privacy policy
+
+Effective: 2026-08-17
+
+404.directory provides read-only tools that fetch public HTTP(S) URLs supplied by a caller.
+
+- Submitted URLs and optional expected text are used only to perform the requested tool call.
+- The service does not require an account and does not use submitted data for advertising.
+- The application does not intentionally persist tool inputs or results in a database. Infrastructure logs may retain request metadata such as timestamp, route, status, duration, request ID, and client IP for security and reliability; request bodies are not logged by the application.
+- Fetching a submitted URL sends a request from 404.directory infrastructure to that public destination. The destination may process that request under its own policy.
+- Do not submit private, internal, authenticated, personal, or sensitive URLs or content.
+
+Security and privacy questions: use the project support channel associated with 404.directory.
+`
+}
+
+export function renderTerms(): string {
+  return `# Terms of service
+
+Effective: 2026-08-17
+
+404.directory is a public, read-only web inspection and verification service provided as-is.
+
+- Use it only for public HTTP(S) resources you are authorized to inspect.
+- Do not use it to target private networks, bypass access controls, overload services, or violate applicable law or third-party rights.
+- Results are evidence for agent decisions, not a guarantee of correctness, availability, security, or fitness for a particular purpose.
+- Access may be rate-limited, changed, or suspended to protect service stability and safety.
+- Current tools are free and require no authentication. Material pricing or access changes will be disclosed before they apply.
 `
 }
 

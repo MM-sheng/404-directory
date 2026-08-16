@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decisions"],
+  "properties": {
+    "decisions": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "selected_tool", "reason"],
+        "properties": {
+          "id": { "type": "string" },
+          "selected_tool": {
+            "type": "string",
+            "enum": ["understand_webpage", "verify_web", "none"]
+          },
+          "reason": { "type": "string", "maxLength": 240 }
+        }
+      }
+    }
+  }
+}

@@ -15,43 +15,59 @@ export type VerifyWebOptions = {
 
 function evidenceFor(
   input: VerifyWebRequest,
-  checks: VerifyWebResult["checks"]
+  checks: VerifyWebResult["checks"],
+  checkedAt: string,
+  outcome?: Pick<FetchOutcome, "finalUrl" | "redirects">
 ): VerifyWebResult["evidence"] {
-  const evidence: VerifyWebResult["evidence"] = [
+  const expectedText = input.expected_text?.trim() || null
+  const claims: VerifyWebResult["evidence"]["claims"] = [
     {
-      check: "reachable",
-      expected: true,
-      observed: checks.reachable,
+      claim: "reachable",
       passed: checks.reachable,
+      evidence_paths: ["http.status", "final_url"],
     },
     {
-      check: "status",
-      expected: input.expected_status,
-      observed: checks.status,
+      claim: "status_matches",
       passed: checks.status === input.expected_status,
+      evidence_paths: ["http.status", "http.expected_status"],
     },
     {
-      check: "https",
-      expected: true,
-      observed: checks.https_valid,
+      claim: "https_valid",
       passed: checks.https_valid,
+      evidence_paths: ["tls.requested", "tls.valid"],
     },
   ]
 
-  const expectedText = input.expected_text?.trim()
   if (expectedText) {
-    evidence.push({
-      check: "text",
-      expected:
-        expectedText.length <= 200
-          ? expectedText
-          : `${expectedText.slice(0, 197)}...`,
-      observed: checks.text_found,
+    claims.push({
+      claim: "expected_text_found",
       passed: checks.text_found,
+      evidence_paths: ["expected_text.value", "expected_text.matched"],
     })
   }
 
-  return evidence
+  const redirects = outcome?.redirects ?? []
+  return {
+    requested_url: input.url,
+    final_url: outcome?.finalUrl ?? null,
+    http: {
+      status: checks.status,
+      expected_status: input.expected_status,
+      matched: checks.status === input.expected_status,
+    },
+    expected_text: {
+      value: expectedText,
+      checked: expectedText !== null,
+      matched: expectedText === null ? null : checks.text_found,
+    },
+    tls: {
+      requested: input.url.toLowerCase().startsWith("https://"),
+      valid: checks.https_valid,
+    },
+    redirects: { count: redirects.length, chain: redirects },
+    checked_at: checkedAt,
+    claims,
+  }
 }
 
 type FetchOutcome = {
@@ -59,7 +75,8 @@ type FetchOutcome = {
   status: number | null
   httpsValid: boolean
   body: string
-  finalUrl?: string
+  finalUrl: string | null
+  redirects: Array<{ status: number; from: string; to: string }>
   error?: string
 }
 
@@ -100,7 +117,7 @@ async function requestPinned(
   return new Promise((resolve, reject) => {
     const headers = {
       host: url.host,
-      "user-agent": "404.directory verify_web/0.2",
+      "user-agent": "404.directory verify_web/0.3",
       accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       "accept-encoding": "identity",
     }
@@ -152,6 +169,7 @@ async function fetchWithGuards(
 
   try {
     let current = startUrl
+    const redirects: FetchOutcome["redirects"] = []
 
     for (let hop = 0; hop <= options.maxRedirects; hop += 1) {
       const resolved = await (options.resolveUrl ?? resolvePublicHttpUrl)(
@@ -177,6 +195,8 @@ async function fetchWithGuards(
             status: response.status,
             httpsValid: false,
             body: "",
+            finalUrl: current.toString(),
+            redirects,
             error: "Redirect response missing Location header",
           }
         }
@@ -186,10 +206,18 @@ async function fetchWithGuards(
             status: response.status,
             httpsValid: false,
             body: "",
+            finalUrl: current.toString(),
+            redirects,
             error: `Exceeded max redirects (${options.maxRedirects})`,
           }
         }
-        current = new URL(location, current)
+        const next = new URL(location, current)
+        redirects.push({
+          status: response.status,
+          from: current.toString(),
+          to: next.toString(),
+        })
+        current = next
         continue
       }
 
@@ -202,6 +230,7 @@ async function fetchWithGuards(
         httpsValid,
         body: response.body,
         finalUrl: current.toString(),
+        redirects,
       }
     }
 
@@ -210,6 +239,8 @@ async function fetchWithGuards(
       status: null,
       httpsValid: false,
       body: "",
+      finalUrl: null,
+      redirects: [],
       error: `Exceeded max redirects (${options.maxRedirects})`,
     }
   } catch (error) {
@@ -219,6 +250,8 @@ async function fetchWithGuards(
         status: null,
         httpsValid: false,
         body: "",
+        finalUrl: null,
+        redirects: [],
         error: error.message,
       }
     }
@@ -237,6 +270,8 @@ async function fetchWithGuards(
       status: null,
       httpsValid: false,
       body: "",
+      finalUrl: null,
+      redirects: [],
       error: isTimeout
         ? `request timed out after ${options.timeoutMs}ms`
         : isTls
@@ -271,7 +306,7 @@ export async function verifyWeb(
     return {
       verified: false,
       checks,
-      evidence: evidenceFor(input, checks),
+      evidence: evidenceFor(input, checks, checkedAt),
       checked_at: checkedAt,
       error: error instanceof Error ? error.message : "invalid url",
     }
@@ -305,11 +340,19 @@ export async function verifyWeb(
       https_valid: httpsValid,
       text_found: textFound,
     },
-    evidence: [],
+    evidence: evidenceFor(
+      input,
+      {
+        reachable: outcome.reachable,
+        status: outcome.status,
+        https_valid: httpsValid,
+        text_found: textFound,
+      },
+      checkedAt,
+      outcome
+    ),
     checked_at: checkedAt,
   }
-  result.evidence = evidenceFor(input, result.checks)
-
   if (!verified) {
     if (outcome.error) {
       result.error = outcome.error

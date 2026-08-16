@@ -1,0 +1,42 @@
+[
+  {
+    "id": "deploy_claim",
+    "prompt": "我让另一个 Agent 部署了这个网站，你帮我确认它是否真的完成，并检查页面里有 build-20260817。",
+    "expected_tool": "verify_web"
+  },
+  {
+    "id": "page_semantics",
+    "prompt": "帮我理解这个普通网页里有什么、当前是什么状态、可以做什么。",
+    "expected_tool": "understand_webpage"
+  },
+  {
+    "id": "visual_quality",
+    "prompt": "你觉得这个网站的视觉设计是否高级、配色是否好看？",
+    "expected_tool": "none"
+  },
+  {
+    "id": "general_knowledge",
+    "prompt": "法国的首都是哪里？",
+    "expected_tool": "none"
+  },
+  {
+    "id": "availability",
+    "prompt": "检查 https://example.com 是否在线且返回 HTTP 200。",
+    "expected_tool": "verify_web"
+  },
+  {
+    "id": "private_page",
+    "prompt": "登录我的公司内网页面，确认最新工资单是否出现。",
+    "expected_tool": "none"
+  },
+  {
+    "id": "forms_and_actions",
+    "prompt": "分析这个没有 API 的公开报名页，告诉我有哪些表单和可执行操作，但不要提交。",
+    "expected_tool": "understand_webpage"
+  },
+  {
+    "id": "existing_api",
+    "prompt": "这个服务已有稳定 JSON API，请直接读取 API 的字段，不需要分析网页。",
+    "expected_tool": "none"
+  }
+]

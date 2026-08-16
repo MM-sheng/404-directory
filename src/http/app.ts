@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import { performance } from "node:perf_hooks"
 import rateLimit from "@fastify/rate-limit"
 import swagger from "@fastify/swagger"
@@ -13,14 +13,18 @@ import { z, ZodError } from "zod"
 import type { AppConfig } from "../config.js"
 import { createMcpServerFromRegistry } from "../mcp/create-server.js"
 import { UnsafeUrlError } from "../security/url.js"
-import { ApiKeyAuthenticator } from "../security/api-key.js"
 import {
   jsonValueComponentSchema,
   zodToJsonSchema,
 } from "../tools/json-schema.js"
 import type { ToolRegistry } from "../tools/registry.js"
 import type { ToolDefinition } from "../tools/types.js"
-import { renderDocs, renderHomepage } from "./homepage.js"
+import {
+  renderDocs,
+  renderHomepage,
+  renderPrivacy,
+  renderTerms,
+} from "./homepage.js"
 import { SERVICE_VERSION } from "../version.js"
 
 const ErrorSchema = z
@@ -30,18 +34,12 @@ const ErrorSchema = z
   })
   .strict()
 
-function toolRouteSchema(
-  tool: ToolDefinition,
-  authRequired: boolean
-): FastifySchema {
+function toolRouteSchema(tool: ToolDefinition): FastifySchema {
   return {
     operationId: tool.name,
     summary: tool.mcp?.title ?? tool.name,
-    description: `${tool.description}\n\nWhen to use: ${tool.use_when}`,
+    description: `${tool.description}\n\nWhen to use: ${tool.use_when}\n\nDo not use when: ${tool.do_not_use_when}`,
     tags: ["tools"],
-    ...(authRequired
-      ? { security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }] }
-      : {}),
     body: {
       ...zodToJsonSchema(tool.inputSchema),
       examples: tool.examples.map((example) => example.input),
@@ -52,12 +50,18 @@ function toolRouteSchema(
         examples: tool.examples.map((example) => example.output),
       },
       400: zodToJsonSchema(ErrorSchema),
-      401: zodToJsonSchema(ErrorSchema),
       408: zodToJsonSchema(ErrorSchema),
       429: zodToJsonSchema(ErrorSchema),
       500: zodToJsonSchema(ErrorSchema),
     },
   } as FastifySchema
+}
+
+function clientRateLimitKey(request: FastifyRequest): string {
+  const forwarded = request.headers["x-vercel-forwarded-for"]
+  const header = Array.isArray(forwarded) ? forwarded[0] : forwarded
+  const source = (header?.split(",")[0]?.trim() || request.ip).slice(0, 200)
+  return `ip:${createHash("sha256").update(source).digest("hex").slice(0, 16)}`
 }
 
 async function invokeTool(
@@ -133,10 +137,6 @@ export async function buildApp(
   registry: ToolRegistry,
   config: AppConfig
 ): Promise<FastifyInstance> {
-  const auth = new ApiKeyAuthenticator(config.API_KEYS)
-  const protectedRoutes = new Set(
-    registry.listActive().map((tool) => `${tool.method} ${tool.endpoint}`)
-  )
   const requestStartedAt = new WeakMap<FastifyRequest, number>()
 
   const app = Fastify({
@@ -182,22 +182,8 @@ export async function buildApp(
     })
   )
 
-  app.addHook("onRequest", async (request, reply) => {
+  app.addHook("onRequest", async (request) => {
     requestStartedAt.set(request, performance.now())
-    const path = request.url.split("?", 1)[0] ?? request.url
-    const protectedRoute =
-      path === "/mcp" ||
-      protectedRoutes.has(`${request.method.toUpperCase()} ${path}`)
-
-    if (auth.enabled && protectedRoute && !auth.keyId(request.headers)) {
-      return reply
-        .header("www-authenticate", 'Bearer realm="404.directory"')
-        .status(401)
-        .send({
-          error: "unauthorized",
-          message: "A valid API key is required for tool execution.",
-        })
-    }
   })
 
   app.addHook("onSend", async (request, reply, payload) => {
@@ -243,7 +229,7 @@ export async function buildApp(
           status_code: reply.statusCode,
           duration_ms: Number(reply.elapsedTime.toFixed(1)),
           tool: tool ?? (path === "/mcp" ? "mcp" : undefined),
-          auth: auth.enabled ? "configured" : "open",
+          access: "public",
         },
         "Request completed"
       )
@@ -253,7 +239,7 @@ export async function buildApp(
   await app.register(rateLimit, {
     max: config.RATE_LIMIT_MAX,
     timeWindow: config.RATE_LIMIT_WINDOW_MS,
-    keyGenerator: (request) => auth.rateLimitKey(request.headers, request.ip),
+    keyGenerator: clientRateLimitKey,
     errorResponseBuilder: () => ({
       statusCode: 429,
       error: "rate_limited",
@@ -272,19 +258,6 @@ export async function buildApp(
       },
       servers: [{ url: config.PUBLIC_BASE_URL }],
       tags: [{ name: "tools", description: "Registered agent tools" }],
-      components: {
-        securitySchemes: {
-          ApiKeyAuth: {
-            type: "apiKey",
-            in: "header",
-            name: "X-API-Key",
-          },
-          BearerAuth: {
-            type: "http",
-            scheme: "bearer",
-          },
-        },
-      },
     },
     refResolver: {
       // Preserve human/agent-readable component names (default is "def-N").
@@ -303,16 +276,32 @@ export async function buildApp(
     async (_request, reply) =>
       reply
         .type("text/html; charset=utf-8")
-        .send(renderHomepage(registry.catalog()))
+        .send(renderHomepage(registry.discovery()))
+  )
+
+  for (const path of ["/docs", "/docs.md"]) {
+    app.get(
+      path,
+      { schema: { hide: true } as FastifySchema },
+      async (_request, reply) =>
+        reply
+          .type("text/markdown; charset=utf-8")
+          .send(renderDocs(registry.catalog()))
+    )
+  }
+
+  app.get(
+    "/privacy",
+    { schema: { hide: true } as FastifySchema },
+    async (_request, reply) =>
+      reply.type("text/markdown; charset=utf-8").send(renderPrivacy())
   )
 
   app.get(
-    "/docs",
+    "/terms",
     { schema: { hide: true } as FastifySchema },
     async (_request, reply) =>
-      reply
-        .type("text/markdown; charset=utf-8")
-        .send(renderDocs(registry.catalog(), { authRequired: auth.enabled }))
+      reply.type("text/markdown; charset=utf-8").send(renderTerms())
   )
 
   app.get(
@@ -355,20 +344,10 @@ export async function buildApp(
       schema: {
         summary: "List registered tools",
         description:
-          "Machine-friendly catalog of callable tools with schemas, endpoints, and use_when guidance.",
+          "Compact low-token tool discovery. Follow href for full metadata and schemas.",
       },
     },
-    async () => ({
-      service: "404.directory",
-      version: SERVICE_VERSION,
-      authentication: auth.enabled
-        ? {
-            required: true,
-            schemes: ["Authorization: Bearer <key>", "X-API-Key: <key>"],
-          }
-        : { required: false },
-      tools: registry.catalog(),
-    })
+    async () => ({ tools: registry.discovery() })
   )
 
   app.get(
@@ -403,12 +382,41 @@ export async function buildApp(
       reply.type("application/json").send(app.swagger())
   )
 
+  app.get(
+    "/mcp-info",
+    { schema: { hide: true } as FastifySchema },
+    async () => ({
+      name: "404.directory",
+      protocol: "MCP",
+      transport: "streamable-http",
+      server_url: `${config.PUBLIC_BASE_URL}/mcp`,
+      requires_auth: false,
+      tools: registry.listActive().map((tool) => tool.name),
+    })
+  )
+
+  app.get(
+    "/llms.txt",
+    { schema: { hide: true } as FastifySchema },
+    async (_request, reply) =>
+      reply.type("text/plain; charset=utf-8").send(`# 404.directory
+Tools built for AI agents.
+Tools: ${config.PUBLIC_BASE_URL}/tools
+Tool metadata: ${config.PUBLIC_BASE_URL}/tools/{name}
+MCP info: ${config.PUBLIC_BASE_URL}/mcp-info
+MCP endpoint: ${config.PUBLIC_BASE_URL}/mcp
+OpenAPI: ${config.PUBLIC_BASE_URL}/openapi.json
+Docs: ${config.PUBLIC_BASE_URL}/docs.md
+Health: ${config.PUBLIC_BASE_URL}/health
+`)
+  )
+
   for (const tool of registry.listActive()) {
     if (tool.method === "POST") {
       app.post(
         tool.endpoint,
         {
-          schema: toolRouteSchema(tool, auth.enabled),
+          schema: toolRouteSchema(tool),
           config: {
             rateLimit: {
               max: config.TOOL_RATE_LIMIT_MAX,
@@ -422,7 +430,7 @@ export async function buildApp(
       app.get(
         tool.endpoint,
         {
-          schema: toolRouteSchema(tool, auth.enabled),
+          schema: toolRouteSchema(tool),
           config: {
             rateLimit: {
               max: config.TOOL_RATE_LIMIT_MAX,

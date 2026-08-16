@@ -1,0 +1,70 @@
+{
+  "run_at": "2026-08-17T00:47:10+08:00",
+  "agent": "Codex CLI 0.147.0-alpha.6.5 / gpt-5.6-sol",
+  "method": "The agent received only the two public tool descriptions and eight independent prompts; tool names were not supplied as expected answers.",
+  "summary": {
+    "cases": 8,
+    "correct": 8,
+    "wrong_tool": 0,
+    "missed_call": 0,
+    "unnecessary_call": 0
+  },
+  "decisions": [
+    {
+      "id": "deploy_claim",
+      "expected_tool": "verify_web",
+      "selected_tool": "verify_web",
+      "correct": true,
+      "reason": "The prompt asks to verify a public deployment, availability, and the presence of exact build text."
+    },
+    {
+      "id": "page_semantics",
+      "expected_tool": "understand_webpage",
+      "selected_tool": "understand_webpage",
+      "correct": true,
+      "reason": "The prompt asks for semantic extraction of page content, state, and available actions."
+    },
+    {
+      "id": "visual_quality",
+      "expected_tool": "none",
+      "selected_tool": "none",
+      "correct": true,
+      "reason": "Subjective visual-quality assessment is outside both tools' intended purposes."
+    },
+    {
+      "id": "general_knowledge",
+      "expected_tool": "none",
+      "selected_tool": "none",
+      "correct": true,
+      "reason": "This is a stable general-knowledge question that requires neither webpage understanding nor site verification."
+    },
+    {
+      "id": "availability",
+      "expected_tool": "verify_web",
+      "selected_tool": "verify_web",
+      "correct": true,
+      "reason": "The prompt explicitly asks to verify public-site availability and an HTTP 200 response."
+    },
+    {
+      "id": "private_page",
+      "expected_tool": "none",
+      "selected_tool": "none",
+      "correct": true,
+      "reason": "Both tools exclude private or authenticated pages."
+    },
+    {
+      "id": "forms_and_actions",
+      "expected_tool": "understand_webpage",
+      "selected_tool": "understand_webpage",
+      "correct": true,
+      "reason": "The prompt asks to identify forms and executable actions on a public webpage without submitting anything."
+    },
+    {
+      "id": "existing_api",
+      "expected_tool": "none",
+      "selected_tool": "none",
+      "correct": true,
+      "reason": "The service already provides a stable JSON API, which understand_webpage explicitly should not be used for."
+    }
+  ]
+}

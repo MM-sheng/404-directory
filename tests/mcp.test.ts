@@ -57,9 +57,12 @@ describe("registry MCP adapter", () => {
     expect(result.isError).not.toBe(true)
     expect(result.structuredContent).toMatchObject({
       verified: true,
-      evidence: expect.arrayContaining([
-        expect.objectContaining({ check: "status", passed: true }),
-      ]),
+      evidence: {
+        http: { status: 200, expected_status: 200, matched: true },
+        claims: expect.arrayContaining([
+          expect.objectContaining({ claim: "status_matches", passed: true }),
+        ]),
+      },
     })
   })
 
@@ -71,10 +74,16 @@ describe("registry MCP adapter", () => {
       description:
         "Test tool that always fails so the MCP adapter can prove internal errors are sanitized.",
       use_when: "Only in automated tests.",
+      do_not_use_when: "Outside automated tests.",
       version: "1.0.0",
       endpoint: "/failing",
       method: "POST",
       status: "active",
+      read_only: true,
+      side_effects: [],
+      requires_auth: false,
+      cost: "free",
+      typical_latency_ms: 1,
       examples: [],
       inputSchema: input,
       outputSchema: output,

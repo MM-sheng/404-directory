@@ -14,10 +14,17 @@ export function createVerifyWebTool(
       "Independently verifies that a public website is reachable and meets deployment expectations (HTTP status, HTTPS validity, optional expected text). Returns structured evidence for accept / retry / escalate decisions.",
     use_when:
       "Use after another agent, coding agent, or deploy system claims a site is live or updated. Prefer including expected_text that distinguishes the new version (build id, version string, unique copy).",
-    version: "0.2.0",
+    do_not_use_when:
+      "Do not use to extract page entities, forms, actions, or meaning; use understand_webpage for that. Do not use for private/internal URLs or subjective visual-quality judgments.",
+    version: "0.3.0",
     endpoint: "/verify/web",
     method: "POST",
     status: "active",
+    read_only: true,
+    side_effects: [],
+    requires_auth: false,
+    cost: "free",
+    typical_latency_ms: 1200,
     examples: [
       {
         description: "Verify a deployment and version-specific page text",
@@ -34,32 +41,44 @@ export function createVerifyWebTool(
             https_valid: true,
             text_found: true,
           },
-          evidence: [
-            {
-              check: "reachable",
-              expected: true,
-              observed: true,
-              passed: true,
+          evidence: {
+            requested_url: "https://example.com",
+            final_url: "https://example.com/",
+            http: { status: 200, expected_status: 200, matched: true },
+            expected_text: {
+              value: "Example Domain",
+              checked: true,
+              matched: true,
             },
-            {
-              check: "status",
-              expected: 200,
-              observed: 200,
-              passed: true,
-            },
-            {
-              check: "https",
-              expected: true,
-              observed: true,
-              passed: true,
-            },
-            {
-              check: "text",
-              expected: "Example Domain",
-              observed: true,
-              passed: true,
-            },
-          ],
+            tls: { requested: true, valid: true },
+            redirects: { count: 0, chain: [] },
+            checked_at: "2026-08-16T08:50:33.986Z",
+            claims: [
+              {
+                claim: "reachable",
+                passed: true,
+                evidence_paths: ["http.status", "final_url"],
+              },
+              {
+                claim: "status_matches",
+                passed: true,
+                evidence_paths: ["http.status", "http.expected_status"],
+              },
+              {
+                claim: "https_valid",
+                passed: true,
+                evidence_paths: ["tls.requested", "tls.valid"],
+              },
+              {
+                claim: "expected_text_found",
+                passed: true,
+                evidence_paths: [
+                  "expected_text.value",
+                  "expected_text.matched",
+                ],
+              },
+            ],
+          },
           checked_at: "2026-08-16T08:50:33.986Z",
         },
       },

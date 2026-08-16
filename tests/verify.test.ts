@@ -44,32 +44,25 @@ describe("verifyWeb fetch behavior", () => {
       https_valid: true,
       text_found: true,
     })
-    expect(result.evidence).toEqual([
-      {
-        check: "reachable",
-        expected: true,
-        observed: true,
-        passed: true,
+    expect(result.evidence).toMatchObject({
+      requested_url: "https://example.com",
+      final_url: "https://example.com/",
+      http: { status: 200, expected_status: 200, matched: true },
+      expected_text: {
+        value: "Example Domain",
+        checked: true,
+        matched: true,
       },
-      {
-        check: "status",
-        expected: 200,
-        observed: 200,
-        passed: true,
-      },
-      {
-        check: "https",
-        expected: true,
-        observed: true,
-        passed: true,
-      },
-      {
-        check: "text",
-        expected: "Example Domain",
-        observed: true,
-        passed: true,
-      },
-    ])
+      tls: { requested: true, valid: true },
+      redirects: { count: 0, chain: [] },
+      claims: expect.arrayContaining([
+        {
+          claim: "status_matches",
+          passed: true,
+          evidence_paths: ["http.status", "http.expected_status"],
+        },
+      ]),
+    })
     expect(() => VerifyWebResultSchema.parse(result)).not.toThrow()
   })
 
@@ -92,6 +85,43 @@ describe("verifyWeb fetch behavior", () => {
 
     expect(result.verified).toBe(false)
     expect(result.error).toMatch(/exceeded/i)
-    expect(result.evidence).toHaveLength(3)
+    expect(result.evidence.claims).toHaveLength(3)
+    expect(result.evidence.final_url).toBeNull()
+  })
+
+  it("records every redirect as evidence", async () => {
+    const responses = [
+      { status: 302, location: "/final", body: "" },
+      { status: 200, body: "ready" },
+    ]
+    const result = await verifyWeb(
+      {
+        url: "https://example.com/start",
+        expected_status: 200,
+        expected_text: "ready",
+      },
+      {
+        timeoutMs: 2_000,
+        maxBodyBytes: 1_024,
+        maxRedirects: 3,
+        resolveUrl: async (input) => ({
+          url: new URL(input),
+          addresses: [{ address: "93.184.216.34", family: 4 }],
+        }),
+        requestUrl: async () => responses.shift()!,
+      }
+    )
+
+    expect(result.verified).toBe(true)
+    expect(result.evidence.redirects).toEqual({
+      count: 1,
+      chain: [
+        {
+          status: 302,
+          from: "https://example.com/start",
+          to: "https://example.com/final",
+        },
+      ],
+    })
   })
 })

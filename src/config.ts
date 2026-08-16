@@ -87,27 +87,6 @@ const EnvironmentSchema = z.object({
     .max(3_600_000)
     .default(60_000),
   TOOL_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(10_000).default(20),
-  API_KEYS: z
-    .string()
-    .default("")
-    .transform((value, context) => {
-      const keys = [
-        ...new Set(
-          value
-            .split(",")
-            .map((key) => key.trim())
-            .filter(Boolean)
-        ),
-      ]
-      if (keys.some((key) => key.length < 24)) {
-        context.addIssue({
-          code: "custom",
-          message: "Every API key must contain at least 24 characters",
-        })
-        return z.NEVER
-      }
-      return keys
-    }),
 })
 
 export type AppConfig = z.infer<typeof EnvironmentSchema>
