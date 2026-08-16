@@ -9,7 +9,11 @@ import { UnderstandService } from "../understand.js"
 import { createMcpServerFromRegistry } from "./create-server.js"
 
 const config = loadConfig()
-const browsers = new BrowserManager(config.HEADLESS)
+const browsers = new BrowserManager({
+  headless: config.HEADLESS,
+  allowedPorts: config.BROWSER_EGRESS_ALLOWED_PORTS,
+  maxResourceBytes: config.BROWSER_MAX_RESOURCE_BYTES,
+})
 const collector = new PageCollector(browsers, config)
 const llm = new OptionalLlmAnalyzer({
   enabled: config.ENABLE_LLM,

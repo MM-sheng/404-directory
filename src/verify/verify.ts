@@ -13,6 +13,47 @@ export type VerifyWebOptions = {
   requestUrl?: typeof requestPinned
 }
 
+function evidenceFor(
+  input: VerifyWebRequest,
+  checks: VerifyWebResult["checks"]
+): VerifyWebResult["evidence"] {
+  const evidence: VerifyWebResult["evidence"] = [
+    {
+      check: "reachable",
+      expected: true,
+      observed: checks.reachable,
+      passed: checks.reachable,
+    },
+    {
+      check: "status",
+      expected: input.expected_status,
+      observed: checks.status,
+      passed: checks.status === input.expected_status,
+    },
+    {
+      check: "https",
+      expected: true,
+      observed: checks.https_valid,
+      passed: checks.https_valid,
+    },
+  ]
+
+  const expectedText = input.expected_text?.trim()
+  if (expectedText) {
+    evidence.push({
+      check: "text",
+      expected:
+        expectedText.length <= 200
+          ? expectedText
+          : `${expectedText.slice(0, 197)}...`,
+      observed: checks.text_found,
+      passed: checks.text_found,
+    })
+  }
+
+  return evidence
+}
+
 type FetchOutcome = {
   reachable: boolean
   status: number | null
@@ -221,14 +262,16 @@ export async function verifyWeb(
   try {
     url = (await (options.resolveUrl ?? resolvePublicHttpUrl)(input.url)).url
   } catch (error) {
+    const checks = {
+      reachable: false,
+      status: null,
+      https_valid: false,
+      text_found: false,
+    }
     return {
       verified: false,
-      checks: {
-        reachable: false,
-        status: null,
-        https_valid: false,
-        text_found: false,
-      },
+      checks,
+      evidence: evidenceFor(input, checks),
       checked_at: checkedAt,
       error: error instanceof Error ? error.message : "invalid url",
     }
@@ -262,8 +305,10 @@ export async function verifyWeb(
       https_valid: httpsValid,
       text_found: textFound,
     },
+    evidence: [],
     checked_at: checkedAt,
   }
+  result.evidence = evidenceFor(input, result.checks)
 
   if (!verified) {
     if (outcome.error) {

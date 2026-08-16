@@ -55,6 +55,29 @@ curl -sS http://127.0.0.1:4040/verify/web \
   -d '{"url":"https://example.com","expected_status":200,"expected_text":"Example Domain"}'
 ```
 
+`verify_web` returns both compact booleans in `checks` and 3–4 explicit
+`evidence` items (`reachable`, `status`, `https`, and optional `text`) with
+expected/observed values.
+
+## Optional execution authentication
+
+Set one or more comma-separated keys (minimum 24 characters each):
+
+```bash
+API_KEYS='replace-with-a-random-key-at-least-24-characters'
+```
+
+When configured, Tool REST endpoints and `/mcp` require either:
+
+```text
+Authorization: Bearer <key>
+X-API-Key: <key>
+```
+
+Discovery remains public: `/`, `/health`, `/tools`, `/openapi.json`, and
+`/docs`. Valid keys get independent rate-limit identities; without auth,
+limits use Vercel's client-IP header (or the socket IP locally).
+
 ## MCP
 
 ### Streamable HTTP (same process as REST)
@@ -89,40 +112,27 @@ REST, OpenAPI, `/tools`, and MCP pick it up from the registry.
 ## Docker / production
 
 ```bash
-cp .env.example .env
-docker compose up --build -d
-# or
-./scripts/deploy.sh
+vercel deploy --prod
 ```
 
-Image is based on Playwright’s official jammy image (Chromium included). Set
-`PUBLIC_BASE_URL=https://404.directory`.
+Production runs as a Vercel Custom Container using `Dockerfile.vercel` and
+`vercel.json`. The image is based on Playwright’s official Jammy image and runs
+as the non-root `pwuser`. The Spaceship apex DNS is already pointed at Vercel;
+Vercel terminates TLS for `https://404.directory`.
 
-### Domain cutover (`404.directory`)
-
-The apex domain is registered at Spaceship and currently serves their **parking
-page** (HTTP openresty/S3). HTTPS to the parking IPs times out. Production
-cutover requires DNS changes you control:
-
-1. Build/run this image on Fly, a VPS, or Cloud Run (`fly.toml` included)
-2. In Spaceship DNS, replace parking A records with your host (or CNAME to Fly)
-3. Issue TLS for `404.directory` (Fly certs / Caddy / Cloudflare)
-4. Smoke-test `/`, `/health`, `/tools`, `/openapi.json`, `/understand`,
-   `/verify/web`, `/mcp`
-
-Temporary public smoke test from a laptop:
+Local Docker remains available:
 
 ```bash
-npm run build && npm start
-cloudflared tunnel --url http://127.0.0.1:4040
+cp .env.example .env
+docker compose up --build -d
 ```
 
 Production hardening notes:
 
-- Keep egress restricted; SSRF checks are defense-in-depth, not a substitute for
-  network policy
+- Keep `BROWSER_EGRESS_ALLOWED_PORTS` narrow (default `80,443`)
+- Set `API_KEYS` before exposing paid/high-volume access
 - Tune `RATE_LIMIT_*` and verify/browser timeouts for your traffic
-- Run as non-root (`pwuser` in the image)
+- Tool execution has a stricter `TOOL_RATE_LIMIT_MAX` than discovery
 
 ## Security boundaries
 
@@ -135,14 +145,19 @@ Production hardening notes:
 - `verify_web` caps response bodies; `198.18.0.0/15` and other reserved ranges
   are rejected in every environment
 - `understand_webpage` re-resolves and re-validates every browser request, but
-  Chromium performs its own DNS lookup when it opens the socket, so the
-  application layer cannot fully close the DNS-rebinding window on its own.
-  Browser contexts also set `serviceWorkers: "block"` so Service Workers cannot
-  bypass `browserContext.route()` interception (Playwright recommendation).
-  **Production must enforce network-level private-egress blocking** (e.g. an
-  egress firewall/proxy denying RFC1918, loopback, link-local, and reserved
-  ranges) as the authoritative backstop for this tool
-- Structured errors, request logging, health checks, rate limits
+  Chromium request and routes it through a loopback-only forward proxy. That
+  proxy resolves the destination, rejects private/reserved addresses and
+  disallowed ports, then connects to the exact IP that passed validation.
+  Chromium's implicit loopback bypass and QUIC are disabled, while non-proxied
+  WebRTC UDP is blocked. Browser contexts also set `serviceWorkers: "block"`.
+  A provider/network egress firewall is still recommended as an independent
+  second layer when the hosting platform supports one
+- Unexpected 500/MCP execution errors are sanitized; full details stay in logs
+- Structured Tool logs include route, status, duration, Tool name and auth mode,
+  never raw API keys
+- Responses include request IDs, `Server-Timing`, no-sniff/frame/referrer/
+  permissions/CSP headers; REST Tool results use `Cache-Control: no-store`,
+  while MCP streaming uses the SDK's `no-cache, no-transform` policy
 
 ## Layout
 

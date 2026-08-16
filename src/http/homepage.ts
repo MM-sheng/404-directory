@@ -107,7 +107,10 @@ ${toolLines}
 </html>`
 }
 
-export function renderDocs(tools: ToolCatalogEntry[]): string {
+export function renderDocs(
+  tools: ToolCatalogEntry[],
+  options: { authRequired: boolean }
+): string {
   const sections = tools
     .map(
       (tool) => `## ${tool.name}
@@ -134,6 +137,12 @@ Machine discovery:
 - \`GET /openapi.json\` — OpenAPI 3
 - \`GET|POST /mcp\` — MCP Streamable HTTP
 - stdio MCP: \`npm run mcp\`
+
+Authentication: ${
+    options.authRequired
+      ? "tool execution requires `Authorization: Bearer <key>` or `X-API-Key: <key>`; discovery remains public."
+      : "not currently required."
+  }
 
 ${sections}
 `

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { verifyWeb } from "../src/verify/verify.js"
+import { VerifyWebResultSchema } from "../src/verify/schemas.js"
 
 describe("verifyWeb SSRF", () => {
   it("refuses loopback targets", async () => {
@@ -43,6 +44,33 @@ describe("verifyWeb fetch behavior", () => {
       https_valid: true,
       text_found: true,
     })
+    expect(result.evidence).toEqual([
+      {
+        check: "reachable",
+        expected: true,
+        observed: true,
+        passed: true,
+      },
+      {
+        check: "status",
+        expected: 200,
+        observed: 200,
+        passed: true,
+      },
+      {
+        check: "https",
+        expected: true,
+        observed: true,
+        passed: true,
+      },
+      {
+        check: "text",
+        expected: "Example Domain",
+        observed: true,
+        passed: true,
+      },
+    ])
+    expect(() => VerifyWebResultSchema.parse(result)).not.toThrow()
   })
 
   it("rejects oversized response bodies", async () => {
@@ -64,5 +92,6 @@ describe("verifyWeb fetch behavior", () => {
 
     expect(result.verified).toBe(false)
     expect(result.error).toMatch(/exceeded/i)
+    expect(result.evidence).toHaveLength(3)
   })
 })

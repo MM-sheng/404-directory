@@ -1,10 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { ToolRegistry } from "../tools/registry.js"
+import { SERVICE_VERSION } from "../version.js"
 
 export function createMcpServerFromRegistry(registry: ToolRegistry): McpServer {
   const server = new McpServer({
     name: "404.directory",
-    version: "0.2.0",
+    version: SERVICE_VERSION,
   })
 
   for (const tool of registry.listActive()) {
@@ -18,14 +19,9 @@ export function createMcpServerFromRegistry(registry: ToolRegistry): McpServer {
         annotations: tool.mcp?.annotations,
       },
       async (args) => {
+        let parsed: unknown
         try {
-          const parsed = tool.inputSchema.parse(args)
-          const result = await tool.handler(parsed)
-          const validated = tool.outputSchema.parse(result)
-          return {
-            content: [{ type: "text", text: JSON.stringify(validated) }],
-            structuredContent: validated as Record<string, unknown>,
-          }
+          parsed = tool.inputSchema.parse(args)
         } catch (error) {
           return {
             isError: true,
@@ -33,7 +29,26 @@ export function createMcpServerFromRegistry(registry: ToolRegistry): McpServer {
               {
                 type: "text",
                 text:
-                  error instanceof Error ? error.message : "Tool execution failed",
+                  error instanceof Error ? error.message : "Invalid tool input",
+              },
+            ],
+          }
+        }
+
+        try {
+          const result = await tool.handler(parsed)
+          const validated = tool.outputSchema.parse(result)
+          return {
+            content: [{ type: "text", text: JSON.stringify(validated) }],
+            structuredContent: validated as Record<string, unknown>,
+          }
+        } catch {
+          return {
+            isError: true,
+            content: [
+              {
+                type: "text",
+                text: "Tool execution failed",
               },
             ],
           }

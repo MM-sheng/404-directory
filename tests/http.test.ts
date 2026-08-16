@@ -6,6 +6,7 @@ import { ToolRegistry } from "../src/tools/registry.js"
 import type { ToolDefinition } from "../src/tools/types.js"
 import { JsonValueSchema } from "../src/schemas/agent-page-model.js"
 import { z } from "zod"
+import { createVerifyWebTool } from "../src/tools/definitions/verify-web.js"
 
 function collectRefs(node: unknown, refs: string[]): void {
   if (Array.isArray(node)) {
@@ -176,12 +177,15 @@ describe("HTTP API", () => {
     expect(health.statusCode).toBe(200)
     expect(health.json()).toMatchObject({
       status: "ok",
+      version: "0.3.0",
+      browser_egress: "pinned_ip_proxy",
       tools: expect.arrayContaining(["understand_webpage", "verify_web"]),
     })
 
     const tools = await app.inject({ method: "GET", url: "/tools" })
     expect(tools.statusCode).toBe(200)
     const catalog = tools.json()
+    expect(catalog.authentication).toEqual({ required: false })
     expect(catalog.tools).toHaveLength(2)
     expect(catalog.tools[0]).toMatchObject({
       name: expect.any(String),
@@ -242,6 +246,10 @@ describe("HTTP API", () => {
       },
     })
     expect(spec.paths["/verify/web"].post.operationId).toBe("verify_web")
+    expect(spec.components.securitySchemes).toMatchObject({
+      ApiKeyAuth: { type: "apiKey", in: "header", name: "X-API-Key" },
+      BearerAuth: { type: "http", scheme: "bearer" },
+    })
   })
 
   it("emits an OpenAPI document with only resolvable $refs", async () => {
@@ -299,6 +307,38 @@ describe("HTTP API", () => {
     })
   })
 
+  it("serializes the production verify_web evidence schema", async () => {
+    const registry = new ToolRegistry().register(
+      createVerifyWebTool({
+        timeoutMs: 2_000,
+        maxBodyBytes: 1_024,
+        maxRedirects: 2,
+        resolveUrl: async (input) => ({
+          url: new URL(input),
+          addresses: [{ address: "93.184.216.34", family: 4 }],
+        }),
+        requestUrl: async () => ({
+          status: 200,
+          body: "Example Domain",
+        }),
+      })
+    )
+    app = await buildApp(registry, loadConfig())
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/verify/web",
+      payload: {
+        url: "https://example.com",
+        expected_status: 200,
+        expected_text: "Example Domain",
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json().evidence).toHaveLength(4)
+  })
+
   it("rejects malformed URLs", async () => {
     app = await buildApp(mockRegistry(), loadConfig())
 
@@ -345,5 +385,130 @@ describe("HTTP API", () => {
       error: "not_found",
       message: "Route not found",
     })
+  })
+
+  it("adds security, request-id, timing, and cache headers", async () => {
+    app = await buildApp(mockRegistry(), loadConfig())
+
+    const home = await app.inject({ method: "GET", url: "/" })
+    expect(home.headers).toMatchObject({
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "no-referrer",
+      "x-request-id": expect.any(String),
+    })
+    expect(home.headers["content-security-policy"]).toContain(
+      "frame-ancestors 'none'"
+    )
+    expect(home.headers["server-timing"]).toMatch(/^app;dur=/)
+
+    const tool = await app.inject({
+      method: "POST",
+      url: "/verify/web",
+      payload: { url: "https://example.com", expected_status: 200 },
+    })
+    expect(tool.headers["cache-control"]).toBe("no-store")
+  })
+
+  it("keeps discovery public and protects execution when API keys exist", async () => {
+    const key = "test-api-key-with-at-least-24-characters"
+    app = await buildApp(mockRegistry(), loadConfig({ API_KEYS: key }))
+
+    const tools = await app.inject({ method: "GET", url: "/tools" })
+    expect(tools.statusCode).toBe(200)
+    expect(tools.json().authentication).toMatchObject({ required: true })
+
+    const unauthorized = await app.inject({
+      method: "POST",
+      url: "/verify/web",
+      payload: { url: "https://example.com", expected_status: 200 },
+    })
+    expect(unauthorized.statusCode).toBe(401)
+    expect(unauthorized.json()).toEqual({
+      error: "unauthorized",
+      message: "A valid API key is required for tool execution.",
+    })
+
+    const apiKey = await app.inject({
+      method: "POST",
+      url: "/verify/web",
+      headers: { "x-api-key": key },
+      payload: { url: "https://example.com", expected_status: 200 },
+    })
+    expect(apiKey.statusCode).toBe(200)
+
+    const bearer = await app.inject({
+      method: "POST",
+      url: "/understand",
+      headers: { authorization: `Bearer ${key}` },
+      payload: { url: "https://example.com" },
+    })
+    expect(bearer.statusCode).toBe(200)
+
+    const openapi = await app.inject({ method: "GET", url: "/openapi.json" })
+    expect(openapi.json().paths["/verify/web"].post.security).toEqual([
+      { ApiKeyAuth: [] },
+      { BearerAuth: [] },
+    ])
+  })
+
+  it("applies the expensive-tool quota per valid API key", async () => {
+    const firstKey = "first-test-key-with-at-least-24-characters"
+    const secondKey = "second-test-key-with-at-least-24-characters"
+    app = await buildApp(
+      mockRegistry(),
+      loadConfig({
+        API_KEYS: `${firstKey},${secondKey}`,
+        TOOL_RATE_LIMIT_MAX: "1",
+      })
+    )
+
+    const invoke = (key: string) =>
+      app!.inject({
+        method: "POST",
+        url: "/verify/web",
+        headers: { "x-api-key": key },
+        payload: { url: "https://example.com", expected_status: 200 },
+      })
+
+    expect((await invoke(firstKey)).statusCode).toBe(200)
+    const limited = await invoke(firstKey)
+    expect(limited.statusCode, limited.body).toBe(429)
+    expect((await invoke(secondKey)).statusCode).toBe(200)
+  })
+
+  it("does not expose handler exception details over HTTP", async () => {
+    const input = z.object({ value: z.string() }).strict()
+    const output = z.object({ ok: z.boolean() }).strict()
+    const failing: ToolDefinition<typeof input, typeof output> = {
+      name: "failing_tool",
+      description:
+        "Test tool that always fails so HTTP error sanitization can be verified.",
+      use_when: "Only in automated tests.",
+      version: "1.0.0",
+      endpoint: "/failing",
+      method: "POST",
+      status: "active",
+      examples: [],
+      inputSchema: input,
+      outputSchema: output,
+      handler: async () => {
+        throw new Error("secret internal path /srv/private")
+      },
+    }
+    app = await buildApp(new ToolRegistry().register(failing), loadConfig())
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/failing",
+      payload: { value: "test" },
+    })
+
+    expect(response.statusCode).toBe(500)
+    expect(response.json()).toEqual({
+      error: "tool_failed",
+      message: "Tool execution failed",
+    })
+    expect(response.body).not.toContain("/srv/private")
   })
 })

@@ -14,7 +14,7 @@ export function createVerifyWebTool(
       "Independently verifies that a public website is reachable and meets deployment expectations (HTTP status, HTTPS validity, optional expected text). Returns structured evidence for accept / retry / escalate decisions.",
     use_when:
       "Use after another agent, coding agent, or deploy system claims a site is live or updated. Prefer including expected_text that distinguishes the new version (build id, version string, unique copy).",
-    version: "0.1.0",
+    version: "0.2.0",
     endpoint: "/verify/web",
     method: "POST",
     status: "active",
@@ -34,6 +34,32 @@ export function createVerifyWebTool(
             https_valid: true,
             text_found: true,
           },
+          evidence: [
+            {
+              check: "reachable",
+              expected: true,
+              observed: true,
+              passed: true,
+            },
+            {
+              check: "status",
+              expected: 200,
+              observed: 200,
+              passed: true,
+            },
+            {
+              check: "https",
+              expected: true,
+              observed: true,
+              passed: true,
+            },
+            {
+              check: "text",
+              expected: "Example Domain",
+              observed: true,
+              passed: true,
+            },
+          ],
           checked_at: "2026-08-16T08:50:33.986Z",
         },
       },

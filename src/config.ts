@@ -21,6 +21,34 @@ const EnvironmentSchema = z.object({
     .max(100_000)
     .default(20_000),
   MAX_ELEMENTS: z.coerce.number().int().min(10).max(2_000).default(200),
+  BROWSER_EGRESS_ALLOWED_PORTS: z
+    .string()
+    .default("80,443")
+    .transform((value, context) => {
+      const ports = [
+        ...new Set(value.split(",").map((part) => Number(part.trim()))),
+      ]
+      if (
+        ports.length === 0 ||
+        ports.some(
+          (port) => !Number.isInteger(port) || port < 1 || port > 65_535
+        )
+      ) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "BROWSER_EGRESS_ALLOWED_PORTS must be comma-separated TCP ports",
+        })
+        return z.NEVER
+      }
+      return ports
+    }),
+  BROWSER_MAX_RESOURCE_BYTES: z.coerce
+    .number()
+    .int()
+    .min(64 * 1_024)
+    .max(50 * 1_024 * 1_024)
+    .default(5 * 1_024 * 1_024),
   HEADLESS: z
     .enum(["true", "false"])
     .default("true")
@@ -58,6 +86,28 @@ const EnvironmentSchema = z.object({
     .min(1_000)
     .max(3_600_000)
     .default(60_000),
+  TOOL_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(10_000).default(20),
+  API_KEYS: z
+    .string()
+    .default("")
+    .transform((value, context) => {
+      const keys = [
+        ...new Set(
+          value
+            .split(",")
+            .map((key) => key.trim())
+            .filter(Boolean)
+        ),
+      ]
+      if (keys.some((key) => key.length < 24)) {
+        context.addIssue({
+          code: "custom",
+          message: "Every API key must contain at least 24 characters",
+        })
+        return z.NEVER
+      }
+      return keys
+    }),
 })
 
 export type AppConfig = z.infer<typeof EnvironmentSchema>
