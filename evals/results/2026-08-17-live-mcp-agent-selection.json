@@ -1,0 +1,44 @@
+{
+  "run_at": "2026-08-17T01:05:00+08:00",
+  "agent": "Codex CLI 0.147.0-alpha.6.5 / gpt-5.6-sol",
+  "mcp_server": "https://404.directory/mcp",
+  "method": "Each prompt ran in a new ephemeral agent session with the production MCP server mounted. No tool name was specified in the user prompt.",
+  "before_metadata_revision": {
+    "service_version": "0.4.0",
+    "cases": [
+      {
+        "id": "deploy_claim",
+        "expected_tool": "verify_web",
+        "selected_tool": "verify_web",
+        "tool_called": true,
+        "result": "correct"
+      },
+      {
+        "id": "page_semantics",
+        "expected_tool": "understand_webpage",
+        "selected_tool": "web_search",
+        "tool_called": false,
+        "result": "missed_call"
+      },
+      {
+        "id": "general_knowledge",
+        "expected_tool": "none",
+        "selected_tool": "none",
+        "tool_called": false,
+        "result": "correct"
+      }
+    ]
+  },
+  "metadata_change": "The understand_webpage description, use_when, and MCP server instructions now explicitly prefer it over generic web search when structured page entities, state, forms, actions, and evidence are requested.",
+  "after_metadata_revision": {
+    "service_version": "0.4.1",
+    "case": {
+      "id": "page_semantics",
+      "expected_tool": "understand_webpage",
+      "selected_tool": "web_search",
+      "tool_called": false,
+      "result": "missed_call"
+    }
+  },
+  "conclusion": "The metadata-only routing evaluation scored 8/8 and verify_web routed correctly in a live MCP session. However, this Codex host prefers its built-in web_search for simple page understanding even after metadata clarification. This remains a distribution/host-priority issue and should be retested in ChatGPT's MCP-only plugin context and other MCP clients."
+}
