@@ -12,7 +12,10 @@ import { z, ZodError } from "zod"
 import type { AppConfig } from "../config.js"
 import { createMcpServerFromRegistry } from "../mcp/create-server.js"
 import { UnsafeUrlError } from "../security/url.js"
-import { zodToJsonSchema } from "../tools/json-schema.js"
+import {
+  jsonValueComponentSchema,
+  zodToJsonSchema,
+} from "../tools/json-schema.js"
 import type { ToolRegistry } from "../tools/registry.js"
 import type { ToolDefinition } from "../tools/types.js"
 import { renderDocs, renderHomepage } from "./homepage.js"
@@ -166,7 +169,16 @@ export async function buildApp(
       servers: [{ url: config.PUBLIC_BASE_URL }],
       tags: [{ name: "tools", description: "Registered agent tools" }],
     },
+    refResolver: {
+      // Preserve human/agent-readable component names (default is "def-N").
+      buildLocalReference: (json) =>
+        (json.$id as string | undefined) ?? "shared",
+    },
   })
+
+  // Register the recursive JSON value schema once so `$ref` targets resolve in
+  // both ajv validation and the generated OpenAPI document (components.schemas).
+  app.addSchema(jsonValueComponentSchema())
 
   app.get(
     "/",

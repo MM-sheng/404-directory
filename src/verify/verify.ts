@@ -1,6 +1,7 @@
 import type { IncomingMessage, RequestOptions } from "node:http"
 import { request as httpRequest } from "node:http"
 import { request as httpsRequest } from "node:https"
+import { isIP } from "node:net"
 import { resolvePublicHttpUrl, UnsafeUrlError } from "../security/url.js"
 import type { VerifyWebRequest, VerifyWebResult } from "./schemas.js"
 
@@ -62,6 +63,11 @@ async function requestPinned(
       accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       "accept-encoding": "identity",
     }
+    // SNI must be a hostname; passing an IP literal makes Node's TLS stack
+    // reject the request. For IP-literal URLs we omit servername and let TLS
+    // validate the certificate against the IP (SAN) instead.
+    const sniHost = url.hostname.replace(/^\[|\]$/g, "")
+    const servername = isIP(sniHost) === 0 ? url.hostname : undefined
     const requestOptions: RequestOptions = {
       protocol: url.protocol,
       hostname: address.address,
@@ -71,7 +77,7 @@ async function requestPinned(
       method: "GET",
       headers,
       signal,
-      ...(url.protocol === "https:" ? { servername: url.hostname } : {}),
+      ...(url.protocol === "https:" && servername ? { servername } : {}),
     }
     const request = (url.protocol === "https:" ? httpsRequest : httpRequest)(
       requestOptions,

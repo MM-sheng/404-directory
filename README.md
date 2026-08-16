@@ -129,11 +129,17 @@ Production hardening notes:
 - HTTP(S) only; URL credentials rejected
 - DNS → private/loopback/link-local/reserved addresses rejected
 - `verify_web` pins each connection to the exact public IP that passed DNS
-  validation, then re-resolves and re-validates every redirect hop
+  validation, then re-resolves and re-validates every redirect hop. TLS SNI is
+  sent only for hostnames; IP-literal URLs (e.g. `https://1.1.1.1`) omit SNI and
+  validate the certificate against the IP instead
 - `verify_web` caps response bodies; `198.18.0.0/15` and other reserved ranges
   are rejected in every environment
-- `understand_webpage` re-resolves every browser request and rejects unsafe
-  destinations; production still requires network-level private-egress blocking
+- `understand_webpage` re-resolves and re-validates every browser request, but
+  Chromium performs its own DNS lookup when it opens the socket, so the
+  application layer cannot fully close the DNS-rebinding window on its own.
+  **Production must enforce network-level private-egress blocking** (e.g. an
+  egress firewall/proxy denying RFC1918, loopback, link-local, and reserved
+  ranges) as the authoritative backstop for this tool
 - Structured errors, request logging, health checks, rate limits
 
 ## Layout

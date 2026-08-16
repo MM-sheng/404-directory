@@ -4,7 +4,40 @@ import { buildApp } from "../src/http/app.js"
 import { loadConfig } from "../src/config.js"
 import { ToolRegistry } from "../src/tools/registry.js"
 import type { ToolDefinition } from "../src/tools/types.js"
+import { JsonValueSchema } from "../src/schemas/agent-page-model.js"
 import { z } from "zod"
+
+function collectRefs(node: unknown, refs: string[]): void {
+  if (Array.isArray(node)) {
+    for (const child of node) collectRefs(child, refs)
+    return
+  }
+  if (node && typeof node === "object") {
+    for (const [key, value] of Object.entries(
+      node as Record<string, unknown>
+    )) {
+      if (key === "$ref" && typeof value === "string") refs.push(value)
+      else collectRefs(value, refs)
+    }
+  }
+}
+
+function resolvePointer(doc: unknown, ref: string): boolean {
+  if (!ref.startsWith("#/")) return false
+  const parts = ref
+    .slice(2)
+    .split("/")
+    .map((p) => p.replaceAll("~1", "/").replaceAll("~0", "~"))
+  let current: unknown = doc
+  for (const part of parts) {
+    if (current && typeof current === "object" && part in current) {
+      current = (current as Record<string, unknown>)[part]
+    } else {
+      return false
+    }
+  }
+  return current !== undefined
+}
 
 const UnderstandOut = z
   .object({
@@ -13,7 +46,7 @@ const UnderstandOut = z
     entities: z.array(z.unknown()),
     state: z.object({
       login_status: z.string(),
-      properties: z.record(z.string(), z.unknown()),
+      properties: z.record(z.string(), JsonValueSchema),
     }),
     actions: z.array(z.unknown()),
     evidence: z.array(z.unknown()),
@@ -209,6 +242,25 @@ describe("HTTP API", () => {
       },
     })
     expect(spec.paths["/verify/web"].post.operationId).toBe("verify_web")
+  })
+
+  it("emits an OpenAPI document with only resolvable $refs", async () => {
+    app = await buildApp(mockRegistry(), loadConfig())
+
+    const openapi = await app.inject({ method: "GET", url: "/openapi.json" })
+    expect(openapi.statusCode).toBe(200)
+    const spec = openapi.json()
+
+    const refs: string[] = []
+    collectRefs(spec, refs)
+
+    expect(refs.length).toBeGreaterThan(0)
+    expect(spec.components?.schemas?.JsonValue).toBeDefined()
+
+    const unresolved = [...new Set(refs)].filter(
+      (ref) => !resolvePointer(spec, ref)
+    )
+    expect(unresolved).toEqual([])
   })
 
   it("returns the structured model from POST /understand", async () => {
