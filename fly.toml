@@ -1,0 +1,40 @@
+# fly.io deployment for 404.directory
+# 1. fly auth login
+# 2. fly apps create 404-directory
+# 3. fly secrets set PUBLIC_BASE_URL=https://404.directory
+# 4. fly deploy
+# 5. At Spaceship DNS: CNAME/A → fly assigned hostname / IPs
+#    or: fly certs add 404.directory
+
+app = '404-directory'
+primary_region = 'sjc'
+
+[build]
+
+[env]
+  HOST = '0.0.0.0'
+  PORT = '4040'
+  HEADLESS = 'true'
+  PUBLIC_BASE_URL = 'https://404.directory'
+  RATE_LIMIT_MAX = '60'
+  RATE_LIMIT_WINDOW_MS = '60000'
+
+[http_service]
+  internal_port = 4040
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '45s'
+    method = 'GET'
+    path = '/health'
+
+[[vm]]
+  size = 'shared-cpu-2x'
+  memory = '2gb'
+  cpus = 2

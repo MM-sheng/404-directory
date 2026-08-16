@@ -1,0 +1,17 @@
+services:
+  directory:
+    build: .
+    image: 404-directory:latest
+    ports:
+      - "4040:4040"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 4040
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://404.directory}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp
+    # Prefer blocking private egress at the host/firewall layer in production.

@@ -1,0 +1,356 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-serif);
+    --font-sans: var(--font-sans);
+    --font-serif: var(--font-serif);
+    --font-mono: var(--font-mono);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+    --ease-silk: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root {
+    --background: oklch(0.97 0 0);
+    --foreground: oklch(0.18 0 0);
+    --card: oklch(0.99 0 0);
+    --card-foreground: oklch(0.18 0 0);
+    --popover: oklch(0.99 0 0);
+    --popover-foreground: oklch(0.18 0 0);
+    --primary: oklch(0.18 0 0);
+    --primary-foreground: oklch(0.99 0 0);
+    --secondary: oklch(0.94 0 0);
+    --secondary-foreground: oklch(0.22 0 0);
+    --muted: oklch(0.94 0 0);
+    --muted-foreground: oklch(0.48 0 0);
+    --accent: oklch(0.94 0 0);
+    --accent-foreground: oklch(0.18 0 0);
+    --destructive: oklch(0.45 0 0);
+    --border: oklch(0.88 0 0);
+    --input: oklch(0.88 0 0);
+    --ring: oklch(0.4 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --radius: 0.75rem;
+    --sidebar: oklch(0.95 0 0);
+    --sidebar-foreground: oklch(0.22 0 0);
+    --sidebar-primary: oklch(0.18 0 0);
+    --sidebar-primary-foreground: oklch(0.99 0 0);
+    --sidebar-accent: oklch(0.91 0 0);
+    --sidebar-accent-foreground: oklch(0.18 0 0);
+    --sidebar-border: oklch(0.88 0 0);
+    --sidebar-ring: oklch(0.4 0 0);
+}
+
+.dark {
+    --background: oklch(0.16 0 0);
+    --foreground: oklch(0.96 0 0);
+    --card: oklch(0.2 0 0);
+    --card-foreground: oklch(0.96 0 0);
+    --popover: oklch(0.2 0 0);
+    --popover-foreground: oklch(0.96 0 0);
+    --primary: oklch(0.96 0 0);
+    --primary-foreground: oklch(0.16 0 0);
+    --secondary: oklch(0.24 0 0);
+    --secondary-foreground: oklch(0.96 0 0);
+    --muted: oklch(0.24 0 0);
+    --muted-foreground: oklch(0.7 0 0);
+    --accent: oklch(0.24 0 0);
+    --accent-foreground: oklch(0.96 0 0);
+    --destructive: oklch(0.78 0 0);
+    --border: oklch(1 0 0 / 12%);
+    --input: oklch(1 0 0 / 14%);
+    --ring: oklch(0.7 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.13 0 0);
+    --sidebar-foreground: oklch(0.96 0 0);
+    --sidebar-primary: oklch(0.96 0 0);
+    --sidebar-primary-foreground: oklch(0.13 0 0);
+    --sidebar-accent: oklch(0.22 0 0);
+    --sidebar-accent-foreground: oklch(0.96 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.7 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes composer-send {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(0.985);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Words are written in, not faded. clip-path is a compositor clip — no blur,
+   no opacity, so glyphs stay sharp and the page does not flicker. */
+@keyframes token-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+    box-shadow: 0 1px 0 var(--foreground);
+  }
+  72% {
+    box-shadow: 0 1px 0 var(--foreground);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    box-shadow: 0 1px 0 transparent;
+  }
+}
+
+@keyframes meter {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes signal {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-rise {
+  animation: rise 0.6s var(--ease-silk) both;
+}
+
+.animate-composer-send {
+  animation: composer-send 0.45s var(--ease-silk);
+}
+
+.animate-fade {
+  animation: fade 0.5s var(--ease-silk) both;
+}
+
+.token-in {
+  display: inline-block;
+  animation: token-in 0.34s var(--ease-silk) backwards;
+}
+
+.write-head {
+  position: relative;
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 3px;
+  background: var(--foreground);
+  vertical-align: -0.18em;
+}
+
+.write-head::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  width: 1.15rem;
+  height: 1px;
+  background: var(--foreground);
+  opacity: 0.35;
+}
+
+.write-meter {
+  position: relative;
+  width: 2.75rem;
+  height: 2px;
+  overflow: hidden;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--border) 0 3px,
+    transparent 3px 6px
+  );
+}
+
+.write-meter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--foreground) 0 3px,
+    transparent 3px 6px
+  );
+  animation: meter 1.05s steps(5, end) infinite;
+}
+
+.signal-line {
+  position: relative;
+  height: 1px;
+  overflow: hidden;
+  background: var(--border);
+}
+
+.signal-line::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 42%;
+  background: var(--foreground);
+  opacity: 0.55;
+  animation: signal 1.8s var(--ease-silk) infinite;
+}
+
+.composer-field {
+  position: relative;
+  border-bottom: 1px solid var(--border);
+}
+
+.composer-field::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: -1px;
+  height: 1px;
+  background: var(--foreground);
+  transform: scaleX(0);
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .composer-field::after {
+    transition: transform 0.55s var(--ease-silk);
+  }
+}
+
+.composer-field-active::after {
+  transform: scaleX(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-composer-send,
+  .animate-fade,
+  .token-in,
+  .write-meter::after,
+  .signal-line::after {
+    animation: none;
+  }
+}
+
+.chat-markdown :where(p, ul, ol, blockquote, table) {
+  margin-block: 0.7em;
+}
+
+.chat-markdown :where(p:first-child, ul:first-child, ol:first-child) {
+  margin-top: 0;
+}
+
+.chat-markdown :where(ul) {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+
+.chat-markdown :where(ol) {
+  list-style: decimal;
+  padding-left: 1.25rem;
+}
+
+.chat-markdown :where(a) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.chat-markdown :where(h1, h2, h3) {
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  margin-top: 1em;
+}
+
+.chat-markdown :where(pre) {
+  margin: 0;
+}
