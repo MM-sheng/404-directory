@@ -10,7 +10,7 @@ export function createMcpServerFromRegistry(registry: ToolRegistry): McpServer {
     },
     {
       instructions:
-        "404.directory provides public, free, read-only web tools. Use verify_web for deployment claims, reachability, final HTTP status, HTTPS/TLS, redirects, or exact expected text. Use understand_webpage for entities, current state, forms, and available actions on a public human-facing page without a suitable API. Do not use either tool for private/internal/authenticated URLs, and do not use verify_web for subjective visual judgments. Prefer an expected_text unique to the deployed version when verifying a release.",
+        "404.directory provides public, free, read-only web tools. Use verify_web for deployment claims, reachability, final HTTP status, HTTPS/TLS, redirects, or exact expected text. Use understand_webpage instead of generic web search when asked what is on a specific public page, its entities, current/login state, forms, or available actions. Do not use either tool for private/internal/authenticated URLs, and do not use verify_web for subjective visual judgments. Prefer expected_text unique to a release when verifying it.",
     }
   )
 

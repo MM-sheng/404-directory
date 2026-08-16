@@ -12,12 +12,12 @@ export function createUnderstandWebpageTool(
   return {
     name: "understand_webpage",
     description:
-      "Turns an ordinary human-facing webpage into a compact, evidence-backed AgentPageModel: page type, entities, current state, available actions, and supporting evidence. Observes only — never clicks, logs in, orders, or pays.",
+      "Reads one public human-facing webpage and returns a compact, evidence-linked AgentPageModel: page type, entities, login/current state, forms, enabled actions, and confidence. Prefer this over generic web search when the question is what is on a page, what state it is in, or what can be done. Observes only — never clicks, logs in, orders, or pays.",
     use_when:
-      "Use when you need to understand a webpage that has no Agent-native API — for example to identify products, forms, login walls, available actions, or page state before deciding the next step.",
+      "Use when a user asks you to understand a specific public webpage's contents, entities, forms, login wall, current state, or available actions. Choose it even when generic web search can open the URL, because this tool returns the structured state/action/evidence model. Do not replace a suitable Agent-native API.",
     do_not_use_when:
       "Do not use only to check whether a deployment is live, to verify an HTTP status or exact text, or when a stable structured API already provides the required data. It cannot access private or authenticated pages.",
-    version: "0.2.0",
+    version: "0.2.1",
     endpoint: "/understand",
     method: "POST",
     status: "active",

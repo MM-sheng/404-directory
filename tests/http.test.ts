@@ -189,7 +189,7 @@ describe("HTTP API", () => {
     expect(health.statusCode).toBe(200)
     expect(health.json()).toMatchObject({
       status: "ok",
-      version: "0.4.0",
+      version: "0.4.1",
       browser_egress: "pinned_ip_proxy",
       tools: expect.arrayContaining(["understand_webpage", "verify_web"]),
     })
