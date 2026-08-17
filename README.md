@@ -12,6 +12,8 @@ Tools built for AI agents.
 - Static MCP server card: https://404.directory/.well-known/mcp/server-card.json
 - OpenAPI: https://404.directory/openapi.json
 - Agent navigation: https://404.directory/llms.txt
+- Search crawler policy: https://404.directory/robots.txt
+- Machine sitemap: https://404.directory/sitemap.xml
 - Health: https://404.directory/health
 
 ## Tools
@@ -119,6 +121,7 @@ curl -sS https://404.directory/understand \
 - Structured schemas, evidence-linked results, explicit tool annotations, and Agent-readable errors
 - Public and free during the current stage, with fair-use rate limits
 - Private, loopback, link-local, and reserved network targets are rejected
+- Black-box Agent discovery and tool-selection results: [latest evaluation](evals/results/2026-08-17-machine-discovery-and-selection.json)
 
 For complete schemas and examples, use:
 

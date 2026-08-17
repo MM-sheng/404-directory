@@ -1,0 +1,64 @@
+{
+  "run_at": "2026-08-17T22:13:39+08:00",
+  "agent": "Codex CLI 0.147.0-alpha.6.5 / gpt-5.6-sol",
+  "service_version": "0.4.4",
+  "production_mcp": "https://404.directory/mcp",
+  "method": "Fresh ephemeral sessions ran outside the project directory. Discovery started from capability intent without the 404.directory name. Selection sessions mounted production under the neutral alias web_checks and did not reveal either tool name.",
+  "cases": [
+    {
+      "id": "capability_discovery_without_server_name",
+      "prompt_intent": "Find a no-auth remote Streamable HTTP MCP tool that checks reachability, TLS, HTTP status, and expected text.",
+      "expected_server": "404.directory",
+      "discovered_server": null,
+      "tool_called": false,
+      "result": "missed_discovery",
+      "observed_behavior": "The agent searched the public web and machine directories, evaluated other candidates, and honestly reported no fully matching server. It did not find 404.directory.",
+      "diagnosis": "The official MCP Registry record is live but its search endpoint does not currently return this server for capability terms. General AI search had not indexed the newly published site or community listing."
+    },
+    {
+      "id": "deployment_claim_with_builtin_competition",
+      "prompt_intent": "Independently verify a deployment, HTTP 200, valid HTTPS, and exact page text.",
+      "expected_tool": "verify_web",
+      "selected_tool": "web_search_and_shell",
+      "tool_called": false,
+      "result": "missed_call",
+      "observed_behavior": "With built-in web search and shell available, the host preferred them over the connected third-party MCP server and could not verify the site because its sandbox had no DNS."
+    },
+    {
+      "id": "deployment_claim_mcp_only",
+      "prompt_intent": "Independently verify a deployment, HTTP 200, valid HTTPS, and exact page text.",
+      "expected_tool": "verify_web",
+      "selected_tool": "verify_web",
+      "tool_called": true,
+      "result": "correct",
+      "evidence": {
+        "verified": true,
+        "final_url": "https://404.directory/",
+        "http_status": 200,
+        "https_valid": true,
+        "expected_text_matched": true,
+        "checked_at": "2026-08-17T14:13:39.245Z"
+      }
+    },
+    {
+      "id": "page_semantics_mcp_only",
+      "prompt_intent": "Explain what a normal webpage contains, its current state, possible actions, and traceable evidence.",
+      "expected_tool": "understand_webpage",
+      "selected_tool": "understand_webpage",
+      "tool_called": true,
+      "result": "correct",
+      "evidence": {
+        "page_type": "homepage",
+        "final_url": "https://example.com/",
+        "evidence_ids": ["e1", "e2", "e3"],
+        "confidence": 0.7
+      }
+    }
+  ],
+  "summary": {
+    "public_discovery_pass_rate": 0,
+    "mcp_only_selection_pass_rate": 1,
+    "selection_with_builtin_competition_pass_rate": 0,
+    "conclusion": "The tools are callable and route correctly after connection. The remaining bottleneck is semantic distribution before connection and host preference for built-in tools when they compete."
+  }
+}
