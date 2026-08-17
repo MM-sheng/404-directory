@@ -37,6 +37,7 @@ const CACHEABLE_DISCOVERY_PATHS = new Set([
   "/sitemap.xml",
   "/tools",
   "/mcp-info",
+  "/.well-known/mcp.json",
   "/.well-known/mcp/server-card.json",
   "/openapi.json",
   `/${INDEXNOW_KEY}.txt`,
@@ -439,6 +440,21 @@ export async function buildApp(
       registry_name: "io.github.MM-sheng/404-directory",
       repository: "https://github.com/MM-sheng/404-directory",
       requires_auth: false,
+      tools: registry.listActive().map((tool) => tool.name),
+    })
+  )
+
+  app.get(
+    "/.well-known/mcp.json",
+    { schema: { hide: true } as FastifySchema },
+    async () => ({
+      name: "404.directory",
+      version: SERVICE_VERSION,
+      protocol: "MCP",
+      transport: "streamable-http",
+      url: `${config.PUBLIC_BASE_URL}/mcp`,
+      server_url: `${config.PUBLIC_BASE_URL}/mcp`,
+      authentication: { required: false, schemes: [] },
       tools: registry.listActive().map((tool) => tool.name),
     })
   )
