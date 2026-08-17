@@ -1,0 +1,29 @@
+{
+  "name": "404-directory",
+  "version": "0.4.4",
+  "description": "Understand public webpages and verify public web deployments with structured evidence.",
+  "author": {
+    "name": "404.directory",
+    "url": "https://404.directory"
+  },
+  "homepage": "https://404.directory/docs",
+  "keywords": ["agents", "mcp", "web", "verification", "evidence"],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "404.directory",
+    "shortDescription": "Web understanding and deployment verification for agents",
+    "longDescription": "Use read-only tools to understand the entities, state, and actions on a public webpage or independently verify that a public deployment reached an expected HTTP, HTTPS, redirect, and text state.",
+    "developerName": "404.directory",
+    "category": "Developer Tools",
+    "capabilities": ["Read"],
+    "websiteURL": "https://404.directory",
+    "privacyPolicyURL": "https://404.directory/privacy",
+    "termsOfServiceURL": "https://404.directory/terms",
+    "defaultPrompt": [
+      "Verify that my latest website deployment is really live.",
+      "Explain this public webpage's state and available actions.",
+      "Check whether this site returns 200 and contains my build ID."
+    ],
+    "brandColor": "#C8F542"
+  }
+}

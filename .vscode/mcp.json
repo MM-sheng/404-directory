@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "404-directory": {
+      "type": "http",
+      "url": "https://404.directory/mcp"
+    }
+  }
+}
+
