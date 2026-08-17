@@ -27,6 +27,8 @@ import {
 } from "./homepage.js"
 import { SERVICE_VERSION } from "../version.js"
 
+const INDEXNOW_KEY = "81aaad4415a83b2ddecc49c0897c9a74"
+
 const ErrorSchema = z
   .object({
     error: z.string(),
@@ -215,6 +217,18 @@ export async function buildApp(
 
     if (request.method !== "GET" || path === "/mcp") {
       reply.header("cache-control", "no-store")
+    }
+
+    if (request.method === "GET" && path === "/") {
+      reply.header(
+        "link",
+        '</llms.txt>; rel="describedby", </docs.md>; rel="alternate"; type="text/markdown", </openapi.json>; rel="service-desc"; type="application/json"'
+      )
+    } else if (request.method === "GET" && path === "/docs") {
+      reply.header(
+        "link",
+        '</docs.md>; rel="alternate"; type="text/markdown", </llms.txt>; rel="describedby"'
+      )
     }
 
     return payload
@@ -434,19 +448,91 @@ export async function buildApp(
     "/llms.txt",
     { schema: { hide: true } as FastifySchema },
     async (_request, reply) =>
-      reply.type("text/plain; charset=utf-8").send(`# 404.directory
-Tools built for AI agents.
-Tools: ${config.PUBLIC_BASE_URL}/tools
-Tool metadata: ${config.PUBLIC_BASE_URL}/tools/{name}
-MCP info: ${config.PUBLIC_BASE_URL}/mcp-info
-MCP endpoint: ${config.PUBLIC_BASE_URL}/mcp
-MCP server card: ${config.PUBLIC_BASE_URL}/.well-known/mcp/server-card.json
-Official MCP Registry: https://registry.modelcontextprotocol.io/v0.1/servers/io.github.MM-sheng%2F404-directory/versions/latest
-Repository and client setup: https://github.com/MM-sheng/404-directory
-OpenAPI: ${config.PUBLIC_BASE_URL}/openapi.json
-Docs: ${config.PUBLIC_BASE_URL}/docs.md
-Health: ${config.PUBLIC_BASE_URL}/health
+      reply.type("text/markdown; charset=utf-8").send(`# 404.directory
+
+> Public, read-only web tools built for AI agents. Connect over MCP Streamable HTTP or call the REST API without authentication.
+
+Use verify_web to independently check whether a public site or deployment is reachable and matches an expected HTTP status or text. Use understand_webpage when an agent needs a structured model of a normal webpage's entities, state, actions, evidence, and confidence. Do not use either tool for private, internal, or authenticated URLs.
+
+## Agent discovery
+
+- [Compact tool catalog](${config.PUBLIC_BASE_URL}/tools): Low-token list of available tools and when to use them.
+- [verify_web metadata](${config.PUBLIC_BASE_URL}/tools/verify_web): Complete input/output schemas, evidence contract, examples, cost, latency, and safety metadata.
+- [understand_webpage metadata](${config.PUBLIC_BASE_URL}/tools/understand_webpage): Complete input/output schemas, examples, cost, latency, and safety metadata.
+- [MCP connection metadata](${config.PUBLIC_BASE_URL}/mcp-info): Streamable HTTP endpoint and server identity.
+- [MCP server card](${config.PUBLIC_BASE_URL}/.well-known/mcp/server-card.json): Static tool schemas for registry scanners.
+- [OpenAPI document](${config.PUBLIC_BASE_URL}/openapi.json): REST discovery and invocation contract.
+- [Agent-readable documentation](${config.PUBLIC_BASE_URL}/docs.md): Setup and usage guidance.
+
+## Direct connection
+
+- [MCP endpoint](${config.PUBLIC_BASE_URL}/mcp): Send MCP initialize, tools/list, and tools/call requests here using Streamable HTTP.
+- [Service health](${config.PUBLIC_BASE_URL}/health): Current version and active tool names.
+
+## Optional
+
+- [Official MCP Registry record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.MM-sheng%2F404-directory/versions/latest): Published remote-server metadata.
+- [Public repository](https://github.com/MM-sheng/404-directory): Client configuration examples and source.
 `)
+  )
+
+  app.get(
+    "/robots.txt",
+    { schema: { hide: true } as FastifySchema },
+    async (_request, reply) =>
+      reply.type("text/plain; charset=utf-8").send(`User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: *
+Allow: /
+
+Sitemap: ${config.PUBLIC_BASE_URL}/sitemap.xml
+`)
+  )
+
+  app.get(
+    "/sitemap.xml",
+    { schema: { hide: true } as FastifySchema },
+    async (_request, reply) => {
+      const paths = [
+        "/",
+        "/llms.txt",
+        "/tools",
+        ...registry.listActive().map((tool) => `/tools/${tool.name}`),
+        "/mcp-info",
+        "/.well-known/mcp/server-card.json",
+        "/openapi.json",
+        "/docs.md",
+        "/health",
+      ]
+      const urls = paths
+        .map(
+          (path) => `  <url><loc>${config.PUBLIC_BASE_URL}${path}</loc></url>`
+        )
+        .join("\n")
+      return reply.type("application/xml; charset=utf-8")
+        .send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls}
+</urlset>
+`)
+    }
+  )
+
+  app.get(
+    `/${INDEXNOW_KEY}.txt`,
+    { schema: { hide: true } as FastifySchema },
+    async (_request, reply) =>
+      reply.type("text/plain; charset=utf-8").send(INDEXNOW_KEY)
   )
 
   for (const tool of registry.listActive()) {

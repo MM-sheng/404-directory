@@ -276,7 +276,34 @@ describe("HTTP API", () => {
 
     const llms = await app.inject({ method: "GET", url: "/llms.txt" })
     expect(llms.statusCode).toBe(200)
-    expect(llms.body).toContain("MCP endpoint: https://404.directory/mcp")
+    expect(llms.headers["content-type"]).toContain("text/markdown")
+    expect(llms.body).toContain("[MCP endpoint](https://404.directory/mcp)")
+    expect(llms.body).toContain(
+      "[verify_web metadata](https://404.directory/tools/verify_web)"
+    )
+
+    const robots = await app.inject({ method: "GET", url: "/robots.txt" })
+    expect(robots.statusCode).toBe(200)
+    expect(robots.body).toContain("User-agent: OAI-SearchBot\nAllow: /")
+    expect(robots.body).toContain("User-agent: Claude-SearchBot\nAllow: /")
+    expect(robots.body).toContain("Sitemap: https://404.directory/sitemap.xml")
+
+    const sitemap = await app.inject({ method: "GET", url: "/sitemap.xml" })
+    expect(sitemap.statusCode).toBe(200)
+    expect(sitemap.headers["content-type"]).toContain("application/xml")
+    expect(sitemap.body).toContain(
+      "<loc>https://404.directory/tools/verify_web</loc>"
+    )
+    expect(sitemap.body).toContain(
+      "<loc>https://404.directory/tools/understand_webpage</loc>"
+    )
+
+    const indexNowKey = await app.inject({
+      method: "GET",
+      url: "/81aaad4415a83b2ddecc49c0897c9a74.txt",
+    })
+    expect(indexNowKey.statusCode).toBe(200)
+    expect(indexNowKey.body).toBe("81aaad4415a83b2ddecc49c0897c9a74")
 
     const mcpInfo = await app.inject({ method: "GET", url: "/mcp-info" })
     expect(mcpInfo.statusCode).toBe(200)
@@ -494,6 +521,10 @@ describe("HTTP API", () => {
       "frame-ancestors 'none'"
     )
     expect(home.headers["server-timing"]).toMatch(/^app;dur=/)
+    expect(home.headers.link).toContain('</llms.txt>; rel="describedby"')
+    expect(home.headers.link).toContain(
+      '</docs.md>; rel="alternate"; type="text/markdown"'
+    )
 
     const tool = await app.inject({
       method: "POST",
