@@ -28,6 +28,23 @@ import {
 import { SERVICE_VERSION } from "../version.js"
 
 const INDEXNOW_KEY = "81aaad4415a83b2ddecc49c0897c9a74"
+const CACHEABLE_DISCOVERY_PATHS = new Set([
+  "/",
+  "/docs",
+  "/docs.md",
+  "/llms.txt",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/tools",
+  "/mcp-info",
+  "/.well-known/mcp/server-card.json",
+  "/openapi.json",
+  `/${INDEXNOW_KEY}.txt`,
+])
+
+function isCacheableDiscoveryPath(path: string): boolean {
+  return CACHEABLE_DISCOVERY_PATHS.has(path) || path.startsWith("/tools/")
+}
 
 const ErrorSchema = z
   .object({
@@ -216,6 +233,13 @@ export async function buildApp(
       )
 
     if (request.method !== "GET" || path === "/mcp") {
+      reply.header("cache-control", "no-store")
+    } else if (isCacheableDiscoveryPath(path)) {
+      reply.header(
+        "cache-control",
+        "public, s-maxage=3600, stale-while-revalidate=86400"
+      )
+    } else if (path === "/health") {
       reply.header("cache-control", "no-store")
     }
 

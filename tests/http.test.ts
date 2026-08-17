@@ -521,6 +521,9 @@ describe("HTTP API", () => {
       "frame-ancestors 'none'"
     )
     expect(home.headers["server-timing"]).toMatch(/^app;dur=/)
+    expect(home.headers["cache-control"]).toBe(
+      "public, s-maxage=3600, stale-while-revalidate=86400"
+    )
     expect(home.headers.link).toContain('</llms.txt>; rel="describedby"')
     expect(home.headers.link).toContain(
       '</docs.md>; rel="alternate"; type="text/markdown"'
@@ -532,6 +535,14 @@ describe("HTTP API", () => {
       payload: { url: "https://example.com", expected_status: 200 },
     })
     expect(tool.headers["cache-control"]).toBe("no-store")
+
+    const catalog = await app.inject({ method: "GET", url: "/tools" })
+    expect(catalog.headers["cache-control"]).toBe(
+      "public, s-maxage=3600, stale-while-revalidate=86400"
+    )
+
+    const health = await app.inject({ method: "GET", url: "/health" })
+    expect(health.headers["cache-control"]).toBe("no-store")
   })
 
   it("applies the expensive-tool quota per client IP", async () => {
