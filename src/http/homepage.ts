@@ -101,6 +101,7 @@ ${toolLines}
       <a href="/openapi.json">OpenAPI</a>
       <a href="/docs">Docs</a>
       <a href="/health">Health</a>
+      <a href="https://github.com/MM-sheng/404-directory">GitHub</a>
     </nav>
   </main>
 </body>
@@ -142,9 +143,22 @@ Machine discovery:
 - \`GET /openapi.json\` — OpenAPI 3
 - \`GET /mcp-info\` — MCP discovery metadata
 - \`POST /mcp\` — MCP Streamable HTTP protocol endpoint
-- stdio MCP: \`npm run mcp\`
+- Official MCP Registry: \`io.github.MM-sheng/404-directory\`
+- Public setup repository: https://github.com/MM-sheng/404-directory
 
 Authentication: not currently required.
+
+Connect from Codex CLI:
+
+\`\`\`bash
+codex mcp add 404-directory --url https://404.directory/mcp
+\`\`\`
+
+Connect from Claude Code:
+
+\`\`\`bash
+claude mcp add --transport http --scope user 404-directory https://404.directory/mcp
+\`\`\`
 
 ${sections}
 `

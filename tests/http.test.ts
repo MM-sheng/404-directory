@@ -189,7 +189,7 @@ describe("HTTP API", () => {
     expect(health.statusCode).toBe(200)
     expect(health.json()).toMatchObject({
       status: "ok",
-      version: "0.4.3",
+      version: "0.4.4",
       browser_egress: "pinned_ip_proxy",
       tools: expect.arrayContaining(["understand_webpage", "verify_web"]),
     })
@@ -285,6 +285,8 @@ describe("HTTP API", () => {
       protocol: "MCP",
       transport: "streamable-http",
       server_url: "https://404.directory/mcp",
+      registry_name: "io.github.MM-sheng/404-directory",
+      repository: "https://github.com/MM-sheng/404-directory",
       requires_auth: false,
       tools: ["understand_webpage", "verify_web"],
     })

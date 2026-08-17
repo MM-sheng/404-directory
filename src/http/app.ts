@@ -398,6 +398,8 @@ export async function buildApp(
       protocol: "MCP",
       transport: "streamable-http",
       server_url: `${config.PUBLIC_BASE_URL}/mcp`,
+      registry_name: "io.github.MM-sheng/404-directory",
+      repository: "https://github.com/MM-sheng/404-directory",
       requires_auth: false,
       tools: registry.listActive().map((tool) => tool.name),
     })
@@ -413,6 +415,8 @@ Tools: ${config.PUBLIC_BASE_URL}/tools
 Tool metadata: ${config.PUBLIC_BASE_URL}/tools/{name}
 MCP info: ${config.PUBLIC_BASE_URL}/mcp-info
 MCP endpoint: ${config.PUBLIC_BASE_URL}/mcp
+Official MCP Registry: https://registry.modelcontextprotocol.io/v0.1/servers/io.github.MM-sheng%2F404-directory/versions/latest
+Repository and client setup: https://github.com/MM-sheng/404-directory
 OpenAPI: ${config.PUBLIC_BASE_URL}/openapi.json
 Docs: ${config.PUBLIC_BASE_URL}/docs.md
 Health: ${config.PUBLIC_BASE_URL}/health

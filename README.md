@@ -6,6 +6,9 @@ A multi-tool platform with a unified Tool Registry. Agents discover capabilities
 via `/tools`, call them over REST or MCP, and get structured Zod-validated
 results.
 
+Public discovery and copy-paste client setup:
+https://github.com/MM-sheng/404-directory
+
 ## Current tools
 
 | Tool                 | Endpoint           | When to use                                                                        |
@@ -70,6 +73,11 @@ client-IP header (or the socket IP locally).
 ### Streamable HTTP (same process as REST)
 
 Point MCP clients at `https://404.directory/mcp` (or local `http://127.0.0.1:4040/mcp`).
+
+```bash
+codex mcp add 404-directory --url https://404.directory/mcp
+claude mcp add --transport http --scope user 404-directory https://404.directory/mcp
+```
 
 ### stdio
 
