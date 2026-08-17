@@ -290,6 +290,30 @@ describe("HTTP API", () => {
       requires_auth: false,
       tools: ["understand_webpage", "verify_web"],
     })
+
+    const serverCard = await app.inject({
+      method: "GET",
+      url: "/.well-known/mcp/server-card.json",
+    })
+    expect(serverCard.statusCode).toBe(200)
+    expect(serverCard.json()).toMatchObject({
+      serverInfo: { name: "404.directory", version: "0.4.4" },
+      authentication: { required: false, schemes: [] },
+      tools: [
+        {
+          name: "understand_webpage",
+          inputSchema: expect.any(Object),
+          outputSchema: expect.any(Object),
+        },
+        {
+          name: "verify_web",
+          inputSchema: expect.any(Object),
+          outputSchema: expect.any(Object),
+        },
+      ],
+      resources: [],
+      prompts: [],
+    })
   })
 
   it("emits an OpenAPI document with only resolvable $refs", async () => {

@@ -142,6 +142,7 @@ Machine discovery:
 - \`GET /tools/:name\` — complete metadata and schemas
 - \`GET /openapi.json\` — OpenAPI 3
 - \`GET /mcp-info\` — MCP discovery metadata
+- \`GET /.well-known/mcp/server-card.json\` — static MCP server card for registries
 - \`POST /mcp\` — MCP Streamable HTTP protocol endpoint
 - Official MCP Registry: \`io.github.MM-sheng/404-directory\`
 - Public setup repository: https://github.com/MM-sheng/404-directory

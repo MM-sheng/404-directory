@@ -406,6 +406,31 @@ export async function buildApp(
   )
 
   app.get(
+    "/.well-known/mcp/server-card.json",
+    { schema: { hide: true } as FastifySchema },
+    async () => ({
+      serverInfo: {
+        name: "404.directory",
+        version: SERVICE_VERSION,
+      },
+      authentication: {
+        required: false,
+        schemes: [],
+      },
+      tools: registry.listActive().map((tool) => ({
+        name: tool.name,
+        title: tool.mcp?.title ?? tool.name,
+        description: `${tool.description}\n\nWhen to use: ${tool.use_when}\n\nDo not use when: ${tool.do_not_use_when}`,
+        inputSchema: zodToJsonSchema(tool.inputSchema),
+        outputSchema: zodToJsonSchema(tool.outputSchema),
+        annotations: tool.mcp?.annotations,
+      })),
+      resources: [],
+      prompts: [],
+    })
+  )
+
+  app.get(
     "/llms.txt",
     { schema: { hide: true } as FastifySchema },
     async (_request, reply) =>
@@ -415,6 +440,7 @@ Tools: ${config.PUBLIC_BASE_URL}/tools
 Tool metadata: ${config.PUBLIC_BASE_URL}/tools/{name}
 MCP info: ${config.PUBLIC_BASE_URL}/mcp-info
 MCP endpoint: ${config.PUBLIC_BASE_URL}/mcp
+MCP server card: ${config.PUBLIC_BASE_URL}/.well-known/mcp/server-card.json
 Official MCP Registry: https://registry.modelcontextprotocol.io/v0.1/servers/io.github.MM-sheng%2F404-directory/versions/latest
 Repository and client setup: https://github.com/MM-sheng/404-directory
 OpenAPI: ${config.PUBLIC_BASE_URL}/openapi.json
