@@ -9,6 +9,7 @@ Tools built for AI agents.
 - MCP endpoint: `https://404.directory/mcp`
 - Tool catalog: https://404.directory/tools
 - MCP metadata: https://404.directory/mcp-info
+- Static MCP server card: https://404.directory/.well-known/mcp/server-card.json
 - OpenAPI: https://404.directory/openapi.json
 - Agent navigation: https://404.directory/llms.txt
 - Health: https://404.directory/health
@@ -113,7 +114,7 @@ curl -sS https://404.directory/understand \
 
 ## Discovery and trust
 
-- Official MCP Registry name: `io.github.MM-sheng/404-directory`
+- Official MCP Registry: [`io.github.MM-sheng/404-directory`](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.MM-sheng%2F404-directory/versions/latest)
 - Production HTTPS endpoint; no local process or package installation required
 - Structured schemas, evidence-linked results, explicit tool annotations, and Agent-readable errors
 - Public and free during the current stage, with fair-use rate limits
@@ -132,4 +133,3 @@ GET https://404.directory/tools/understand_webpage
 - Privacy: https://404.directory/privacy
 - Terms: https://404.directory/terms
 - Security reports: see [SECURITY.md](SECURITY.md)
-
