@@ -189,7 +189,7 @@ describe("HTTP API", () => {
     expect(health.statusCode).toBe(200)
     expect(health.json()).toMatchObject({
       status: "ok",
-      version: "0.4.1",
+      version: "0.4.3",
       browser_egress: "pinned_ip_proxy",
       tools: expect.arrayContaining(["understand_webpage", "verify_web"]),
     })
@@ -416,6 +416,26 @@ describe("HTTP API", () => {
     expect(response.json()).toMatchObject({
       error: "invalid_request",
       message: expect.any(String),
+    })
+  })
+
+  it("rejects unknown REST input properties instead of silently removing them", async () => {
+    app = await buildApp(mockRegistry(), loadConfig())
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/verify/web",
+      payload: {
+        url: "https://example.com",
+        expected_status: 200,
+        extra: true,
+      },
+    })
+
+    expect(response.statusCode).toBe(400)
+    expect(response.json()).toMatchObject({
+      error: "invalid_request",
+      message: expect.stringContaining("additional properties"),
     })
   })
 

@@ -144,6 +144,14 @@ export async function buildApp(
     bodyLimit: 32 * 1024,
     requestTimeout: 60_000,
     genReqId: () => randomUUID(),
+    ajv: {
+      customOptions: {
+        // Tool inputs are strict contracts. Fastify/Ajv otherwise removes
+        // unknown properties before the registry's Zod parser sees them,
+        // making REST silently accept inputs that MCP correctly rejects.
+        removeAdditional: false,
+      },
+    },
   })
 
   app.setErrorHandler((error, request, reply) => {

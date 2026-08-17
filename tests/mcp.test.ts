@@ -27,6 +27,26 @@ async function connect(registry: ToolRegistry): Promise<Client> {
 }
 
 describe("registry MCP adapter", () => {
+  it("tells clients not to pair verify_web with page understanding", async () => {
+    const registry = new ToolRegistry().register(
+      createVerifyWebTool({
+        timeoutMs: 2_000,
+        maxBodyBytes: 1_024,
+        maxRedirects: 2,
+      })
+    )
+    const client = await connect(registry)
+
+    const instructions = client.getInstructions()
+    expect(instructions).toContain("Do not call verify_web merely")
+
+    const tools = await client.listTools()
+    const verify = tools.tools.find((tool) => tool.name === "verify_web")
+    expect(verify?.description).toContain(
+      "Do not call this merely before or alongside understand_webpage"
+    )
+  })
+
   it("returns verify_web evidence as structured content", async () => {
     const registry = new ToolRegistry().register(
       createVerifyWebTool({

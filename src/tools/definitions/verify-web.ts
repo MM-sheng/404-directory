@@ -13,9 +13,9 @@ export function createVerifyWebTool(
     description:
       "Independently verifies that a public website is reachable and meets deployment expectations (HTTP status, HTTPS validity, optional expected text). Returns structured evidence for accept / retry / escalate decisions.",
     use_when:
-      "Use after another agent, coding agent, or deploy system claims a site is live or updated. Prefer including expected_text that distinguishes the new version (build id, version string, unique copy).",
+      "Use when the user explicitly asks to verify a deployment claim, public reachability, final HTTP status, HTTPS/TLS, redirects, or exact expected text. Prefer expected_text that distinguishes the new version (build id, version string, unique copy).",
     do_not_use_when:
-      "Do not use to extract page entities, forms, actions, or meaning; use understand_webpage for that. Do not use for private/internal URLs or subjective visual-quality judgments.",
+      "Do not call this merely before or alongside understand_webpage to prove that its target is reachable; a successful understand_webpage result already proves the page was fetched. Do not use to extract entities, forms, actions, or meaning, for private/internal URLs, or for subjective visual-quality judgments.",
     version: "0.3.0",
     endpoint: "/verify/web",
     method: "POST",
