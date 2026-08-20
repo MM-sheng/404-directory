@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest"
 import type { FastifyInstance } from "fastify"
-import { buildApp } from "../src/http/app.js"
+import { buildApp, mcpTelemetry } from "../src/http/app.js"
 import { loadConfig } from "../src/config.js"
 import { ToolRegistry } from "../src/tools/registry.js"
 import type { ToolDefinition } from "../src/tools/types.js"
@@ -176,6 +176,43 @@ afterEach(async () => {
 })
 
 describe("HTTP API", () => {
+  it("extracts privacy-safe MCP telemetry without logging arguments", () => {
+    expect(
+      mcpTelemetry(
+        {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "verify_web",
+            arguments: { url: "https://private.example", secret: "redact" },
+          },
+        },
+        { "mcp-session-id": "opaque-session" }
+      )
+    ).toEqual({
+      mcp_method: "tools/call",
+      mcp_tool: "verify_web",
+      mcp_session_present: true,
+    })
+
+    expect(
+      mcpTelemetry({
+        method: "initialize",
+        params: {
+          protocolVersion: "2025-06-18",
+          clientInfo: { name: "codex", version: "1.2.3" },
+        },
+      })
+    ).toEqual({
+      mcp_method: "initialize",
+      mcp_client: "codex",
+      mcp_client_version: "1.2.3",
+      mcp_protocol_version: "2025-06-18",
+      mcp_session_present: false,
+    })
+  })
+
   it("serves homepage, health, tools, and OpenAPI", async () => {
     app = await buildApp(mockRegistry(), loadConfig())
 

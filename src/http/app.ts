@@ -47,6 +47,56 @@ function isCacheableDiscoveryPath(path: string): boolean {
   return CACHEABLE_DISCOVERY_PATHS.has(path) || path.startsWith("/tools/")
 }
 
+type McpTelemetry = {
+  mcp_method?: string
+  mcp_tool?: string
+  mcp_client?: string
+  mcp_client_version?: string
+  mcp_protocol_version?: string
+  mcp_session_present?: boolean
+}
+
+function boundedString(value: unknown, max = 128): string | undefined {
+  if (typeof value !== "string" || value.length === 0) return undefined
+  return value.replace(/[\r\n]/g, " ").slice(0, max)
+}
+
+/**
+ * Extract only MCP routing/identity fields for aggregate observability.
+ * Never log params.arguments, URLs, request bodies, IP addresses, or session IDs.
+ */
+export function mcpTelemetry(
+  body: unknown,
+  headers: Record<string, unknown> = {}
+): McpTelemetry {
+  const message = Array.isArray(body) ? body[0] : body
+  if (!message || typeof message !== "object") return {}
+  const record = message as Record<string, unknown>
+  const params =
+    record.params && typeof record.params === "object"
+      ? (record.params as Record<string, unknown>)
+      : undefined
+  const clientInfo =
+    params?.clientInfo && typeof params.clientInfo === "object"
+      ? (params.clientInfo as Record<string, unknown>)
+      : undefined
+  const headerProtocol = Array.isArray(headers["mcp-protocol-version"])
+    ? headers["mcp-protocol-version"][0]
+    : headers["mcp-protocol-version"]
+
+  return {
+    mcp_method: boundedString(record.method, 64),
+    mcp_tool: boundedString(params?.name, 128),
+    mcp_client: boundedString(clientInfo?.name, 128),
+    mcp_client_version: boundedString(clientInfo?.version, 64),
+    mcp_protocol_version:
+      boundedString(params?.protocolVersion, 64) ?? boundedString(headerProtocol, 64),
+    mcp_session_present:
+      headers["mcp-session-id"] !== undefined ||
+      headers["Mcp-Session-Id"] !== undefined,
+  }
+}
+
 const ErrorSchema = z
   .object({
     error: z.string(),
@@ -277,6 +327,9 @@ export async function buildApp(
           duration_ms: Number(reply.elapsedTime.toFixed(1)),
           tool: tool ?? (path === "/mcp" ? "mcp" : undefined),
           access: "public",
+          ...(path === "/mcp"
+            ? mcpTelemetry(request.body, request.headers)
+            : {}),
         },
         "Request completed"
       )
