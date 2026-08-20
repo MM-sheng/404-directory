@@ -22,6 +22,7 @@
     "web:start": "next start"
   },
   "dependencies": {
+    "@cloudflare/containers": "^0.3.7",
     "@fastify/rate-limit": "^11.2.0",
     "@fastify/swagger": "^9.8.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@base-ui/react": "^1.7.0",
+    "@cloudflare/workers-types": "^5.20260820.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

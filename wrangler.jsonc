@@ -1,0 +1,32 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "404-directory",
+  "main": "cloudflare/worker.ts",
+  "compatibility_date": "2026-08-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "containers": [
+    {
+      "class_name": "DirectoryContainer",
+      "image": "./Dockerfile.vercel",
+      "instance_type": "basic",
+      "max_instances": 3
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "DIRECTORY_CONTAINER",
+        "class_name": "DirectoryContainer"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["DirectoryContainer"]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

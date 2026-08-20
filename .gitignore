@@ -18,6 +18,7 @@
 # production
 /build
 /dist
+worker-configuration.d.ts
 /.vercel
 
 # misc
