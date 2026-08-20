@@ -170,6 +170,15 @@ async function handleMcpRequest(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
+  request.log.info(
+    {
+      route: "/mcp",
+      method: request.method,
+      access: "public",
+      ...mcpTelemetry(request.body, request.headers),
+    },
+    "MCP request observed"
+  )
   const server = createMcpServerFromRegistry(registry)
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
@@ -327,9 +336,6 @@ export async function buildApp(
           duration_ms: Number(reply.elapsedTime.toFixed(1)),
           tool: tool ?? (path === "/mcp" ? "mcp" : undefined),
           access: "public",
-          ...(path === "/mcp"
-            ? mcpTelemetry(request.body, request.headers)
-            : {}),
         },
         "Request completed"
       )
