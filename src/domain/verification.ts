@@ -76,7 +76,7 @@ async function runMcpProtocolChecks(url: string): Promise<CheckResult[]> {
     })
     const client = new Client({
       name: "404.directory-verifier",
-      version: "0.5.0",
+      version: "0.5.1",
     })
     await client.connect(transport)
     const latencyMs = Math.round(performance.now() - started)

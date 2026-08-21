@@ -226,7 +226,7 @@ describe("HTTP API", () => {
     expect(health.statusCode).toBe(200)
     expect(health.json()).toMatchObject({
       status: "ok",
-      version: "0.5.0",
+      version: "0.5.1",
       catalog: false,
       browser_egress: "pinned_ip_proxy",
       tools: expect.arrayContaining(["understand_webpage", "verify_web"]),
@@ -371,7 +371,7 @@ describe("HTTP API", () => {
     })
     expect(serverCard.statusCode).toBe(200)
     expect(serverCard.json()).toMatchObject({
-      serverInfo: { name: "404.directory", version: "0.5.0" },
+      serverInfo: { name: "404.directory", version: "0.5.1" },
       authentication: { required: false, schemes: [] },
       tools: [
         {

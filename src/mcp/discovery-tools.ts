@@ -26,7 +26,7 @@ async function withDiscoveryTelemetry<T>(
     const result = await run()
     await trackInvocation(store, {
       tool_name: toolName,
-      version: "0.5.0",
+      version: "0.5.1",
       source: "mcp:discovery",
       success: true,
       latency_ms: performance.now() - started,
@@ -35,7 +35,7 @@ async function withDiscoveryTelemetry<T>(
   } catch (error) {
     await trackInvocation(store, {
       tool_name: toolName,
-      version: "0.5.0",
+      version: "0.5.1",
       source: "mcp:discovery",
       success: false,
       latency_ms: performance.now() - started,

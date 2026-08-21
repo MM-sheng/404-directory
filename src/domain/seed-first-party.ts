@@ -40,6 +40,10 @@ export async function seedFirstPartyTools(
       version: tool.version,
       authentication: tool.requires_auth ? "api_key" : "none",
       transport: "http",
+      verification: {
+        health_url: `${base}/health`,
+        expected_method: "GET",
+      },
       provider: FIRST_PARTY_PROVIDER,
       input_schema: zodToJsonSchema(tool.inputSchema),
       output_schema: zodToJsonSchema(tool.outputSchema),

@@ -54,6 +54,10 @@ describe("first-party seeding + ownership", () => {
     expect(found[0]?.provider.verified).toBe(true)
     expect(found[0]?.status).toBe("active")
     expect(found[0]?.trust?.ownership_score).toBe(1)
+    expect(found[0]?.metadata.verification).toEqual({
+      health_url: "https://404.directory/health",
+      expected_method: "GET",
+    })
   })
 
   it("verifies provider ownership via DNS TXT challenge", async () => {
