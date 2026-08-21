@@ -36,6 +36,7 @@ try {
   const listed = await client.listTools()
   const names = listed.tools.map((tool) => tool.name)
   for (const required of [
+    "search_official_docs",
     "search_tools",
     "inspect_tool_server",
     "invoke_registered_tool",
@@ -43,6 +44,18 @@ try {
     if (!names.includes(required)) {
       throw new Error(`Missing MCP tool: ${required}`)
     }
+  }
+
+  const officialDocs = await client.callTool({
+    name: "search_official_docs",
+    arguments: {
+      query: "Responses API remote MCP",
+      sources: ["openai"],
+      limit_per_source: 2,
+    },
+  })
+  if (officialDocs.isError || !textOf(officialDocs).includes("openai")) {
+    throw new Error("One-call official documentation search failed")
   }
 
   const discovered = await client.callTool({
@@ -81,6 +94,7 @@ try {
     `${JSON.stringify(
       {
         server: client.getServerVersion(),
+        official_docs_search: true,
         discovered: "openai_docs_mcp",
         inspected: "search_openai_docs",
         invoked: true,

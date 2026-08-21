@@ -4,7 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { MemoryCatalogStore } from "../src/domain/memory-store.js"
 import { seedCuratedMcpServers } from "../src/domain/seed-curated-mcp.js"
 import { createMcpServerFromRegistry } from "../src/mcp/create-server.js"
-import type { RemoteMcpGateway } from "../src/mcp/remote-gateway.js"
+import {
+  GatewayError,
+  type RemoteMcpGateway,
+} from "../src/mcp/remote-gateway.js"
 import { ToolRegistry } from "../src/tools/registry.js"
 
 const clients: Client[] = []
@@ -133,5 +136,91 @@ describe("curated remote MCP gateway", () => {
     expect(result.isError).toBe(true)
     expect(JSON.stringify(result.content)).toContain("unknown_server")
     expect(gateway.inspect).not.toHaveBeenCalled()
+  })
+
+  it("searches multiple official documentation providers in one call and preserves partial results", async () => {
+    const store = new MemoryCatalogStore()
+    await seedCuratedMcpServers(store)
+    for (const slug of ["openai_docs_mcp", "aws_knowledge_mcp"]) {
+      const catalogServer = await store.getToolBySlug(slug)
+      await store.setToolStatus(catalogServer!.id, "active")
+    }
+
+    const invoke = vi.fn(
+      async (catalogServer: { slug: string }, remoteToolName: string) => {
+        if (catalogServer.slug === "aws_knowledge_mcp") {
+          throw new GatewayError(
+            "remote_rate_limited",
+            "AWS documentation search is temporarily rate limited."
+          )
+        }
+        return {
+          is_error: false,
+          content: [
+            {
+              type: "text",
+              text: `official result from ${remoteToolName}`,
+            },
+          ],
+          truncated: false,
+        }
+      }
+    )
+    const gateway: RemoteMcpGateway = {
+      inspect: vi.fn(),
+      invoke,
+    }
+    const server = createMcpServerFromRegistry(
+      new ToolRegistry(),
+      store,
+      gateway
+    )
+    const client = new Client({ name: "docs-test-agent", version: "1.0" })
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair()
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ])
+    clients.push(client)
+
+    const result = await client.callTool({
+      name: "search_official_docs",
+      arguments: {
+        query: "remote MCP support",
+        sources: ["openai", "aws"],
+        limit_per_source: 3,
+      },
+    })
+
+    expect(result.isError).not.toBe(true)
+    expect(result.structuredContent).toMatchObject({
+      requested_sources: ["openai", "aws"],
+      successful_sources: ["openai"],
+      failed_sources: [
+        expect.objectContaining({
+          source: "aws",
+          error_type: "remote_rate_limited",
+        }),
+      ],
+      results: [
+        expect.objectContaining({
+          source: "openai",
+          server: "openai_docs_mcp",
+          remote_tool: "search_openai_docs",
+        }),
+      ],
+    })
+    expect(invoke).toHaveBeenCalledTimes(2)
+    expect(invoke).toHaveBeenCalledWith(
+      expect.objectContaining({ slug: "openai_docs_mcp" }),
+      "search_openai_docs",
+      { query: "remote MCP support", limit: 3 }
+    )
+    expect(invoke).toHaveBeenCalledWith(
+      expect.objectContaining({ slug: "aws_knowledge_mcp" }),
+      "aws___search_documentation",
+      { search_phrase: "remote MCP support", limit: 3 }
+    )
   })
 })

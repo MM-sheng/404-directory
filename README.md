@@ -14,7 +14,7 @@ https://404.directory/connect?source=github
 | Layer                         | Purpose                                              | Surface                                                                        |
 | ----------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------ |
 | **First-party execution**     | Run first-party tools in this process                | `GET /tools`, `POST /understand`, `POST /verify/web`, MCP tools                |
-| **Curated remote execution**  | Inspect and call approved read-only remote MCP tools | MCP `inspect_tool_server` / `invoke_registered_tool`                           |
+| **Curated remote execution**  | Search and call approved read-only remote MCP tools | MCP `search_official_docs` / `inspect_tool_server` / `invoke_registered_tool`  |
 | **Ecosystem catalog + trust** | Register / verify / trust / search third-party tools | `/v1/*`, MCP `search_tools` / `get_tool` / `compare_tools` / `get_trust_score` |
 
 The long-term moat is invocation telemetry + trust/verification data — not a
@@ -76,16 +76,19 @@ When the catalog is enabled, MCP also exposes:
 - `recommend_tools`
 - `list_capabilities`
 - `get_capability_graph`
+- `search_official_docs`
 - `inspect_tool_server`
 - `invoke_registered_tool`
 
 alongside the existing executable tools.
 
-The remote execution flow is deliberately two-step: discover a catalog server,
-inspect its live allowlisted schemas, then invoke one approved tool. Arbitrary
-URLs, authenticated servers, non-active entries, unverified providers, and
-destructive tools are rejected. Remote results are bounded and explicitly
-marked as untrusted external data.
+`search_official_docs` is the low-friction path: one call searches current
+first-party OpenAI, Microsoft Learn, AWS, and Cloudflare documentation in
+parallel, with source-level provenance and partial-failure reporting. For other
+curated servers, discover a catalog server, inspect its live allowlisted schemas,
+then invoke one approved tool. Arbitrary URLs, authenticated servers, non-active
+entries, unverified providers, and destructive tools are rejected. Remote
+results are bounded and explicitly marked as untrusted external data.
 
 ## Capability Graph
 
