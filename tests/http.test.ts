@@ -223,6 +223,16 @@ describe("HTTP API", () => {
     expect(home.body).toContain("understand_webpage")
     expect(home.body).toContain("verify_web")
 
+    const connect = await app.inject({
+      method: "GET",
+      url: "/connect?source=awesome-remote",
+    })
+    expect(connect.statusCode).toBe(200)
+    expect(connect.body).toContain("Add 404.directory to Cursor")
+    expect(connect.body).toContain("awesome-remote.codex")
+    expect(connect.body).toContain("awesome-remote.claude-code")
+    expect(connect.body).not.toContain("agent:REPLACE_WITH")
+
     const health = await app.inject({ method: "GET", url: "/health" })
     expect(health.statusCode).toBe(200)
     expect(health.json()).toMatchObject({

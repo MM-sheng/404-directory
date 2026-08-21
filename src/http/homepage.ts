@@ -196,8 +196,29 @@ Security and privacy questions: use the project support channel associated with 
 `
 }
 
-export function renderConnect(baseUrl: string): string {
+function campaignSource(value?: string): string | undefined {
+  if (!value) return undefined
+  const normalized = value.toLowerCase().trim()
+  return /^[a-z0-9][a-z0-9._-]{0,47}$/.test(normalized)
+    ? normalized
+    : undefined
+}
+
+export function renderConnect(baseUrl: string, campaign?: string): string {
   const generatedAgentId = `agent:${randomUUID()}`
+  const source = campaignSource(campaign)
+  const attributedSource = (client: string) =>
+    source ? `${source}.${client}` : client
+  const cursorConfig = Buffer.from(
+    JSON.stringify({
+      url: `${baseUrl}/mcp`,
+      headers: {
+        "X-404-Agent-ID": generatedAgentId,
+        "X-404-Source": attributedSource("cursor"),
+      },
+    })
+  ).toString("base64")
+  const cursorInstallUrl = `cursor://anysphere.cursor-deeplink/mcp/install?name=404.directory&config=${encodeURIComponent(cursorConfig)}`
   return [
     "# Connect an Agent to 404.directory",
     "",
@@ -216,15 +237,19 @@ export function renderConnect(baseUrl: string): string {
     "```toml",
     "[mcp_servers.404_directory]",
     `url = "${baseUrl}/mcp"`,
-    `http_headers = { "X-404-Agent-ID" = "${generatedAgentId}", "X-404-Source" = "codex" }`,
+    `http_headers = { "X-404-Agent-ID" = "${generatedAgentId}", "X-404-Source" = "${attributedSource("codex")}" }`,
     "```",
+    "",
+    "## Cursor",
+    "",
+    `[Add 404.directory to Cursor](${cursorInstallUrl})`,
     "",
     "## Claude Code",
     "",
     "```bash",
     `claude mcp add --transport http --scope user 404-directory ${baseUrl}/mcp \\`,
     `  --header "X-404-Agent-ID: ${generatedAgentId}" \\`,
-    '  --header "X-404-Source: claude-code"',
+    `  --header "X-404-Source: ${attributedSource("claude-code")}"`,
     "```",
     "",
     "## JavaScript MCP SDK",
@@ -236,7 +261,7 @@ export function renderConnect(baseUrl: string): string {
     "    requestInit: {",
     "      headers: {",
     `        "X-404-Agent-ID": "${generatedAgentId}",`,
-    '        "X-404-Source": "sdk",',
+    `        "X-404-Source": "${attributedSource("sdk")}",`,
     "      },",
     "    },",
     "  }",

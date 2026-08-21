@@ -471,10 +471,18 @@ export async function buildApp(
   app.get(
     "/connect",
     { schema: { hide: true } as FastifySchema },
-    async (_request, reply) =>
+    async (request, reply) =>
       reply
         .type("text/markdown; charset=utf-8")
-        .send(renderConnect(config.PUBLIC_BASE_URL))
+        .send(
+          renderConnect(
+            config.PUBLIC_BASE_URL,
+            boundedString(
+              (request.query as { source?: unknown }).source,
+              48
+            )
+          )
+        )
   )
 
   app.get(

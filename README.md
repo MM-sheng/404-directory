@@ -6,8 +6,8 @@
 tools — including a curated read-only remote MCP gateway and a small set of
 first-party executable tools (`verify_web`, `understand_webpage`).
 
-Public discovery and copy-paste client setup:
-https://github.com/MM-sheng/404-directory
+Connect a real Agent in under a minute (Codex, Cursor, Claude Code, or MCP SDK):
+https://404.directory/connect?source=github
 
 ## Two layers
 
@@ -217,7 +217,8 @@ http_headers = { "X-404-Agent-ID" = "agent:REPLACE_WITH_A_STABLE_RANDOM_ID", "X-
 
 ```bash
 codex mcp add 404-directory --url https://404.directory/mcp
-claude mcp add --transport http --scope user 404-directory https://404.directory/mcp
+# For a privacy-safe unique Agent ID and attribution headers, use:
+open https://404.directory/connect?source=github
 ```
 
 ### stdio
@@ -246,18 +247,9 @@ not require hand-writing separate MCP adapters.
 REST, OpenAPI, `/tools/:name`, and MCP pick it up from the registry. Keep
 `/tools` compact so discovery cost does not grow with every schema.
 
-## Docker / production
+## Cloud Run / production
 
-```bash
-vercel deploy --prod
-```
-
-Production runs as a Vercel Custom Container using `Dockerfile.vercel` and
-`vercel.json`. The image is based on Playwright’s official Jammy image and runs
-as the non-root `pwuser`. The Spaceship apex DNS is already pointed at Vercel;
-Vercel terminates TLS for `https://404.directory`.
-
-The free-tier migration target is Cloud Run. `Dockerfile` uses Node slim and
+Production runs on Google Cloud Run. `Dockerfile` uses Node slim and
 installs only Chromium's headless shell so the retained Artifact Registry image
 stays below the 0.5 GiB free storage allowance.
 
