@@ -31,6 +31,7 @@ export class BrowserManager {
             // through SafeEgressProxy and its pinned-IP checks.
             args: [
               "--proxy-bypass-list=<-loopback>",
+              "--disable-dev-shm-usage",
               "--disable-quic",
               "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
             ],

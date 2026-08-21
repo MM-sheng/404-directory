@@ -116,6 +116,29 @@ Production runs as a Vercel Custom Container using `Dockerfile.vercel` and
 as the non-root `pwuser`. The Spaceship apex DNS is already pointed at Vercel;
 Vercel terminates TLS for `https://404.directory`.
 
+The free-tier migration target is Cloud Run. `Dockerfile` uses Node slim and
+installs only Chromium's headless shell so the retained Artifact Registry image
+stays below the 0.5 GiB free storage allowance. Deploy with request-based
+billing, no warm instances, one maximum instance, and bounded concurrency:
+
+```bash
+gcloud run deploy directory-404 \
+  --source . \
+  --region asia-east1 \
+  --allow-unauthenticated \
+  --execution-environment gen2 \
+  --cpu 1 \
+  --memory 2Gi \
+  --concurrency 4 \
+  --min-instances 0 \
+  --max-instances 1 \
+  --timeout 120 \
+  --port 8080
+```
+
+Apply `cloudrun.cleanup-policy.json` to the source-deploy Artifact Registry
+repository so superseded, untagged images do not accumulate storage charges.
+
 Local Docker remains available:
 
 ```bash

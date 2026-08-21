@@ -1,0 +1,12 @@
+[
+  {
+    "name": "delete-untagged-after-one-hour",
+    "action": {
+      "type": "Delete"
+    },
+    "condition": {
+      "tagState": "untagged",
+      "olderThan": "3600s"
+    }
+  }
+]
