@@ -1,8 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
+import type { CatalogStore } from "../domain/store.js"
 import type { ToolRegistry } from "../tools/registry.js"
 import { SERVICE_VERSION } from "../version.js"
+import { registerDiscoveryMcpTools } from "./discovery-tools.js"
 
-export function createMcpServerFromRegistry(registry: ToolRegistry): McpServer {
+export function createMcpServerFromRegistry(
+  registry: ToolRegistry,
+  catalog?: CatalogStore | null
+): McpServer {
   const server = new McpServer(
     {
       name: "404.directory",
@@ -10,7 +15,7 @@ export function createMcpServerFromRegistry(registry: ToolRegistry): McpServer {
     },
     {
       instructions:
-        "404.directory provides public, free, read-only web tools. Use verify_web only when the user explicitly asks about a deployment claim, reachability, final HTTP status, HTTPS/TLS, redirects, or exact expected text. Use understand_webpage instead of generic web search when asked what is on a specific public page, its entities, current/login state, forms, or available actions. Do not call verify_web merely before or alongside understand_webpage: a successful understand_webpage result already proves that page was fetched. Do not use either tool for private/internal/authenticated URLs, and do not use verify_web for subjective visual judgments. Prefer expected_text unique to a release when verifying it.",
+        "404.directory is Agent Discovery + Trust infrastructure plus public read-only web tools. Use search_tools / get_tool / compare_tools / get_trust_score / recommend_tools / list_capabilities / get_capability_graph to discover and trust ecosystem tools before selecting them. Use verify_web only when the user explicitly asks about a deployment claim, reachability, final HTTP status, HTTPS/TLS, redirects, or exact expected text. Use understand_webpage instead of generic web search when asked what is on a specific public page, its entities, current/login state, forms, or available actions. Do not call verify_web merely before or alongside understand_webpage: a successful understand_webpage result already proves that page was fetched. Do not use either tool for private/internal/authenticated URLs, and do not use verify_web for subjective visual judgments. Prefer expected_text unique to a release when verifying it.",
     }
   )
 
@@ -61,6 +66,10 @@ export function createMcpServerFromRegistry(registry: ToolRegistry): McpServer {
         }
       }
     )
+  }
+
+  if (catalog) {
+    registerDiscoveryMcpTools(server, catalog)
   }
 
   return server

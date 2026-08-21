@@ -4,6 +4,8 @@ import { OptionalLlmAnalyzer } from "../analysis/llm.js"
 import { BrowserManager } from "../browser/browser-manager.js"
 import { PageCollector } from "../browser/collector.js"
 import { loadConfig } from "../config.js"
+import { createCatalogStore } from "../domain/create-catalog.js"
+import { seedFirstPartyTools } from "../domain/seed-first-party.js"
 import { createToolRegistry } from "../tools/create-registry.js"
 import { UnderstandService } from "../understand.js"
 import { createMcpServerFromRegistry } from "./create-server.js"
@@ -28,13 +30,18 @@ const service = new UnderstandService(
   llm
 )
 const registry = createToolRegistry(service, config)
-const server = createMcpServerFromRegistry(registry)
+const catalog = createCatalogStore(config)
+if (catalog.store && config.SEED_FIRST_PARTY_TOOLS) {
+  await seedFirstPartyTools(catalog.store, registry, config).catch(() => undefined)
+}
+const server = createMcpServerFromRegistry(registry, catalog.store)
 
 const transport = new StdioServerTransport()
 await server.connect(transport)
 
 async function shutdown(): Promise<void> {
   await server.close()
+  await catalog.db?.close()
   await browsers.close()
 }
 

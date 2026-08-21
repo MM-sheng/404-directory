@@ -23,6 +23,7 @@ RUN npm ci --omit=dev \
   && npm cache clean --force \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/dist ./dist
+COPY drizzle ./drizzle
 COPY README.md .env.example ./
 
 EXPOSE 4040
@@ -31,4 +32,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||4040)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 USER node
-CMD ["node", "dist/server.js"]
+CMD ["sh", "-c", "if [ -n \"$DATABASE_URL\" ]; then node dist/db/migrate.js; fi && node dist/server.js"]

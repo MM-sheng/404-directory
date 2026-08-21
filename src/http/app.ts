@@ -11,6 +11,9 @@ import Fastify, {
 } from "fastify"
 import { z, ZodError } from "zod"
 import type { AppConfig } from "../config.js"
+import { registerV1Routes } from "../domain/http/v1-routes.js"
+import type { CatalogStore } from "../domain/store.js"
+import { classifyErrorType, trackInvocation } from "../domain/telemetry.js"
 import { createMcpServerFromRegistry } from "../mcp/create-server.js"
 import { UnsafeUrlError } from "../security/url.js"
 import {
@@ -90,7 +93,8 @@ export function mcpTelemetry(
     mcp_client: boundedString(clientInfo?.name, 128),
     mcp_client_version: boundedString(clientInfo?.version, 64),
     mcp_protocol_version:
-      boundedString(params?.protocolVersion, 64) ?? boundedString(headerProtocol, 64),
+      boundedString(params?.protocolVersion, 64) ??
+      boundedString(headerProtocol, 64),
     mcp_session_present:
       headers["mcp-session-id"] !== undefined ||
       headers["Mcp-Session-Id"] !== undefined,
@@ -138,13 +142,31 @@ async function invokeTool(
   tool: ToolDefinition,
   body: unknown,
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
+  catalog?: CatalogStore | null
 ): Promise<unknown> {
+  const started = performance.now()
   try {
     const input = tool.inputSchema.parse(body)
     const output = await tool.handler(input)
-    return tool.outputSchema.parse(output)
+    const validated = tool.outputSchema.parse(output)
+    await trackInvocation(catalog, {
+      tool_name: tool.name,
+      version: tool.version,
+      source: "rest",
+      success: true,
+      latency_ms: performance.now() - started,
+    })
+    return validated
   } catch (error) {
+    await trackInvocation(catalog, {
+      tool_name: tool.name,
+      version: tool.version,
+      source: "rest",
+      success: false,
+      latency_ms: performance.now() - started,
+      error_type: classifyErrorType(error),
+    })
     if (error instanceof ZodError || error instanceof UnsafeUrlError) {
       return reply.status(400).send({
         error: "invalid_request",
@@ -168,7 +190,8 @@ async function invokeTool(
 async function handleMcpRequest(
   registry: ToolRegistry,
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
+  catalog?: CatalogStore | null
 ): Promise<void> {
   request.log.info(
     {
@@ -179,7 +202,7 @@ async function handleMcpRequest(
     },
     "MCP request observed"
   )
-  const server = createMcpServerFromRegistry(registry)
+  const server = createMcpServerFromRegistry(registry, catalog)
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
   })
@@ -214,7 +237,8 @@ async function handleMcpRequest(
 
 export async function buildApp(
   registry: ToolRegistry,
-  config: AppConfig
+  config: AppConfig,
+  catalog?: CatalogStore | null
 ): Promise<FastifyInstance> {
   const requestStartedAt = new WeakMap<FastifyRequest, number>()
 
@@ -647,7 +671,8 @@ ${urls}
             },
           },
         },
-        async (request, reply) => invokeTool(tool, request.body, request, reply)
+        async (request, reply) =>
+          invokeTool(tool, request.body, request, reply, catalog)
       )
     } else {
       app.get(
@@ -662,7 +687,7 @@ ${urls}
           },
         },
         async (request, reply) =>
-          invokeTool(tool, request.query, request, reply)
+          invokeTool(tool, request.query, request, reply, catalog)
       )
     }
   }
@@ -678,8 +703,12 @@ ${urls}
       },
     },
     handler: async (request, reply) =>
-      handleMcpRequest(registry, request, reply),
+      handleMcpRequest(registry, request, reply, catalog),
   })
+
+  if (catalog) {
+    await registerV1Routes(app, catalog)
+  }
 
   await app.ready()
   return app

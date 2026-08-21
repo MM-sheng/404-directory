@@ -1,4 +1,20 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: "404"
+      POSTGRES_PASSWORD: "404"
+      POSTGRES_DB: "404"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U 404 -d 404"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   directory:
     build: .
     image: 404-directory:latest
@@ -8,6 +24,12 @@ services:
       HOST: 0.0.0.0
       PORT: 4040
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://404.directory}
+      DATABASE_URL: postgres://404:404@postgres:5432/404
+      CATALOG_MEMORY_FALLBACK: "false"
+      VERIFICATION_WORKER_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -15,3 +37,6 @@ services:
     tmpfs:
       - /tmp
     # Prefer blocking private egress at the host/firewall layer in production.
+
+volumes:
+  pgdata:

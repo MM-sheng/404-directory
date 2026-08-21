@@ -87,6 +87,37 @@ const EnvironmentSchema = z.object({
     .max(3_600_000)
     .default(60_000),
   TOOL_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(10_000).default(20),
+  DATABASE_URL: z.preprocess(
+    (value) => (value === "" || value === undefined ? undefined : value),
+    z.string().min(1).optional()
+  ),
+  CATALOG_MEMORY_FALLBACK: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+  VERIFICATION_WORKER_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+  /**
+   * inline = run verification loop inside the HTTP process (default)
+   * external = HTTP process skips the loop; run `npm run worker:verify`
+   * off = disable verification entirely
+   */
+  VERIFICATION_WORKER_MODE: z
+    .enum(["inline", "external", "off"])
+    .default("inline"),
+  VERIFICATION_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .min(10_000)
+    .max(3_600_000)
+    .default(300_000),
+  VERIFICATION_BATCH_SIZE: z.coerce.number().int().min(1).max(200).default(20),
+  SEED_FIRST_PARTY_TOOLS: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
 })
 
 export type AppConfig = z.infer<typeof EnvironmentSchema>

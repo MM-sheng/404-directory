@@ -1,20 +1,87 @@
 # 404.directory
 
-Tools built for AI agents.
+**Agent Discovery + Trust Infrastructure.**
 
-A multi-tool platform with a unified Tool Registry. Agents discover capabilities
-via `/tools`, call them over REST or MCP, and get structured Zod-validated
-results.
+404.directory helps AI agents discover, verify, compare, and trust tools before
+calling them — plus a small set of first-party executable tools
+(`verify_web`, `understand_webpage`).
 
 Public discovery and copy-paste client setup:
 https://github.com/MM-sheng/404-directory
 
-## Current tools
+## Two layers
+
+| Layer                            | Purpose                                              | Surface                                                                        |
+| -------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **Executable tools** (unchanged) | Run first-party tools in this process                | `GET /tools`, `POST /understand`, `POST /verify/web`, MCP tools                |
+| **Ecosystem catalog** (Phase 1)  | Register / verify / trust / search third-party tools | `/v1/*`, MCP `search_tools` / `get_tool` / `compare_tools` / `get_trust_score` |
+
+The long-term moat is invocation telemetry + trust/verification data — not a
+marketing directory of tools.
+
+## Current first-party tools
 
 | Tool                 | Endpoint           | When to use                                                                        |
 | -------------------- | ------------------ | ---------------------------------------------------------------------------------- |
 | `understand_webpage` | `POST /understand` | Understand an ordinary webpage (entities, state, actions) with no Agent-native API |
 | `verify_web`         | `POST /verify/web` | Independently verify a public site after a deploy/update claim                     |
+
+## Agent Discovery API (`/v1`)
+
+Requires a catalog backend (`DATABASE_URL` Postgres, or in-memory fallback when
+`CATALOG_MEMORY_FALLBACK=true`).
+
+```bash
+# Register a tool
+curl -sS http://127.0.0.1:4040/v1/tools \
+  -H 'content-type: application/json' \
+  -d '{
+    "name":"btc_analyzer",
+    "description":"Analyze BTC market signals for agents",
+    "capabilities":["btc","market-analysis"],
+    "protocol":"mcp",
+    "endpoint":"https://example.com/mcp",
+    "category":"finance",
+    "provider":{"name":"Example Labs","identity":{"type":"domain","value":"example.com"}}
+  }'
+
+# Search
+curl -sS 'http://127.0.0.1:4040/v1/tools/search?capability=btc&trust_threshold=0.2'
+
+# Trust profile
+curl -sS http://127.0.0.1:4040/v1/tools/btc_analyzer/trust
+```
+
+Trust Profile dimensions (v1 algorithm, extensible factors JSON):
+
+- Ownership / Availability / Compatibility / Security / Usage → `overall_score`
+
+## MCP Discovery tools
+
+When the catalog is enabled, MCP also exposes:
+
+- `search_tools`
+- `get_tool`
+- `compare_tools`
+- `get_trust_score`
+- `recommend_tools`
+- `list_capabilities`
+- `get_capability_graph`
+
+alongside the existing executable tools.
+
+## Capability Graph
+
+Agents can explore shared-capability edges and get related-tool recommendations:
+
+```bash
+curl -sS http://127.0.0.1:4040/v1/capabilities | jq
+curl -sS http://127.0.0.1:4040/v1/graph/capabilities | jq '.edges[:3]'
+curl -sS http://127.0.0.1:4040/v1/tools/verify_web/related | jq
+```
+
+Similarity is Jaccard over capability sets, with small boosts for matching
+protocol/category (`cap_v1`). This is the seed of the long-term Capability Graph.
 
 ## Quick start
 
@@ -27,6 +94,45 @@ npm run dev
 
 Default: `http://127.0.0.1:4040`
 
+With Postgres:
+
+```bash
+docker compose up -d postgres
+export DATABASE_URL=postgres://404:404@127.0.0.1:5432/404
+npm run db:migrate
+npm run dev
+```
+
+On boot, first-party tools are seeded into the catalog (`SEED_FIRST_PARTY_TOOLS=true`)
+so `GET /v1/tools/search?capability=web-verification` returns `verify_web`.
+
+### Verification worker
+
+- Default: `VERIFICATION_WORKER_MODE=inline` (loop inside HTTP process)
+- Split out for production load:
+
+```bash
+export VERIFICATION_WORKER_MODE=external
+npm run worker:verify
+```
+
+### Provider ownership (DNS TXT or GitHub bio)
+
+```bash
+# Domain provider
+curl -sS -X POST http://127.0.0.1:4040/v1/providers/example-labs/ownership/challenge
+# Publish DNS: _404-directory.example.com TXT "404-directory-verify=<token>"
+curl -sS -X POST http://127.0.0.1:4040/v1/providers/example-labs/ownership/verify
+
+# GitHub provider (identity.type=github)
+curl -sS -X POST http://127.0.0.1:4040/v1/providers/octo/ownership/challenge
+# Put "404-directory-verify=<token>" in the public GitHub profile bio
+curl -sS -X POST http://127.0.0.1:4040/v1/providers/octo/ownership/verify
+```
+
+Ownership Score ladder: first-party `1.0` → dns_txt `0.95` → github_bio `0.9` →
+generic verified `0.8` → unverified `0.35`.
+
 ```bash
 npm test
 npm run typecheck
@@ -34,7 +140,7 @@ npm run build
 npm start
 ```
 
-## Agent discovery
+## Agent discovery (first-party)
 
 ```bash
 curl -sS http://127.0.0.1:4040/tools | jq
@@ -181,11 +287,16 @@ Production hardening notes:
 
 ```text
 src/
-  tools/           # registry + tool definitions
+  domain/          # catalog: registry, verification, trust, discovery, telemetry,
+                   #          ownership, capability-graph, seed
+  db/              # drizzle schema + migrate
+  workers/         # standalone verification worker
+  tools/           # first-party executable registry
   understand.ts    # understand_webpage service
   verify/          # verify_web implementation
   http/            # Fastify app, homepage, OpenAPI
-  mcp/             # stdio + registry→MCP adapter
+  mcp/             # stdio + registry→MCP + discovery tools
   browser/         # Playwright collection
   security/        # SSRF / URL guards
+drizzle/           # SQL migrations
 ```
