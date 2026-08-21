@@ -210,6 +210,11 @@ optional lowercase attribution label. Public progress is available at
 `GET /v1/metrics/agents`; complete client examples are at
 `https://404.directory/connect`.
 
+The official MCP Registry entry also declares `X-404-Agent-ID` as an install
+input and defaults `X-404-Source` to `official-registry`, so compatible clients
+can preserve a privacy-safe identity instead of silently creating anonymous
+usage. The service remains usable without either header.
+
 Codex supports MCP HTTP headers in `~/.codex/config.toml`:
 
 ```toml

@@ -3,7 +3,7 @@
   "name": "io.github.MM-sheng/404-directory",
   "title": "404.directory",
   "description": "Discover, verify, and execute curated read-only MCP tools through one trusted Agent gateway.",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "websiteUrl": "https://404.directory",
   "repository": {
     "url": "https://github.com/MM-sheng/404-directory",
@@ -12,7 +12,20 @@
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://404.directory/mcp"
+      "url": "https://404.directory/mcp",
+      "headers": [
+        {
+          "name": "X-404-Agent-ID",
+          "description": "Stable random, non-personal identifier for this Agent installation. Used only for privacy-safe de-duplicated adoption measurement; never use an email, user name, or device name.",
+          "isRequired": true,
+          "placeholder": "agent:550e8400-e29b-41d4-a716-446655440000"
+        },
+        {
+          "name": "X-404-Source",
+          "description": "Non-personal attribution label for this installation source.",
+          "default": "official-registry"
+        }
+      ]
     }
   ]
 }
