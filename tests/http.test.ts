@@ -234,6 +234,12 @@ describe("HTTP API", () => {
     expect(favicon.headers["content-type"]).toContain("image/x-icon")
     expect(favicon.rawPayload.length).toBeGreaterThan(1_000)
 
+    const icon = await app.inject({ method: "GET", url: "/icon.svg" })
+    expect(icon.statusCode).toBe(200)
+    expect(icon.headers["content-type"]).toContain("image/svg+xml")
+    expect(icon.body).toContain('aria-label="404 Directory"')
+    expect(icon.body).not.toContain("<script")
+
     const connect = await app.inject({
       method: "GET",
       url: "/connect?source=awesome-remote",

@@ -220,6 +220,9 @@ Agent link with a unique non-personal ID already embedded:
 
 https://404.directory/connect?source=github
 
+Registry clients can display the same-domain, script-free service icon at
+`https://404.directory/icon.svg`.
+
 Codex supports MCP HTTP headers in `~/.codex/config.toml`:
 
 ```toml

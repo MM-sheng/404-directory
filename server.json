@@ -2,9 +2,16 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.MM-sheng/404-directory",
   "title": "404.directory",
-  "description": "Discover, verify, and execute curated read-only MCP tools through one trusted Agent gateway.",
-  "version": "0.7.4",
+  "description": "Search official OpenAI, Microsoft, AWS, and Cloudflare docs; discover and verify read-only tools.",
+  "version": "0.7.5",
   "websiteUrl": "https://404.directory",
+  "icons": [
+    {
+      "src": "https://404.directory/icon.svg",
+      "mimeType": "image/svg+xml",
+      "sizes": ["any"]
+    }
+  ],
   "repository": {
     "url": "https://github.com/MM-sheng/404-directory",
     "source": "github"

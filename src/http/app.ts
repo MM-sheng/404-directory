@@ -47,9 +47,14 @@ import { SERVICE_VERSION } from "../version.js"
 
 const INDEXNOW_KEY = "81aaad4415a83b2ddecc49c0897c9a74"
 const FAVICON = readFileSync(join(process.cwd(), "app", "favicon.ico"))
+const SERVICE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="404 Directory">
+  <rect width="128" height="128" rx="24" fill="#07110f"/>
+  <text x="64" y="78" text-anchor="middle" fill="#4ade80" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="42" font-weight="700">404</text>
+</svg>`
 const CACHEABLE_DISCOVERY_PATHS = new Set([
   "/",
   "/favicon.ico",
+  "/icon.svg",
   "/docs",
   "/docs.md",
   "/llms.txt",
@@ -471,6 +476,16 @@ export async function buildApp(
         .send(FAVICON)
   )
 
+  app.get(
+    "/icon.svg",
+    { schema: { hide: true } as FastifySchema },
+    async (_request, reply) =>
+      reply
+        .header("cache-control", "public, max-age=86400")
+        .type("image/svg+xml")
+        .send(SERVICE_ICON)
+  )
+
   for (const path of ["/docs", "/docs.md"]) {
     app.get(
       path,
@@ -491,10 +506,7 @@ export async function buildApp(
         .send(
           renderConnect(
             config.PUBLIC_BASE_URL,
-            boundedString(
-              (request.query as { source?: unknown }).source,
-              48
-            )
+            boundedString((request.query as { source?: unknown }).source, 48)
           )
         )
   )
