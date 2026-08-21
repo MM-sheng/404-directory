@@ -163,9 +163,19 @@ export function createPinnedFetch(
 
     return new Response(response.body, {
       status: response.status,
-      headers: response.contentType
-        ? { "content-type": response.contentType }
-        : undefined,
+      headers: flattenNodeHeaders(response.headers),
     })
   }
+}
+
+function flattenNodeHeaders(
+  headers: IncomingMessage["headers"]
+): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [key, value] of Object.entries(headers)) {
+    if (value === undefined) continue
+    // Preserve MCP session and CORS headers required by stateful servers.
+    out[key] = Array.isArray(value) ? value.join(", ") : String(value)
+  }
+  return out
 }

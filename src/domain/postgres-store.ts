@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm"
+import { and, desc, eq, gte, isNull, lte, or, sql } from "drizzle-orm"
 import type { Database } from "../db/client.js"
 import {
   endpoints,
@@ -7,6 +7,7 @@ import {
   tools,
   toolVersions,
   trustScores,
+  usageReceipts,
   verificationChecks,
 } from "../db/schema.js"
 import type {
@@ -14,6 +15,7 @@ import type {
   EnsureToolOptions,
   ProviderRecord,
   ToolStatus,
+  UsageReceiptInput,
 } from "./store.js"
 import type {
   CatalogTool,
@@ -23,6 +25,14 @@ import type {
   TrustProfile,
   VerificationCheckRecord,
 } from "./types.js"
+import { nextVerifyBackoffMs } from "./verification.js"
+
+function toolMetadata(input: RegisterToolRequest): Record<string, unknown> {
+  return {
+    ...(input.metadata ?? {}),
+    ...(input.verification ? { verification: input.verification } : {}),
+  }
+}
 
 function slugify(value: string): string {
   return value
@@ -49,6 +59,9 @@ export class PostgresCatalogStore implements CatalogStore {
         : input.protocol === "a2a"
           ? "a2a"
           : "http")
+    if (transport === "mcp_stdio") {
+      throw new Error("mcp_stdio is not accepted for registration")
+    }
 
     return this.db.transaction(async (tx) => {
       const existing = await tx
@@ -94,7 +107,7 @@ export class PostgresCatalogStore implements CatalogStore {
           providerId: provider.id,
           status: "pending",
           authRequirement: input.authentication,
-          metadata: input.metadata ?? {},
+          metadata: toolMetadata(input),
         })
         .returning()
 
@@ -113,7 +126,7 @@ export class PostgresCatalogStore implements CatalogStore {
         toolId: tool!.id,
         versionId: version!.id,
         url: input.endpoint,
-        method: "POST",
+        method: input.verification?.expected_method ?? "POST",
         transport,
       })
 
@@ -139,79 +152,122 @@ export class PostgresCatalogStore implements CatalogStore {
           { ownership_method: "first_party" }
         )
       }
-      // registerTool always creates pending; re-fetch after status/provider updates
       if (options.status || options.providerVerified !== undefined) {
         return (await this.getToolById(created.id)) ?? created
       }
       return created
     }
 
-    await this.db
-      .update(tools)
-      .set({
-        description: input.description,
-        capabilities: input.capabilities,
-        category: input.category,
-        authRequirement: input.authentication,
-        protocol: input.protocol,
-        status: options.status ?? existing.status,
-        metadata: input.metadata ?? {},
-        updatedAt: new Date(),
-      })
-      .where(eq(tools.id, existing.id))
-
-    const endpoint = await this.getEndpointForTool(existing.id)
-    if (endpoint) {
-      await this.db
-        .update(endpoints)
-        .set({ url: input.endpoint })
-        .where(eq(endpoints.id, endpoint.id))
+    const transport =
+      input.transport ??
+      (input.protocol === "mcp"
+        ? "mcp_http"
+        : input.protocol === "a2a"
+          ? "a2a"
+          : "http")
+    if (transport === "mcp_stdio") {
+      throw new Error("mcp_stdio is not accepted for registration")
     }
 
-    await this.db
-      .update(toolVersions)
-      .set({ isLatest: false })
-      .where(eq(toolVersions.toolId, existing.id))
-
-    const existingVersion = await this.db
-      .select({ id: toolVersions.id })
-      .from(toolVersions)
-      .where(
-        and(
-          eq(toolVersions.toolId, existing.id),
-          eq(toolVersions.version, input.version)
-        )
-      )
-      .limit(1)
-      .then((rows) => rows[0])
-
-    if (existingVersion) {
-      await this.db
-        .update(toolVersions)
+    return this.db.transaction(async (tx) => {
+      await tx
+        .update(tools)
         .set({
-          inputSchema: input.input_schema,
-          outputSchema: input.output_schema,
-          isLatest: true,
+          description: input.description,
+          capabilities: input.capabilities,
+          category: input.category,
+          authRequirement: input.authentication,
+          protocol: input.protocol,
+          status: options.status ?? existing.status,
+          metadata: toolMetadata(input),
+          updatedAt: new Date(),
         })
-        .where(eq(toolVersions.id, existingVersion.id))
-    } else {
-      await this.db.insert(toolVersions).values({
-        toolId: existing.id,
-        version: input.version,
-        inputSchema: input.input_schema,
-        outputSchema: input.output_schema,
-        isLatest: true,
-      })
-    }
+        .where(eq(tools.id, existing.id))
 
-    if (options.providerVerified !== undefined) {
-      const providerSlug = input.provider.slug ?? slugify(input.provider.name)
-      await this.setProviderVerified(providerSlug, options.providerVerified, {
-        ownership_method: "first_party",
-      })
-    }
+      await tx
+        .update(toolVersions)
+        .set({ isLatest: false })
+        .where(eq(toolVersions.toolId, existing.id))
 
-    return (await this.getToolById(existing.id))!
+      const existingVersion = await tx
+        .select({ id: toolVersions.id })
+        .from(toolVersions)
+        .where(
+          and(
+            eq(toolVersions.toolId, existing.id),
+            eq(toolVersions.version, input.version)
+          )
+        )
+        .limit(1)
+        .then((rows) => rows[0])
+
+      let versionId: string
+      if (existingVersion) {
+        await tx
+          .update(toolVersions)
+          .set({
+            inputSchema: input.input_schema,
+            outputSchema: input.output_schema,
+            isLatest: true,
+          })
+          .where(eq(toolVersions.id, existingVersion.id))
+        versionId = existingVersion.id
+      } else {
+        const [inserted] = await tx
+          .insert(toolVersions)
+          .values({
+            toolId: existing.id,
+            version: input.version,
+            inputSchema: input.input_schema,
+            outputSchema: input.output_schema,
+            isLatest: true,
+          })
+          .returning({ id: toolVersions.id })
+        versionId = inserted!.id
+      }
+
+      const endpoint = await tx
+        .select({ id: endpoints.id })
+        .from(endpoints)
+        .where(eq(endpoints.toolId, existing.id))
+        .limit(1)
+        .then((rows) => rows[0])
+
+      if (endpoint) {
+        await tx
+          .update(endpoints)
+          .set({
+            url: input.endpoint,
+            transport,
+            method: input.verification?.expected_method ?? "POST",
+            versionId,
+          })
+          .where(eq(endpoints.id, endpoint.id))
+      } else {
+        await tx.insert(endpoints).values({
+          toolId: existing.id,
+          versionId,
+          url: input.endpoint,
+          method: input.verification?.expected_method ?? "POST",
+          transport,
+        })
+      }
+
+      if (options.providerVerified !== undefined) {
+        const providerSlug =
+          input.provider.slug ?? slugify(input.provider.name)
+        await tx
+          .update(providers)
+          .set({
+            verified: options.providerVerified,
+            metadata: sql`coalesce(${providers.metadata}, '{}'::jsonb) || ${JSON.stringify({ ownership_method: "first_party" })}::jsonb`,
+            updatedAt: new Date(),
+          })
+          .where(eq(providers.slug, providerSlug))
+      }
+
+      return (await this.hydrateTool(existing.id, tx as unknown as Database))!
+    })
   }
 
   async getProviderBySlug(slug: string): Promise<ProviderRecord | null> {
@@ -332,7 +388,7 @@ export class PostgresCatalogStore implements CatalogStore {
     const statusFilter = query.status ?? "active"
     const conditions = []
     if (statusFilter === "active") {
-      conditions.push(sql`${tools.status} = 'active'`)
+      conditions.push(sql`${tools.status} IN ('active', 'degraded')`)
     } else if (statusFilter === "all") {
       conditions.push(sql`${tools.status} <> 'suspended'`)
     } else {
@@ -379,8 +435,12 @@ export class PostgresCatalogStore implements CatalogStore {
     }
 
     hydrated.sort((a, b) => {
+      const penalty = (tool: CatalogTool) =>
+        tool.status === "degraded" ? 0.15 : 0
       const trustDelta =
-        (b.trust?.overall_score ?? 0) - (a.trust?.overall_score ?? 0)
+        (b.trust?.overall_score ?? 0) -
+        penalty(b) -
+        ((a.trust?.overall_score ?? 0) - penalty(a))
       if (trustDelta !== 0) return trustDelta
       return b.usage.invocations_7d - a.usage.invocations_7d
     })
@@ -389,12 +449,100 @@ export class PostgresCatalogStore implements CatalogStore {
   }
 
   async listToolIdsForVerification(limit = 50): Promise<string[]> {
-    const rows = await this.db
-      .select({ id: tools.id })
+    return this.claimToolsForVerification(limit, 60_000)
+  }
+
+  async claimToolsForVerification(
+    limit = 50,
+    leaseMs = 60_000
+  ): Promise<string[]> {
+    const now = new Date()
+    const leaseUntil = new Date(now.getTime() + leaseMs)
+
+    return this.db.transaction(async (tx) => {
+      const rows = await tx
+        .select({ id: tools.id })
+        .from(tools)
+        .where(
+          and(
+            sql`${tools.status} IN ('pending', 'active', 'degraded', 'suspended')`,
+            or(
+              isNull(tools.verifyLeaseUntil),
+              lte(tools.verifyLeaseUntil, now)
+            ),
+            or(isNull(tools.nextVerifyAt), lte(tools.nextVerifyAt, now))
+          )
+        )
+        .orderBy(
+          sql`${tools.nextVerifyAt} ASC NULLS FIRST`,
+          sql`${tools.lastVerifiedAt} ASC NULLS FIRST`
+        )
+        .limit(limit)
+        .for("update", { skipLocked: true })
+
+      for (const row of rows) {
+        await tx
+          .update(tools)
+          .set({ verifyLeaseUntil: leaseUntil })
+          .where(eq(tools.id, row.id))
+      }
+      return rows.map((row) => row.id)
+    })
+  }
+
+  async completeVerificationAttempt(
+    toolId: string,
+    outcome: { success: boolean }
+  ): Promise<{ failCount: number; successStreak: number }> {
+    const now = new Date()
+    const current = await this.db
+      .select({
+        failCount: tools.verifyFailCount,
+        successStreak: tools.verifySuccessStreak,
+      })
       .from(tools)
-      .where(sql`${tools.status} IN ('pending', 'active')`)
-      .limit(limit)
-    return rows.map((row) => row.id)
+      .where(eq(tools.id, toolId))
+      .limit(1)
+      .then((rows) => rows[0])
+
+    const failCount = outcome.success ? 0 : (current?.failCount ?? 0) + 1
+    const successStreak = outcome.success
+      ? (current?.successStreak ?? 0) + 1
+      : 0
+    const delayMs = outcome.success
+      ? 30 * 60_000
+      : nextVerifyBackoffMs(failCount)
+
+    await this.db
+      .update(tools)
+      .set({
+        lastVerifiedAt: now,
+        verifyLeaseUntil: null,
+        verifyFailCount: failCount,
+        verifySuccessStreak: successStreak,
+        nextVerifyAt: new Date(now.getTime() + delayMs),
+        updatedAt: now,
+      })
+      .where(eq(tools.id, toolId))
+
+    return { failCount, successStreak }
+  }
+
+  async recordUsageReceipt(receipt: UsageReceiptInput): Promise<string> {
+    const [row] = await this.db
+      .insert(usageReceipts)
+      .values({
+        clientId: receipt.client_id ?? null,
+        discoveryQuery: receipt.discovery_query ?? null,
+        candidateSlugs: receipt.candidate_slugs ?? [],
+        selectedSlug: receipt.selected_slug ?? null,
+        outcome: receipt.outcome ?? "unknown",
+        latencyMs: receipt.latency_ms ?? null,
+        errorType: receipt.error_type ?? null,
+        metadata: receipt.metadata ?? {},
+      })
+      .returning({ id: usageReceipts.id })
+    return row!.id
   }
 
   async getEndpointForTool(
@@ -594,6 +742,7 @@ export class PostgresCatalogStore implements CatalogStore {
       auth_requirement: row.tool.authRequirement,
       version: row.version?.version ?? null,
       endpoint: row.endpoint?.url ?? null,
+      metadata: (row.tool.metadata ?? {}) as Record<string, unknown>,
       provider: {
         id: row.provider.id,
         slug: row.provider.slug,

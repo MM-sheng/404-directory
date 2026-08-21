@@ -1,4 +1,5 @@
 import "dotenv/config"
+import { randomBytes } from "node:crypto"
 import { z } from "zod"
 
 const EnvironmentSchema = z.object({
@@ -139,5 +140,19 @@ export type AppConfig = z.infer<typeof EnvironmentSchema>
 export function loadConfig(
   environment: NodeJS.ProcessEnv = process.env
 ): AppConfig {
-  return EnvironmentSchema.parse(environment)
+  const env: NodeJS.ProcessEnv = { ...environment }
+  const requireAuth = env.REGISTRY_REQUIRE_AUTH !== "false"
+  if (requireAuth && !env.REGISTRY_ADMIN_TOKEN) {
+    if (env.NODE_ENV === "production") {
+      throw new Error(
+        "REGISTRY_ADMIN_TOKEN is required when REGISTRY_REQUIRE_AUTH=true in production"
+      )
+    }
+    // Local/dev bootstrap so the first provider can be created.
+    env.REGISTRY_ADMIN_TOKEN = `dev_${randomBytes(24).toString("base64url")}`
+    console.warn(
+      `[config] Generated ephemeral REGISTRY_ADMIN_TOKEN (dev only): ${env.REGISTRY_ADMIN_TOKEN}`
+    )
+  }
+  return EnvironmentSchema.parse(env)
 }

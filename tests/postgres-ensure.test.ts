@@ -4,11 +4,17 @@ import { PostgresCatalogStore } from "../src/domain/postgres-store.js"
 import { openDatabase } from "../src/db/client.js"
 
 /**
- * Real Postgres integration — skipped unless DATABASE_URL is set.
+ * Real Postgres integration — requires DATABASE_URL (set in CI).
  * Catches ensureTool version uniqueness / isLatest races that memory misses.
  */
 describe("postgres ensureTool idempotency", () => {
   const url = process.env.DATABASE_URL
+
+  it("requires DATABASE_URL when running under CI", () => {
+    if (process.env.CI === "true") {
+      expect(url, "CI must provide DATABASE_URL for Postgres tests").toBeTruthy()
+    }
+  })
 
   it.skipIf(!url)("re-seeding the same version does not throw", async () => {
     const handle = openDatabase(url)

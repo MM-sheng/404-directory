@@ -11,6 +11,17 @@ import type {
 
 export type ToolStatus = z.infer<typeof ToolStatusSchema>
 
+export type UsageReceiptInput = {
+  client_id?: string | null
+  discovery_query?: Record<string, unknown> | null
+  candidate_slugs?: string[]
+  selected_slug?: string | null
+  outcome?: "selected" | "invoked" | "success" | "failure" | "unknown"
+  latency_ms?: number | null
+  error_type?: string | null
+  metadata?: Record<string, unknown>
+}
+
 export type EnsureToolOptions = {
   status?: ToolStatus
   providerVerified?: boolean
@@ -44,7 +55,21 @@ export interface CatalogStore {
   getToolBySlug(slug: string): Promise<CatalogTool | null>
   getToolById(id: string): Promise<CatalogTool | null>
   searchTools(query: ToolSearchQuery): Promise<CatalogTool[]>
+  /**
+   * Claim due tools for verification with a short lease (SKIP LOCKED semantics).
+   * Prefer oldest last_verified / next_verify_at; skips tools still leased.
+   */
+  claimToolsForVerification(
+    limit: number,
+    leaseMs: number
+  ): Promise<string[]>
+  /** @deprecated Prefer claimToolsForVerification */
   listToolIdsForVerification(limit?: number): Promise<string[]>
+  completeVerificationAttempt(
+    toolId: string,
+    outcome: { success: boolean }
+  ): Promise<{ failCount: number; successStreak: number }>
+  recordUsageReceipt?(receipt: UsageReceiptInput): Promise<string>
   getEndpointForTool(
     toolId: string
   ): Promise<{ id: string; url: string; transport: string } | null>

@@ -16,6 +16,7 @@ export const EndpointTransportSchema = z.enum([
 export const ToolStatusSchema = z.enum([
   "pending",
   "active",
+  "degraded",
   "deprecated",
   "suspended",
 ])
@@ -29,6 +30,16 @@ export const CheckTypeSchema = z.enum([
   "tls_security",
 ])
 export const CheckStatusSchema = z.enum(["pass", "fail", "warn", "error"])
+
+export const VerificationContractSchema = z
+  .object({
+    health_url: z.string().url().max(2_048).optional(),
+    verification_url: z.string().url().max(2_048).optional(),
+    manifest_url: z.string().url().max(2_048).optional(),
+    expected_method: z.enum(["GET", "HEAD", "POST"]).default("GET"),
+  })
+  .strict()
+  .optional()
 
 export const ProviderIdentitySchema = z
   .object({
@@ -52,6 +63,7 @@ export const RegisterToolRequestSchema = z
     version: z.string().min(1).max(64).default("0.1.0"),
     authentication: AuthRequirementSchema.default("none"),
     transport: EndpointTransportSchema.optional(),
+    verification: VerificationContractSchema,
     provider: z
       .object({
         name: z.string().min(1).max(256),
@@ -70,6 +82,34 @@ export const RegisterToolRequestSchema = z
     metadata: z.record(z.string(), z.unknown()).optional(),
   })
   .strict()
+  .superRefine((data, ctx) => {
+    if (data.transport === "mcp_stdio") {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "mcp_stdio is not accepted for third-party registration; use remote mcp_http",
+        path: ["transport"],
+      })
+    }
+    if (data.protocol === "mcp" && data.transport === "mcp_stdio") {
+      ctx.addIssue({
+        code: "custom",
+        message: "MCP tools must use mcp_http in this release",
+        path: ["transport"],
+      })
+    }
+    if (data.authentication !== "none") {
+      const contract = data.verification
+      if (!contract?.health_url && !contract?.verification_url) {
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "Authenticated tools require verification.health_url or verification.verification_url (public probe; do not send production secrets)",
+          path: ["verification"],
+        })
+      }
+    }
+  })
 
 export type RegisterToolRequest = z.infer<typeof RegisterToolRequestSchema>
 
@@ -95,9 +135,9 @@ export const ToolSearchQuerySchema = z
     capability: z.string().max(64).optional(),
     protocol: ToolProtocolSchema.optional(),
     category: z.string().max(64).optional(),
-    /** Default active — pending/quarantine tools are hidden from agents. */
+    /** Default active — includes degraded (ranked lower). Pending quarantine. */
     status: z
-      .enum(["active", "pending", "deprecated", "suspended", "all"])
+      .enum(["active", "pending", "degraded", "deprecated", "suspended", "all"])
       .default("active"),
     trust_threshold: z.coerce.number().min(0).max(1).optional(),
     limit: z.coerce.number().int().min(1).max(50).default(10),
@@ -114,10 +154,11 @@ export type CatalogTool = {
   category: string | null
   capabilities: string[]
   protocol: "mcp" | "api" | "a2a"
-  status: "pending" | "active" | "deprecated" | "suspended"
+  status: "pending" | "active" | "degraded" | "deprecated" | "suspended"
   auth_requirement: "none" | "api_key" | "oauth" | "other"
   version: string | null
   endpoint: string | null
+  metadata: Record<string, unknown>
   provider: {
     id: string
     slug: string

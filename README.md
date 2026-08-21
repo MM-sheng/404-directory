@@ -32,9 +32,13 @@ Requires a catalog backend (`DATABASE_URL` Postgres, or in-memory fallback when
 `CATALOG_MEMORY_FALLBACK=true`).
 
 ```bash
-# Register a tool
+# Bootstrap admin token (required in production; auto-generated in local/dev)
+export REGISTRY_ADMIN_TOKEN=change-me-to-a-long-secret
+
+# Register a tool (pending quarantine until ownership + protocol verification)
 curl -sS http://127.0.0.1:4040/v1/tools \
   -H 'content-type: application/json' \
+  -H "authorization: Bearer $REGISTRY_ADMIN_TOKEN" \
   -d '{
     "name":"btc_analyzer",
     "description":"Analyze BTC market signals for agents",
@@ -44,8 +48,9 @@ curl -sS http://127.0.0.1:4040/v1/tools \
     "category":"finance",
     "provider":{"name":"Example Labs","identity":{"type":"domain","value":"example.com"}}
   }'
+# Response includes provider_api_key once — store it for ownership + further writes.
 
-# Search
+# Search (active tools only)
 curl -sS 'http://127.0.0.1:4040/v1/tools/search?capability=btc&trust_threshold=0.2'
 
 # Trust profile
@@ -55,6 +60,9 @@ curl -sS http://127.0.0.1:4040/v1/tools/btc_analyzer/trust
 Trust Profile dimensions (v1 algorithm, extensible factors JSON):
 
 - Ownership / Availability / Compatibility / Security / Usage → `overall_score`
+
+`POST /v1/receipts` is **disabled** until authenticated Agent credentials and
+signed receipts exist — anonymous outcome submissions would poison Trust.
 
 ## MCP Discovery tools
 

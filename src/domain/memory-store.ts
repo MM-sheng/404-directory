@@ -4,6 +4,7 @@ import type {
   EnsureToolOptions,
   ProviderRecord,
   ToolStatus,
+  UsageReceiptInput,
 } from "./store.js"
 import type {
   CatalogTool,
@@ -13,6 +14,8 @@ import type {
   TrustProfile,
   VerificationCheckRecord,
 } from "./types.js"
+import { nextVerifyBackoffMs } from "./verification.js"
+import { isDiscoverableStatus } from "./lifecycle.js"
 
 function slugify(value: string): string {
   return value
@@ -21,12 +24,24 @@ function slugify(value: string): string {
     .replace(/^-+|-+$/g, "")
 }
 
+function toolMetadata(input: RegisterToolRequest): Record<string, unknown> {
+  return {
+    ...(input.metadata ?? {}),
+    ...(input.verification ? { verification: input.verification } : {}),
+  }
+}
+
 type MemoryProvider = ProviderRecord
 
 type MemoryTool = CatalogTool & {
   endpoint_id: string
   endpoint_url: string
   transport: string
+  last_verified_at: number | null
+  next_verify_at: number | null
+  verify_lease_until: number | null
+  verify_fail_count: number
+  verify_success_streak: number
 }
 
 /**
@@ -41,6 +56,7 @@ export class MemoryCatalogStore implements CatalogStore {
   private readonly invocations: Array<
     InvocationEvent & { created_at: number }
   > = []
+  private readonly receipts: Array<UsageReceiptInput & { id: string }> = []
 
   async registerTool(input: RegisterToolRequest): Promise<CatalogTool> {
     const slug = slugify(input.name)
@@ -69,8 +85,21 @@ export class MemoryCatalogStore implements CatalogStore {
     existing.endpoint_url = input.endpoint
     existing.auth_requirement = input.authentication
     existing.protocol = input.protocol
+    existing.metadata = toolMetadata(input)
     if (options.status) existing.status = options.status
     existing.updated_at = now
+
+    const transport =
+      input.transport ??
+      (input.protocol === "mcp"
+        ? "mcp_http"
+        : input.protocol === "a2a"
+          ? "a2a"
+          : "http")
+    if (transport === "mcp_stdio") {
+      throw new Error("mcp_stdio is not accepted for registration")
+    }
+    existing.transport = transport
 
     const providerSlug = input.provider.slug ?? slugify(input.provider.name)
     const provider = this.providers.get(providerSlug)
@@ -105,7 +134,9 @@ export class MemoryCatalogStore implements CatalogStore {
     const results: MemoryTool[] = []
 
     for (const tool of this.tools.values()) {
-      if (statusFilter === "active" && tool.status !== "active") continue
+      if (statusFilter === "active" && !isDiscoverableStatus(tool.status)) {
+        continue
+      }
       if (
         statusFilter !== "all" &&
         statusFilter !== "active" &&
@@ -138,8 +169,12 @@ export class MemoryCatalogStore implements CatalogStore {
     }
 
     results.sort((a, b) => {
+      const statusPenalty = (tool: MemoryTool) =>
+        tool.status === "degraded" ? 0.15 : 0
       const trustDelta =
-        (b.trust?.overall_score ?? 0) - (a.trust?.overall_score ?? 0)
+        (b.trust?.overall_score ?? 0) -
+        statusPenalty(b) -
+        ((a.trust?.overall_score ?? 0) - statusPenalty(a))
       if (trustDelta !== 0) return trustDelta
       return b.usage.invocations_7d - a.usage.invocations_7d
     })
@@ -148,7 +183,66 @@ export class MemoryCatalogStore implements CatalogStore {
   }
 
   async listToolIdsForVerification(limit = 50): Promise<string[]> {
-    return [...this.byId.keys()].slice(0, limit)
+    return this.claimToolsForVerification(limit, 60_000)
+  }
+
+  async claimToolsForVerification(
+    limit = 50,
+    leaseMs = 60_000
+  ): Promise<string[]> {
+    const now = Date.now()
+    const candidates = [...this.byId.values()]
+      .filter(
+        (tool) =>
+          (tool.status === "pending" ||
+            tool.status === "active" ||
+            tool.status === "degraded" ||
+            tool.status === "suspended") &&
+          (tool.verify_lease_until == null || tool.verify_lease_until <= now) &&
+          (tool.next_verify_at == null || tool.next_verify_at <= now)
+      )
+      .sort((a, b) => {
+        const aNext = a.next_verify_at ?? 0
+        const bNext = b.next_verify_at ?? 0
+        if (aNext !== bNext) return aNext - bNext
+        return (a.last_verified_at ?? 0) - (b.last_verified_at ?? 0)
+      })
+      .slice(0, limit)
+
+    for (const tool of candidates) {
+      tool.verify_lease_until = now + leaseMs
+    }
+    return candidates.map((tool) => tool.id)
+  }
+
+  async completeVerificationAttempt(
+    toolId: string,
+    outcome: { success: boolean }
+  ): Promise<{ failCount: number; successStreak: number }> {
+    const tool = this.byId.get(toolId)
+    if (!tool) return { failCount: 0, successStreak: 0 }
+    const now = Date.now()
+    tool.last_verified_at = now
+    tool.verify_lease_until = null
+    if (outcome.success) {
+      tool.verify_fail_count = 0
+      tool.verify_success_streak += 1
+      tool.next_verify_at = now + 30 * 60_000
+    } else {
+      tool.verify_fail_count += 1
+      tool.verify_success_streak = 0
+      tool.next_verify_at = now + nextVerifyBackoffMs(tool.verify_fail_count)
+    }
+    return {
+      failCount: tool.verify_fail_count,
+      successStreak: tool.verify_success_streak,
+    }
+  }
+
+  async recordUsageReceipt(receipt: UsageReceiptInput): Promise<string> {
+    const id = randomUUID()
+    this.receipts.push({ ...receipt, id })
+    return id
   }
 
   async getEndpointForTool(
@@ -284,6 +378,9 @@ export class MemoryCatalogStore implements CatalogStore {
         : input.protocol === "a2a"
           ? "a2a"
           : "http")
+    if (transport === "mcp_stdio") {
+      throw new Error("mcp_stdio is not accepted for registration")
+    }
 
     let provider = this.providers.get(providerSlug)
     if (!provider) {
@@ -326,6 +423,11 @@ export class MemoryCatalogStore implements CatalogStore {
       endpoint_id: endpointId,
       endpoint_url: input.endpoint,
       transport,
+      last_verified_at: null,
+      next_verify_at: null,
+      verify_lease_until: null,
+      verify_fail_count: 0,
+      verify_success_streak: 0,
       provider: {
         id: provider.id,
         slug: provider.slug,
@@ -334,6 +436,7 @@ export class MemoryCatalogStore implements CatalogStore {
       },
       trust: null,
       usage: { invocations_7d: 0, success_rate_7d: null },
+      metadata: toolMetadata(input),
       created_at: now,
       updated_at: now,
     }
@@ -370,6 +473,7 @@ export class MemoryCatalogStore implements CatalogStore {
       auth_requirement: tool.auth_requirement,
       version: tool.version,
       endpoint: tool.endpoint,
+      metadata: tool.metadata ?? {},
       provider: tool.provider,
       trust: tool.trust,
       usage: tool.usage,

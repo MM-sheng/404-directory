@@ -17,6 +17,7 @@ export const toolProtocolEnum = pgEnum("tool_protocol", ["mcp", "api", "a2a"])
 export const toolStatusEnum = pgEnum("tool_status", [
   "pending",
   "active",
+  "degraded",
   "deprecated",
   "suspended",
 ])
@@ -114,6 +115,11 @@ export const tools = pgTable(
       .notNull()
       .default("none"),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+    lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
+    nextVerifyAt: timestamp("next_verify_at", { withTimezone: true }),
+    verifyLeaseUntil: timestamp("verify_lease_until", { withTimezone: true }),
+    verifyFailCount: integer("verify_fail_count").notNull().default(0),
+    verifySuccessStreak: integer("verify_success_streak").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -126,6 +132,7 @@ export const tools = pgTable(
     index("tools_protocol_idx").on(table.protocol),
     index("tools_category_idx").on(table.category),
     index("tools_status_idx").on(table.status),
+    index("tools_next_verify_idx").on(table.nextVerifyAt),
   ]
 )
 
@@ -281,6 +288,34 @@ export const invocations = pgTable(
   ]
 )
 
+/**
+ * Append-only usage receipts: discovery → selection → outcome.
+ * Never stores prompts or business payload content.
+ */
+export const usageReceipts = pgTable(
+  "usage_receipts",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .$defaultFn(() => randomUUID()),
+    clientId: text("client_id"),
+    discoveryQuery: jsonb("discovery_query").$type<Record<string, unknown>>(),
+    candidateSlugs: text("candidate_slugs").array().notNull().default([]),
+    selectedSlug: text("selected_slug"),
+    outcome: text("outcome").notNull().default("unknown"),
+    latencyMs: integer("latency_ms"),
+    errorType: text("error_type"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("usage_receipts_created_idx").on(table.createdAt),
+    index("usage_receipts_selected_idx").on(table.selectedSlug, table.createdAt),
+  ]
+)
+
 export type ProviderRow = typeof providers.$inferSelect
 export type ToolRow = typeof tools.$inferSelect
 export type ToolVersionRow = typeof toolVersions.$inferSelect
@@ -288,3 +323,4 @@ export type EndpointRow = typeof endpoints.$inferSelect
 export type VerificationCheckRow = typeof verificationChecks.$inferSelect
 export type TrustScoreRow = typeof trustScores.$inferSelect
 export type InvocationRow = typeof invocations.$inferSelect
+export type UsageReceiptRow = typeof usageReceipts.$inferSelect

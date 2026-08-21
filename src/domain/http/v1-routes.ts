@@ -12,6 +12,7 @@ import {
   requireWriteAuth,
   resolveRegistryAuth,
 } from "../auth.js"
+import { isDiscoverableStatus } from "../lifecycle.js"
 import {
   buildCapabilityGraph,
   listCapabilities,
@@ -184,8 +185,8 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
         .split(",")
         .map((part) => part.trim())
         .filter(Boolean)
-      const tools = (await compareCatalogTools(store, keys)).filter(
-        (tool) => tool.status === "active"
+      const tools = (await compareCatalogTools(store, keys)).filter((tool) =>
+        isDiscoverableStatus(tool.status)
       )
       return { count: tools.length, tools }
     } catch (error) {
@@ -227,36 +228,37 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
 
   app.get("/v1/tools/:idOrSlug", async (request, reply) => {
     const { idOrSlug } = request.params as { idOrSlug: string }
-    const tool = await getCatalogTool(store, idOrSlug)
-    if (!tool) {
+    const publicTool = await getCatalogTool(store, idOrSlug)
+    if (publicTool) return { tool: publicTool }
+
+    const quarantine = await getCatalogTool(store, idOrSlug, {
+      includeQuarantine: true,
+    })
+    if (!quarantine) {
       return reply.status(404).send({
         error: "not_found",
         message: `Unknown tool: ${idOrSlug}`,
       })
     }
-    if (tool.status !== "active") {
-      const auth = await resolveRegistryAuth(request, store, config)
-      if (auth.kind === "admin") {
-        return { tool, quarantine: true }
+    const auth = await resolveRegistryAuth(request, store, config)
+    try {
+      assertProviderAccess(auth, quarantine.provider.slug)
+    } catch (error) {
+      if (error instanceof AuthError || error instanceof ForbiddenError) {
+        return reply.status(404).send({
+          error: "not_found",
+          message: `Unknown tool: ${idOrSlug}`,
+        })
       }
-      if (
-        auth.kind === "provider" &&
-        auth.provider.slug === tool.provider.slug
-      ) {
-        return { tool, quarantine: true }
-      }
-      return reply.status(404).send({
-        error: "not_found",
-        message: `Unknown tool: ${idOrSlug}`,
-      })
+      throw error
     }
-    return { tool }
+    return { tool: quarantine, quarantine: true }
   })
 
   app.get("/v1/tools/:idOrSlug/trust", async (request, reply) => {
     const { idOrSlug } = request.params as { idOrSlug: string }
     const tool = await getCatalogTool(store, idOrSlug)
-    if (!tool || tool.status !== "active") {
+    if (!tool) {
       return reply.status(404).send({
         error: "not_found",
         message: `Unknown tool: ${idOrSlug}`,
@@ -276,7 +278,7 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
       .object({ limit: z.coerce.number().int().min(1).max(20).default(5) })
       .parse(request.query)
     const seed = await getCatalogTool(store, idOrSlug)
-    if (!seed || seed.status !== "active") {
+    if (!seed) {
       return reply.status(404).send({
         error: "not_found",
         message: `Unknown tool: ${idOrSlug}`,
@@ -292,15 +294,17 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
 
   app.get("/v1/tools/:idOrSlug/verifications", async (request, reply) => {
     const { idOrSlug } = request.params as { idOrSlug: string }
-    const tool = await getCatalogTool(store, idOrSlug)
+    const tool = await getCatalogTool(store, idOrSlug, {
+      includeQuarantine: true,
+    })
     if (!tool) {
       return reply.status(404).send({
         error: "not_found",
         message: `Unknown tool: ${idOrSlug}`,
       })
     }
-    const auth = await resolveRegistryAuth(request, store, config)
     if (tool.status !== "active") {
+      const auth = await resolveRegistryAuth(request, store, config)
       try {
         assertProviderAccess(auth, tool.provider.slug)
       } catch (error) {
@@ -322,7 +326,9 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
       const auth = await resolveRegistryAuth(request, store, config)
       requireWriteAuth(auth, config)
       const { idOrSlug } = request.params as { idOrSlug: string }
-      const tool = await getCatalogTool(store, idOrSlug)
+      const tool = await getCatalogTool(store, idOrSlug, {
+        includeQuarantine: true,
+      })
       if (!tool) {
         return reply.status(404).send({
           error: "not_found",
@@ -348,6 +354,16 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
       }
       return reply.status(400).send(invalidRequest(error))
     }
+  })
+
+  app.post("/v1/receipts", async (_request, reply) => {
+    // Anonymous receipts are a trust-poisoning vector. Disabled until Agent API
+    // keys + signed receipts + allowlisted discovery_query fields ship.
+    return reply.status(403).send({
+      error: "receipts_disabled",
+      message:
+        "Usage receipts are disabled until authenticated Agent credentials and signed receipts are available. Do not submit unverifiable outcome data.",
+    })
   })
 
   app.get("/v1/providers/:slug", async (request, reply) => {
