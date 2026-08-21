@@ -20,6 +20,7 @@
 /dist
 worker-configuration.d.ts
 /.vercel
+/.wrangler
 
 # misc
 .DS_Store
