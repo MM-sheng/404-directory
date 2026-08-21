@@ -9,6 +9,8 @@ first-party executable tools (`verify_web`, `understand_webpage`).
 Connect a real Agent in under a minute (Codex, Cursor, Claude Code, or MCP SDK):
 https://404.directory/connect?source=github
 
+Agent-readable installation instructions: [`llms-install.md`](./llms-install.md)
+
 ## Two layers
 
 | Layer                         | Purpose                                              | Surface                                                                        |

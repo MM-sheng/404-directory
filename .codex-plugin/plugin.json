@@ -1,7 +1,7 @@
 {
   "name": "404-directory",
-  "version": "0.5.1",
-  "description": "Understand public webpages and verify public web deployments with structured evidence.",
+  "version": "0.8.0",
+  "description": "Search official AI and cloud documentation, verify public web deployments, and discover trusted MCP tools.",
   "author": {
     "name": "404.directory",
     "url": "https://404.directory"
@@ -11,8 +11,8 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "404.directory",
-    "shortDescription": "Web understanding and deployment verification for agents",
-    "longDescription": "Use read-only tools to understand the entities, state, and actions on a public webpage or independently verify that a public deployment reached an expected HTTP, HTTPS, redirect, and text state.",
+    "shortDescription": "Official docs search and trusted tool discovery for agents",
+    "longDescription": "Use read-only tools to search current official OpenAI, Microsoft Learn, AWS, and Cloudflare documentation, understand public webpages, verify deployments, and discover MCP tools with transparent trust metadata.",
     "developerName": "404.directory",
     "category": "Developer Tools",
     "capabilities": ["Read"],
@@ -20,9 +20,10 @@
     "privacyPolicyURL": "https://404.directory/privacy",
     "termsOfServiceURL": "https://404.directory/terms",
     "defaultPrompt": [
+      "Search official documentation for the API or cloud feature I am implementing.",
+      "Find a trusted read-only MCP tool for this task and explain its trust score.",
       "Verify that my latest website deployment is really live.",
-      "Explain this public webpage's state and available actions.",
-      "Check whether this site returns 200 and contains my build ID."
+      "Explain this public webpage's state and available actions."
     ],
     "brandColor": "#C8F542"
   }
