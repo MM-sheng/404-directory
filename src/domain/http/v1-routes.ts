@@ -87,68 +87,70 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
       },
     },
     async (request, reply) => {
-    try {
-      const auth = await resolveRegistryAuth(request, store, config)
-      requireWriteAuth(auth, config)
+      try {
+        const auth = await resolveRegistryAuth(request, store, config)
+        requireWriteAuth(auth, config)
 
-      const body = RegisterToolRequestSchema.parse(request.body)
-      const toolSlug = slugify(body.name)
-      assertCanRegisterToolSlug(toolSlug)
+        const body = RegisterToolRequestSchema.parse(request.body)
+        const toolSlug = slugify(body.name)
+        assertCanRegisterToolSlug(toolSlug)
 
-      const providerSlug = body.provider.slug ?? slugify(body.provider.name)
-      const existingProvider = await store.getProviderBySlug(providerSlug)
+        const providerSlug = body.provider.slug ?? slugify(body.provider.name)
+        const existingProvider = await store.getProviderBySlug(providerSlug)
 
-      let issuedApiKey: string | undefined
-      if (existingProvider) {
-        assertProviderAccess(auth, providerSlug)
-      } else {
-        assertCanRegisterProviderSlug(providerSlug)
-        if (auth.kind === "provider") {
-          throw new ForbiddenError(
-            "Provider keys cannot create additional providers"
-          )
+        let issuedApiKey: string | undefined
+        if (existingProvider) {
+          assertProviderAccess(auth, providerSlug)
+        } else {
+          assertCanRegisterProviderSlug(providerSlug)
+          if (auth.kind === "provider") {
+            throw new ForbiddenError(
+              "Provider keys cannot create additional providers"
+            )
+          }
+          issuedApiKey = generateApiKey()
         }
-        issuedApiKey = generateApiKey()
-      }
 
-      const tool = await store.registerTool(body)
+        const tool = await store.registerTool(body)
 
-      if (issuedApiKey) {
-        await store.setProviderMetadata(providerSlug, {
-          ...(
-            (await store.getProviderBySlug(providerSlug))?.metadata ?? {}
-          ),
-          api_key_hash: hashApiKey(issuedApiKey),
-        })
-      }
+        if (issuedApiKey) {
+          await store.setProviderMetadata(providerSlug, {
+            ...((await store.getProviderBySlug(providerSlug))?.metadata ?? {}),
+            api_key_hash: hashApiKey(issuedApiKey),
+          })
+        }
 
-      // Do not auto-verify; stay in quarantine until ownership + checks pass.
-      return reply.status(201).send({
-        tool,
-        ...(issuedApiKey
-          ? {
-              provider_api_key: issuedApiKey,
-              warning:
-                "Store provider_api_key now; it is shown only once and required for ownership + tool writes.",
-            }
-          : {}),
-      })
-    } catch (error) {
-      if (error instanceof AuthError || error instanceof ForbiddenError) {
-        return reply.status(error.statusCode).send({
-          error: error.name === "AuthError" ? "unauthorized" : "forbidden",
-          message: error.message,
+        // Do not auto-verify; stay in quarantine until ownership + checks pass.
+        return reply.status(201).send({
+          tool,
+          ...(issuedApiKey
+            ? {
+                provider_api_key: issuedApiKey,
+                warning:
+                  "Store provider_api_key now; it is shown only once and required for ownership + tool writes.",
+              }
+            : {}),
         })
+      } catch (error) {
+        if (error instanceof AuthError || error instanceof ForbiddenError) {
+          return reply.status(error.statusCode).send({
+            error: error.name === "AuthError" ? "unauthorized" : "forbidden",
+            message: error.message,
+          })
+        }
+        if (
+          error instanceof Error &&
+          /already registered/i.test(error.message)
+        ) {
+          return reply.status(409).send({
+            error: "conflict",
+            message: error.message,
+          })
+        }
+        return reply.status(400).send(invalidRequest(error))
       }
-      if (error instanceof Error && /already registered/i.test(error.message)) {
-        return reply.status(409).send({
-          error: "conflict",
-          message: error.message,
-        })
-      }
-      return reply.status(400).send(invalidRequest(error))
     }
-  })
+  )
 
   app.get("/v1/tools/search", async (request, reply) => {
     try {
@@ -197,6 +199,16 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
   app.get("/v1/capabilities", async () => {
     const capabilities = await listCapabilities(store)
     return { count: capabilities.length, capabilities }
+  })
+
+  app.get("/v1/metrics/agents", async () => {
+    const metrics = await store.agentUsageSummary()
+    return {
+      metric: "identified_external_agents_with_successful_tool_execution",
+      definition:
+        "Unique privacy-safe X-404-Agent-ID digests from external clients with at least one successful tool execution since 2026-01-01. Probes, internal tests, anonymous calls, prompts, arguments, and raw identifiers are excluded.",
+      ...metrics,
+    }
   })
 
   app.get("/v1/capabilities/:capability/tools", async (request, reply) => {
@@ -378,8 +390,7 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
     const metadata = { ...provider.metadata }
     delete metadata.api_key_hash
     const challenge = metadata.ownership_challenge as
-      | { token?: string }
-      | undefined
+      { token?: string } | undefined
     if (challenge?.token) {
       metadata.ownership_challenge = {
         ...challenge,
@@ -389,33 +400,36 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
     return { provider: { ...provider, metadata } }
   })
 
-  app.post("/v1/providers/:slug/ownership/challenge", async (request, reply) => {
-    try {
-      const auth = await resolveRegistryAuth(request, store, config)
-      requireWriteAuth(auth, config)
-      const { slug } = request.params as { slug: string }
-      assertProviderAccess(auth, slug)
-      const challenge = await createOwnershipChallenge(store, slug, {
-        cooldownMs: config.OWNERSHIP_CHALLENGE_COOLDOWN_MS,
-        force: auth.kind === "admin",
-      })
-      return { challenge }
-    } catch (error) {
-      if (error instanceof AuthError || error instanceof ForbiddenError) {
-        return reply.status(error.statusCode).send({
-          error: error.name === "AuthError" ? "unauthorized" : "forbidden",
-          message: error.message,
+  app.post(
+    "/v1/providers/:slug/ownership/challenge",
+    async (request, reply) => {
+      try {
+        const auth = await resolveRegistryAuth(request, store, config)
+        requireWriteAuth(auth, config)
+        const { slug } = request.params as { slug: string }
+        assertProviderAccess(auth, slug)
+        const challenge = await createOwnershipChallenge(store, slug, {
+          cooldownMs: config.OWNERSHIP_CHALLENGE_COOLDOWN_MS,
+          force: auth.kind === "admin",
         })
+        return { challenge }
+      } catch (error) {
+        if (error instanceof AuthError || error instanceof ForbiddenError) {
+          return reply.status(error.statusCode).send({
+            error: error.name === "AuthError" ? "unauthorized" : "forbidden",
+            message: error.message,
+          })
+        }
+        if (error instanceof Error && /Unknown provider/i.test(error.message)) {
+          return reply.status(404).send({
+            error: "not_found",
+            message: error.message,
+          })
+        }
+        return reply.status(400).send(invalidRequest(error))
       }
-      if (error instanceof Error && /Unknown provider/i.test(error.message)) {
-        return reply.status(404).send({
-          error: "not_found",
-          message: error.message,
-        })
-      }
-      return reply.status(400).send(invalidRequest(error))
     }
-  })
+  )
 
   app.post("/v1/providers/:slug/ownership/verify", async (request, reply) => {
     try {

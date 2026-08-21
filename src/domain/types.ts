@@ -193,4 +193,9 @@ export type InvocationEvent = {
   success: boolean
   latency_ms: number
   error_type?: string | null
+  agent_key?: string | null
+  agent_identity_kind?: "explicit" | "anonymous" | "internal" | null
+  client_name?: string | null
+  attribution_source?: string | null
+  is_external?: boolean
 }

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import type { ToolCatalogEntry, ToolDiscoveryEntry } from "../tools/types.js"
 
 export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
@@ -90,13 +91,15 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
 <body>
   <main>
     <h1>404.directory</h1>
-    <p class="tagline">Tools built for AI agents.</p>
+    <p class="tagline">Discover, verify, and execute trusted tools for AI agents.</p>
     <h2>Available tools</h2>
     <ul>
 ${toolLines}
     </ul>
     <nav>
+      <a href="/connect">Connect</a>
       <a href="/tools">Tools</a>
+      <a href="/v1/metrics/agents">Agent usage</a>
       <a href="/mcp-info">MCP</a>
       <a href="/openapi.json">OpenAPI</a>
       <a href="/docs">Docs</a>
@@ -149,6 +152,17 @@ Machine discovery:
 
 Authentication: not currently required.
 
+## Count as a real external Agent
+
+Add a stable, random, non-personal identifier to every MCP request. 404.directory
+stores only an irreversible HMAC digest; prompts, arguments, results, raw Agent
+IDs, and raw IP addresses are not stored in product analytics.
+
+- Header: \`X-404-Agent-ID: agent:<your-stable-random-id>\`
+- Optional attribution: \`X-404-Source: <source>\`
+- Public progress: \`GET /v1/metrics/agents\`
+- Complete setup: \`GET /connect\`
+
 Connect from Codex CLI:
 
 \`\`\`bash
@@ -174,12 +188,71 @@ Effective: 2026-08-17
 
 - Submitted URLs and optional expected text are used only to perform the requested tool call.
 - The service does not require an account and does not use submitted data for advertising.
-- The application does not intentionally persist tool inputs or results in a database. Infrastructure logs may retain request metadata such as timestamp, route, status, duration, request ID, and client IP for security and reliability; request bodies are not logged by the application.
+- The application does not intentionally persist tool inputs or results in a database. For Agent usage measurement it may store tool name, success, latency, client label, attribution source, and an irreversible HMAC digest of an optional \`X-404-Agent-ID\`. Raw Agent IDs, prompts, arguments, results, and raw IP addresses are not stored in product analytics. Infrastructure logs may retain request metadata such as timestamp, route, status, duration, request ID, and client IP for security and reliability; request bodies are not logged by the application.
 - Fetching a submitted URL sends a request from 404.directory infrastructure to that public destination. The destination may process that request under its own policy.
 - Do not submit private, internal, authenticated, personal, or sensitive URLs or content.
 
 Security and privacy questions: use the project support channel associated with 404.directory.
 `
+}
+
+export function renderConnect(baseUrl: string): string {
+  const generatedAgentId = `agent:${randomUUID()}`
+  return [
+    "# Connect an Agent to 404.directory",
+    "",
+    "404.directory is a public Streamable HTTP MCP server. Authentication is not",
+    "required. To count as one real external Agent, generate one stable random ID",
+    "for that Agent installation and send it as `X-404-Agent-ID`. Do not use an",
+    "email address, user name, device name, or other personal value. The examples",
+    "below already contain a newly generated ID; keep it stable after installing.",
+    "",
+    `MCP endpoint: \`${baseUrl}/mcp\``,
+    "",
+    "## Codex",
+    "",
+    "Add this to `~/.codex/config.toml`:",
+    "",
+    "```toml",
+    "[mcp_servers.404_directory]",
+    `url = "${baseUrl}/mcp"`,
+    `http_headers = { "X-404-Agent-ID" = "${generatedAgentId}", "X-404-Source" = "codex" }`,
+    "```",
+    "",
+    "## Claude Code",
+    "",
+    "```bash",
+    `claude mcp add --transport http --scope user 404-directory ${baseUrl}/mcp \\`,
+    `  --header "X-404-Agent-ID: ${generatedAgentId}" \\`,
+    '  --header "X-404-Source: claude-code"',
+    "```",
+    "",
+    "## JavaScript MCP SDK",
+    "",
+    "```ts",
+    "const transport = new StreamableHTTPClientTransport(",
+    `  new URL("${baseUrl}/mcp"),`,
+    "  {",
+    "    requestInit: {",
+    "      headers: {",
+    `        "X-404-Agent-ID": "${generatedAgentId}",`,
+    '        "X-404-Source": "sdk",',
+    "      },",
+    "    },",
+    "  }",
+    ")",
+    "```",
+    "",
+    "## Verify the connection",
+    "",
+    "Call `search_tools`, then `inspect_tool_server`, then",
+    "`invoke_registered_tool`. A successful execution counts once toward the",
+    "public unique-Agent target, regardless of how many later calls that Agent makes.",
+    "",
+    `Progress: ${baseUrl}/v1/metrics/agents`,
+    `Privacy: ${baseUrl}/privacy`,
+    "",
+  ].join("\n")
 }
 
 export function renderTerms(): string {

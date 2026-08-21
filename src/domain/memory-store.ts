@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import type {
   CatalogStore,
+  AgentUsageSummary,
   EnsureToolOptions,
   ProviderRecord,
   ToolStatus,
@@ -308,6 +309,57 @@ export class MemoryCatalogStore implements CatalogStore {
     return {
       invocations: rows.length,
       successes: rows.filter((row) => row.success).length,
+    }
+  }
+
+  async agentUsageSummary(
+    since = new Date("2026-01-01T00:00:00.000Z")
+  ): Promise<AgentUsageSummary> {
+    const rows = this.invocations.filter(
+      (row) => row.created_at >= since.getTime() && row.success
+    )
+    const explicit = rows.filter(
+      (row) =>
+        row.is_external === true &&
+        row.agent_identity_kind === "explicit" &&
+        Boolean(row.agent_key)
+    )
+    const agents = new Set(explicit.map((row) => row.agent_key!))
+    const bySource = new Map<
+      string,
+      { agents: Set<string>; invocations: number }
+    >()
+    for (const row of explicit) {
+      const source = row.attribution_source ?? "direct"
+      const current = bySource.get(source) ?? {
+        agents: new Set<string>(),
+        invocations: 0,
+      }
+      current.agents.add(row.agent_key!)
+      current.invocations += 1
+      bySource.set(source, current)
+    }
+    return {
+      window_start: since.toISOString(),
+      generated_at: new Date().toISOString(),
+      target_external_agents: 1_000,
+      identified_external_agents: agents.size,
+      successful_external_invocations: explicit.length,
+      anonymous_successful_invocations: rows.filter(
+        (row) =>
+          row.is_external === true &&
+          (row.agent_identity_kind === undefined ||
+            row.agent_identity_kind === null ||
+            row.agent_identity_kind === "anonymous")
+      ).length,
+      progress_ratio: Number(Math.min(1, agents.size / 1_000).toFixed(4)),
+      sources: [...bySource.entries()]
+        .map(([source, value]) => ({
+          source,
+          identified_agents: value.agents.size,
+          successful_invocations: value.invocations,
+        }))
+        .sort((a, b) => b.identified_agents - a.identified_agents),
     }
   }
 

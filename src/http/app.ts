@@ -15,6 +15,10 @@ import { registerV1Routes } from "../domain/http/v1-routes.js"
 import type { CatalogStore } from "../domain/store.js"
 import { classifyErrorType, trackInvocation } from "../domain/telemetry.js"
 import {
+  agentAttributionFromHeaders,
+  withAgentAttribution,
+} from "../domain/agent-attribution.js"
+import {
   createMcpServerFromRegistry,
   DISCOVERY_MCP_TOOL_NAMES,
   GATEWAY_MCP_TOOL_NAMES,
@@ -31,6 +35,7 @@ import {
 import type { ToolRegistry } from "../tools/registry.js"
 import type { ToolDefinition } from "../tools/types.js"
 import {
+  renderConnect,
   renderDocs,
   renderHomepage,
   renderPrivacy,
@@ -200,7 +205,8 @@ async function handleMcpRequest(
   request: FastifyRequest,
   reply: FastifyReply,
   catalog?: CatalogStore | null,
-  gateway?: RemoteMcpGateway | null
+  gateway?: RemoteMcpGateway | null,
+  agentAnalyticsSalt?: string
 ): Promise<void> {
   request.log.info(
     {
@@ -224,7 +230,13 @@ async function handleMcpRequest(
   reply.hijack()
   try {
     await server.connect(transport)
-    await transport.handleRequest(request.raw, reply.raw, request.body)
+    const attribution = agentAttributionFromHeaders(
+      request.headers,
+      agentAnalyticsSalt ?? "development-only-agent-analytics"
+    )
+    await withAgentAttribution(attribution, () =>
+      transport.handleRequest(request.raw, reply.raw, request.body)
+    )
   } catch (error) {
     request.log.error({ err: error }, "MCP request failed")
     if (!reply.raw.headersSent) {
@@ -457,6 +469,15 @@ export async function buildApp(
   }
 
   app.get(
+    "/connect",
+    { schema: { hide: true } as FastifySchema },
+    async (_request, reply) =>
+      reply
+        .type("text/markdown; charset=utf-8")
+        .send(renderConnect(config.PUBLIC_BASE_URL))
+  )
+
+  app.get(
     "/privacy",
     { schema: { hide: true } as FastifySchema },
     async (_request, reply) =>
@@ -674,6 +695,8 @@ Use the Discovery MCP tools (\`search_tools\`, \`get_tool\`, \`compare_tools\`, 
 - [MCP server card](${config.PUBLIC_BASE_URL}/.well-known/mcp/server-card.json): Static tool schemas for registry scanners.
 - [OpenAPI document](${config.PUBLIC_BASE_URL}/openapi.json): REST discovery and invocation contract.
 - [Agent-readable documentation](${config.PUBLIC_BASE_URL}/docs.md): Setup and usage guidance.
+- [Agent connection guide](${config.PUBLIC_BASE_URL}/connect): Stable privacy-safe Agent ID configuration for Codex, Claude Code, and MCP SDK clients.
+- [External Agent progress](${config.PUBLIC_BASE_URL}/v1/metrics/agents): Public, de-duplicated successful external Agent usage metric.
 
 ## Direct connection
 
@@ -717,11 +740,13 @@ Sitemap: ${config.PUBLIC_BASE_URL}/sitemap.xml
       const paths = [
         "/",
         "/llms.txt",
+        "/connect",
         "/tools",
         ...registry.listActive().map((tool) => `/tools/${tool.name}`),
         "/v1/tools/search",
         "/v1/capabilities",
         "/v1/graph/capabilities",
+        "/v1/metrics/agents",
         "/mcp-info",
         "/.well-known/mcp/server-card.json",
         "/openapi.json",
@@ -763,7 +788,13 @@ ${urls}
           },
         },
         async (request, reply) =>
-          invokeTool(tool, request.body, request, reply, catalog)
+          withAgentAttribution(
+            agentAttributionFromHeaders(
+              request.headers,
+              config.AGENT_ANALYTICS_SALT!
+            ),
+            () => invokeTool(tool, request.body, request, reply, catalog)
+          )
       )
     } else {
       app.get(
@@ -778,7 +809,13 @@ ${urls}
           },
         },
         async (request, reply) =>
-          invokeTool(tool, request.query, request, reply, catalog)
+          withAgentAttribution(
+            agentAttributionFromHeaders(
+              request.headers,
+              config.AGENT_ANALYTICS_SALT!
+            ),
+            () => invokeTool(tool, request.query, request, reply, catalog)
+          )
       )
     }
   }
@@ -794,7 +831,14 @@ ${urls}
       },
     },
     handler: async (request, reply) =>
-      handleMcpRequest(registry, request, reply, catalog, gateway),
+      handleMcpRequest(
+        registry,
+        request,
+        reply,
+        catalog,
+        gateway,
+        config.AGENT_ANALYTICS_SALT
+      ),
   })
 
   if (catalog) {

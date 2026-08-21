@@ -1,5 +1,6 @@
 import type { CatalogStore } from "./store.js"
 import type { InvocationEvent } from "./types.js"
+import { currentAgentAttribution } from "./agent-attribution.js"
 
 /**
  * Privacy-safe invocation telemetry.
@@ -17,6 +18,7 @@ export async function trackInvocation(
       const catalogTool = await store.getToolBySlug(event.tool_name)
       toolId = catalogTool?.id ?? null
     }
+    const attribution = currentAgentAttribution()
     await store.recordInvocation({
       tool_id: toolId,
       tool_name: event.tool_name.slice(0, 128),
@@ -25,6 +27,18 @@ export async function trackInvocation(
       success: event.success,
       latency_ms: Math.max(0, Math.round(event.latency_ms)),
       error_type: event.error_type ? event.error_type.slice(0, 64) : null,
+      agent_key: event.agent_key ?? attribution?.agent_key ?? null,
+      agent_identity_kind:
+        event.agent_identity_kind ??
+        attribution?.agent_identity_kind ??
+        "anonymous",
+      client_name:
+        event.client_name?.slice(0, 96) ?? attribution?.client_name ?? null,
+      attribution_source:
+        event.attribution_source?.slice(0, 64) ??
+        attribution?.attribution_source ??
+        "direct",
+      is_external: event.is_external ?? attribution?.is_external ?? false,
     })
   } catch {
     // Telemetry must never break tool execution.

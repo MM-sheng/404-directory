@@ -13,6 +13,7 @@ import {
 } from "../domain/discovery.js"
 import type { CatalogStore } from "../domain/store.js"
 import { trackInvocation } from "../domain/telemetry.js"
+import { currentAgentAttribution } from "../domain/agent-attribution.js"
 import { refreshTrustForTool } from "../domain/trust.js"
 import { ToolProtocolSchema, type CatalogTool } from "../domain/types.js"
 import { SERVICE_VERSION } from "../version.js"
@@ -412,7 +413,9 @@ async function recordGatewayOutcome(
     error_type: input.errorType,
   })
   try {
+    const attribution = currentAgentAttribution()
     await store.recordUsageReceipt?.({
+      client_id: attribution?.agent_key ?? null,
       selected_slug: input.server.slug,
       outcome: input.success ? "success" : "failure",
       latency_ms: Math.max(0, Math.round(input.latencyMs)),
@@ -421,6 +424,9 @@ async function recordGatewayOutcome(
         source: "mcp_gateway",
         operation: input.operation,
         remote_tool: input.remoteToolName,
+        agent_identity_kind: attribution?.agent_identity_kind ?? "anonymous",
+        attribution_source: attribution?.attribution_source ?? "direct",
+        is_external: attribution?.is_external ?? false,
       },
     })
   } catch {

@@ -6,7 +6,15 @@ const client = new Client({
   name: "404-directory-gateway-smoke-agent",
   version: "1.0.0",
 })
-const transport = new StreamableHTTPClientTransport(new URL(serverUrl))
+const transport = new StreamableHTTPClientTransport(new URL(serverUrl), {
+  requestInit: {
+    headers: {
+      "X-404-Agent-ID": "internal:gateway-smoke-agent",
+      "X-404-Agent-Class": "internal",
+      "X-404-Source": "release-smoke",
+    },
+  },
+})
 
 function textOf(result: { content?: unknown }): string {
   if (!Array.isArray(result.content)) return ""

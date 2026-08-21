@@ -104,6 +104,10 @@ const EnvironmentSchema = z.object({
     .min(4_096)
     .max(1_000_000)
     .default(128 * 1_024),
+  AGENT_ANALYTICS_SALT: z.preprocess(
+    (value) => (value === "" || value === undefined ? undefined : value),
+    z.string().min(16).optional()
+  ),
   DATABASE_URL: z.preprocess(
     (value) => (value === "" || value === undefined ? undefined : value),
     z.string().min(1).optional()
@@ -173,6 +177,14 @@ export function loadConfig(
     console.warn(
       `[config] Generated ephemeral REGISTRY_ADMIN_TOKEN (dev only): ${env.REGISTRY_ADMIN_TOKEN}`
     )
+  }
+  if (!env.AGENT_ANALYTICS_SALT) {
+    if (env.NODE_ENV === "production") {
+      throw new Error(
+        "AGENT_ANALYTICS_SALT is required for privacy-safe Agent attribution in production"
+      )
+    }
+    env.AGENT_ANALYTICS_SALT = `dev_${randomBytes(24).toString("base64url")}`
   }
   return EnvironmentSchema.parse(env)
 }

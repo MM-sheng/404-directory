@@ -22,6 +22,21 @@ export type UsageReceiptInput = {
   metadata?: Record<string, unknown>
 }
 
+export type AgentUsageSummary = {
+  window_start: string
+  generated_at: string
+  target_external_agents: number
+  identified_external_agents: number
+  successful_external_invocations: number
+  anonymous_successful_invocations: number
+  progress_ratio: number
+  sources: Array<{
+    source: string
+    identified_agents: number
+    successful_invocations: number
+  }>
+}
+
 export type EnsureToolOptions = {
   status?: ToolStatus
   providerVerified?: boolean
@@ -59,10 +74,7 @@ export interface CatalogStore {
    * Claim due tools for verification with a short lease (SKIP LOCKED semantics).
    * Prefer oldest last_verified / next_verify_at; skips tools still leased.
    */
-  claimToolsForVerification(
-    limit: number,
-    leaseMs: number
-  ): Promise<string[]>
+  claimToolsForVerification(limit: number, leaseMs: number): Promise<string[]>
   /** @deprecated Prefer claimToolsForVerification */
   listToolIdsForVerification(limit?: number): Promise<string[]>
   completeVerificationAttempt(
@@ -88,6 +100,7 @@ export interface CatalogStore {
     toolId: string,
     sinceMs?: number
   ): Promise<{ invocations: number; successes: number }>
+  agentUsageSummary(since?: Date): Promise<AgentUsageSummary>
   getProviderBySlug(slug: string): Promise<ProviderRecord | null>
   getProviderByApiKeyHash(apiKeyHash: string): Promise<ProviderRecord | null>
   setProviderVerified(

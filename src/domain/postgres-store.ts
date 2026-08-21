@@ -12,6 +12,7 @@ import {
 } from "../db/schema.js"
 import type {
   CatalogStore,
+  AgentUsageSummary,
   EnsureToolOptions,
   ProviderRecord,
   ToolStatus,
@@ -144,13 +145,10 @@ export class PostgresCatalogStore implements CatalogStore {
       const created = await this.registerTool(input)
       if (options.status) await this.setToolStatus(created.id, options.status)
       if (options.providerVerified !== undefined) {
-        const providerSlug =
-          input.provider.slug ?? slugify(input.provider.name)
-        await this.setProviderVerified(
-          providerSlug,
-          options.providerVerified,
-          { ownership_method: "first_party" }
-        )
+        const providerSlug = input.provider.slug ?? slugify(input.provider.name)
+        await this.setProviderVerified(providerSlug, options.providerVerified, {
+          ownership_method: "first_party",
+        })
       }
       if (options.status || options.providerVerified !== undefined) {
         return (await this.getToolById(created.id)) ?? created
@@ -254,8 +252,7 @@ export class PostgresCatalogStore implements CatalogStore {
       }
 
       if (options.providerVerified !== undefined) {
-        const providerSlug =
-          input.provider.slug ?? slugify(input.provider.name)
+        const providerSlug = input.provider.slug ?? slugify(input.provider.name)
         await tx
           .update(providers)
           .set({
@@ -665,6 +662,11 @@ export class PostgresCatalogStore implements CatalogStore {
       success: event.success,
       latencyMs: event.latency_ms,
       errorType: event.error_type ?? null,
+      agentKey: event.agent_key ?? null,
+      agentIdentityKind: event.agent_identity_kind ?? "anonymous",
+      clientName: event.client_name ?? null,
+      attributionSource: event.attribution_source ?? "direct",
+      isExternal: event.is_external ?? false,
     })
   }
 
@@ -686,6 +688,58 @@ export class PostgresCatalogStore implements CatalogStore {
     return {
       invocations: Number(rows[0]?.invocations ?? 0),
       successes: Number(rows[0]?.successes ?? 0),
+    }
+  }
+
+  async agentUsageSummary(
+    since = new Date("2026-01-01T00:00:00.000Z")
+  ): Promise<AgentUsageSummary> {
+    const [totals] = await this.db
+      .select({
+        identifiedExternalAgents: sql<number>`count(distinct ${invocations.agentKey}) filter (where ${invocations.success} = true and ${invocations.isExternal} = true and ${invocations.agentIdentityKind} = 'explicit')::int`,
+        successfulExternalInvocations: sql<number>`count(*) filter (where ${invocations.success} = true and ${invocations.isExternal} = true and ${invocations.agentIdentityKind} = 'explicit')::int`,
+        anonymousSuccessfulInvocations: sql<number>`count(*) filter (where ${invocations.success} = true and ${invocations.isExternal} = true and (${invocations.agentIdentityKind} is null or ${invocations.agentIdentityKind} = 'anonymous'))::int`,
+      })
+      .from(invocations)
+      .where(gte(invocations.createdAt, since))
+
+    const sourceRows = await this.db
+      .select({
+        source: invocations.attributionSource,
+        identifiedAgents: sql<number>`count(distinct ${invocations.agentKey})::int`,
+        successfulInvocations: sql<number>`count(*)::int`,
+      })
+      .from(invocations)
+      .where(
+        and(
+          gte(invocations.createdAt, since),
+          eq(invocations.success, true),
+          eq(invocations.isExternal, true),
+          eq(invocations.agentIdentityKind, "explicit")
+        )
+      )
+      .groupBy(invocations.attributionSource)
+      .orderBy(sql`count(distinct ${invocations.agentKey}) desc`)
+
+    const target = 1_000
+    const identified = Number(totals?.identifiedExternalAgents ?? 0)
+    return {
+      window_start: since.toISOString(),
+      generated_at: new Date().toISOString(),
+      target_external_agents: target,
+      identified_external_agents: identified,
+      successful_external_invocations: Number(
+        totals?.successfulExternalInvocations ?? 0
+      ),
+      anonymous_successful_invocations: Number(
+        totals?.anonymousSuccessfulInvocations ?? 0
+      ),
+      progress_ratio: Number(Math.min(1, identified / target).toFixed(4)),
+      sources: sourceRows.map((row) => ({
+        source: row.source ?? "direct",
+        identified_agents: Number(row.identifiedAgents),
+        successful_invocations: Number(row.successfulInvocations),
+      })),
     }
   }
 

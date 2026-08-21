@@ -200,6 +200,21 @@ client-IP header (or the socket IP locally).
 
 Point MCP clients at `https://404.directory/mcp` (or local `http://127.0.0.1:4040/mcp`).
 
+To count as a de-duplicated real external Agent, send a stable random,
+non-personal identifier in `X-404-Agent-ID`. The server persists only an HMAC
+digest, never the raw ID, prompts, arguments, or results. `X-404-Source` is an
+optional lowercase attribution label. Public progress is available at
+`GET /v1/metrics/agents`; complete client examples are at
+`https://404.directory/connect`.
+
+Codex supports MCP HTTP headers in `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.404_directory]
+url = "https://404.directory/mcp"
+http_headers = { "X-404-Agent-ID" = "agent:REPLACE_WITH_A_STABLE_RANDOM_ID", "X-404-Source" = "codex" }
+```
+
 ```bash
 codex mcp add 404-directory --url https://404.directory/mcp
 claude mcp add --transport http --scope user 404-directory https://404.directory/mcp
