@@ -8,6 +8,9 @@ dist
 coverage
 *.tsbuildinfo
 app
+!app/
+app/*
+!app/favicon.ico
 components
 hooks
 lib
