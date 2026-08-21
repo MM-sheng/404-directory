@@ -5,10 +5,12 @@ import { BrowserManager } from "../browser/browser-manager.js"
 import { PageCollector } from "../browser/collector.js"
 import { loadConfig } from "../config.js"
 import { createCatalogStore } from "../domain/create-catalog.js"
+import { seedCuratedMcpServers } from "../domain/seed-curated-mcp.js"
 import { seedFirstPartyTools } from "../domain/seed-first-party.js"
 import { createToolRegistry } from "../tools/create-registry.js"
 import { UnderstandService } from "../understand.js"
 import { createMcpServerFromRegistry } from "./create-server.js"
+import { createRemoteMcpGateway } from "./remote-gateway.js"
 
 const config = loadConfig()
 const browsers = new BrowserManager({
@@ -32,9 +34,21 @@ const service = new UnderstandService(
 const registry = createToolRegistry(service, config)
 const catalog = createCatalogStore(config)
 if (catalog.store && config.SEED_FIRST_PARTY_TOOLS) {
-  await seedFirstPartyTools(catalog.store, registry, config).catch(() => undefined)
+  await seedFirstPartyTools(catalog.store, registry, config).catch(
+    () => undefined
+  )
 }
-const server = createMcpServerFromRegistry(registry, catalog.store)
+if (catalog.store && config.SEED_CURATED_MCP_SERVERS) {
+  await seedCuratedMcpServers(catalog.store).catch(() => undefined)
+}
+const gateway =
+  catalog.store && config.MCP_GATEWAY_ENABLED
+    ? createRemoteMcpGateway({
+        timeoutMs: config.MCP_GATEWAY_TIMEOUT_MS,
+        maxResultBytes: config.MCP_GATEWAY_MAX_RESULT_BYTES,
+      })
+    : null
+const server = createMcpServerFromRegistry(registry, catalog.store, gateway)
 
 const transport = new StdioServerTransport()
 await server.connect(transport)

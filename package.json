@@ -1,6 +1,6 @@
 {
   "name": "404-directory",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "type": "module",
   "private": true,
   "scripts": {
@@ -10,6 +10,7 @@
     "mcp": "tsx src/mcp/server.ts",
     "mcp:start": "node dist/mcp/server.js",
     "mcp:smoke": "tsx scripts/smoke-mcp.ts",
+    "mcp:gateway:smoke": "tsx scripts/smoke-gateway.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint",

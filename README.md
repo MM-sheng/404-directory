@@ -2,19 +2,20 @@
 
 **Agent Discovery + Trust Infrastructure.**
 
-404.directory helps AI agents discover, verify, compare, and trust tools before
-calling them — plus a small set of first-party executable tools
-(`verify_web`, `understand_webpage`).
+404.directory helps AI agents discover, verify, compare, trust, and safely call
+tools — including a curated read-only remote MCP gateway and a small set of
+first-party executable tools (`verify_web`, `understand_webpage`).
 
 Public discovery and copy-paste client setup:
 https://github.com/MM-sheng/404-directory
 
 ## Two layers
 
-| Layer                            | Purpose                                              | Surface                                                                        |
-| -------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------ |
-| **Executable tools** (unchanged) | Run first-party tools in this process                | `GET /tools`, `POST /understand`, `POST /verify/web`, MCP tools                |
-| **Ecosystem catalog** (Phase 1)  | Register / verify / trust / search third-party tools | `/v1/*`, MCP `search_tools` / `get_tool` / `compare_tools` / `get_trust_score` |
+| Layer                         | Purpose                                              | Surface                                                                        |
+| ----------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **First-party execution**     | Run first-party tools in this process                | `GET /tools`, `POST /understand`, `POST /verify/web`, MCP tools                |
+| **Curated remote execution**  | Inspect and call approved read-only remote MCP tools | MCP `inspect_tool_server` / `invoke_registered_tool`                           |
+| **Ecosystem catalog + trust** | Register / verify / trust / search third-party tools | `/v1/*`, MCP `search_tools` / `get_tool` / `compare_tools` / `get_trust_score` |
 
 The long-term moat is invocation telemetry + trust/verification data — not a
 marketing directory of tools.
@@ -75,8 +76,16 @@ When the catalog is enabled, MCP also exposes:
 - `recommend_tools`
 - `list_capabilities`
 - `get_capability_graph`
+- `inspect_tool_server`
+- `invoke_registered_tool`
 
 alongside the existing executable tools.
+
+The remote execution flow is deliberately two-step: discover a catalog server,
+inspect its live allowlisted schemas, then invoke one approved tool. Arbitrary
+URLs, authenticated servers, non-active entries, unverified providers, and
+destructive tools are rejected. Remote results are bounded and explicitly
+marked as untrusted external data.
 
 ## Capability Graph
 
@@ -113,6 +122,9 @@ npm run dev
 
 On boot, first-party tools are seeded into the catalog (`SEED_FIRST_PARTY_TOOLS=true`)
 so `GET /v1/tools/search?capability=web-verification` returns `verify_web`.
+The six operator-reviewed public MCP servers are also seeded as pending entries
+when `SEED_CURATED_MCP_SERVERS=true`. The verification worker performs live MCP
+admission before they become discoverable or executable.
 
 ### Verification worker
 
@@ -284,6 +296,10 @@ Production hardening notes:
 - Keep `BROWSER_EGRESS_ALLOWED_PORTS` narrow (default `80,443`)
 - Tune `RATE_LIMIT_*` and verify/browser timeouts for your traffic
 - Tool execution has a stricter `TOOL_RATE_LIMIT_MAX` than discovery
+- The remote MCP gateway is limited to operator-curated, provider-verified,
+  active, no-auth servers and explicit read-only tool allowlists
+- Gateway arguments are capped at 16 KiB; results and external-call duration are
+  bounded by `MCP_GATEWAY_MAX_RESULT_BYTES` and `MCP_GATEWAY_TIMEOUT_MS`
 - Set `CATALOG_MEMORY_FALLBACK=false` whenever `DATABASE_URL` is configured
 - Prefer `VERIFICATION_WORKER_MODE=external` on serverless
 

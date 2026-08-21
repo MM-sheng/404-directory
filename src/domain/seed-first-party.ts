@@ -68,16 +68,22 @@ export async function seedFirstPartyTools(
     {
       name: "404_mcp",
       description:
-        "404.directory MCP Streamable HTTP endpoint. Discover and call first-party tools plus ecosystem search_tools / get_tool / compare_tools / get_trust_score.",
-      capabilities: ["mcp", "discovery", "trust", "tool-search"],
+        "404.directory MCP Streamable HTTP endpoint. Discover and compare ecosystem tools, inspect approved remote MCP schemas, and invoke curated read-only third-party tools through a controlled gateway.",
+      capabilities: [
+        "mcp",
+        "discovery",
+        "trust",
+        "tool-search",
+        "remote-tool-execution",
+      ],
       protocol: "mcp",
       endpoint: `${base}/mcp`,
       category: "first-party",
-      version: "0.1.0",
+      version: "0.2.0",
       authentication: "none",
       transport: "mcp_http",
       provider: FIRST_PARTY_PROVIDER,
-      metadata: { first_party: true },
+      metadata: { first_party: true, curated_remote_gateway: true },
     },
     { status: "active", providerVerified: true }
   )
@@ -94,7 +100,9 @@ function deriveCapabilities(name: string, description: string): string[] {
     caps.add("https")
     caps.add("deployment-check")
   }
-  if (/understand|webpage|page|entities|forms/i.test(`${name} ${description}`)) {
+  if (
+    /understand|webpage|page|entities|forms/i.test(`${name} ${description}`)
+  ) {
     caps.add("webpage-understanding")
     caps.add("page-state")
     caps.add("entities")

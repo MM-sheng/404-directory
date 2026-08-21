@@ -3,6 +3,7 @@ import { BrowserManager } from "./browser/browser-manager.js"
 import { PageCollector } from "./browser/collector.js"
 import { loadConfig } from "./config.js"
 import { createCatalogStore } from "./domain/create-catalog.js"
+import { seedCuratedMcpServers } from "./domain/seed-curated-mcp.js"
 import { seedFirstPartyTools } from "./domain/seed-first-party.js"
 import { startVerificationWorker } from "./domain/verification.js"
 import { buildApp } from "./http/app.js"
@@ -42,6 +43,15 @@ if (catalog.store && config.SEED_FIRST_PARTY_TOOLS) {
     app.log.info({ seeded }, "First-party tools seeded into catalog")
   } catch (error) {
     app.log.error({ err: error }, "Failed to seed first-party tools")
+  }
+}
+
+if (catalog.store && config.SEED_CURATED_MCP_SERVERS) {
+  try {
+    const { seeded } = await seedCuratedMcpServers(catalog.store)
+    app.log.info({ seeded }, "Curated third-party MCP servers seeded")
+  } catch (error) {
+    app.log.error({ err: error }, "Failed to seed curated MCP servers")
   }
 }
 

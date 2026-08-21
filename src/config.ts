@@ -88,6 +88,22 @@ const EnvironmentSchema = z.object({
     .max(3_600_000)
     .default(60_000),
   TOOL_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(10_000).default(20),
+  MCP_GATEWAY_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+  MCP_GATEWAY_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(1_000)
+    .max(60_000)
+    .default(30_000),
+  MCP_GATEWAY_MAX_RESULT_BYTES: z.coerce
+    .number()
+    .int()
+    .min(4_096)
+    .max(1_000_000)
+    .default(128 * 1_024),
   DATABASE_URL: z.preprocess(
     (value) => (value === "" || value === undefined ? undefined : value),
     z.string().min(1).optional()
@@ -130,6 +146,10 @@ const EnvironmentSchema = z.object({
     .max(86_400_000)
     .default(3_600_000),
   SEED_FIRST_PARTY_TOOLS: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+  SEED_CURATED_MCP_SERVERS: z
     .enum(["true", "false"])
     .default("true")
     .transform((value) => value === "true"),

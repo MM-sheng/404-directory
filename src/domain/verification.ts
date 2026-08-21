@@ -1,11 +1,9 @@
 import { performance } from "node:perf_hooks"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
-import {
-  createPinnedFetch,
-  pinnedRequestUrl,
-} from "../security/pinned-http.js"
+import { createPinnedFetch, pinnedRequestUrl } from "../security/pinned-http.js"
 import { resolvePublicHttpUrl, UnsafeUrlError } from "../security/url.js"
+import { SERVICE_VERSION } from "../version.js"
 import type { z } from "zod"
 import type { CatalogStore } from "./store.js"
 import { nextLifecycleStatus } from "./lifecycle.js"
@@ -23,6 +21,7 @@ export type CheckResult = {
 }
 
 const MAX_VERIFY_BODY = 64 * 1024
+const MCP_VERIFY_TIMEOUT_MS = 30_000
 
 function checkOf(
   results: CheckResult[],
@@ -69,6 +68,7 @@ async function runMcpProtocolChecks(url: string): Promise<CheckResult[]> {
     const transport = new StreamableHTTPClientTransport(resolved.url, {
       fetch: createPinnedFetch(resolved),
       requestInit: {
+        signal: AbortSignal.timeout(MCP_VERIFY_TIMEOUT_MS),
         headers: {
           "user-agent": "404.directory-verifier/0.5",
         },
@@ -76,7 +76,7 @@ async function runMcpProtocolChecks(url: string): Promise<CheckResult[]> {
     })
     const client = new Client({
       name: "404.directory-verifier",
-      version: "0.5.1",
+      version: SERVICE_VERSION,
     })
     await client.connect(transport)
     const latencyMs = Math.round(performance.now() - started)
@@ -224,14 +224,13 @@ async function runChecksForEndpoint(input: {
     })
     results.push({
       check_type: "latency",
-      status:
-        !handshake?.latency_ms
-          ? "fail"
-          : handshake.latency_ms <= 2_000
-            ? "pass"
-            : handshake.latency_ms <= 5_000
-              ? "warn"
-              : "fail",
+      status: !handshake?.latency_ms
+        ? "fail"
+        : handshake.latency_ms <= 2_000
+          ? "pass"
+          : handshake.latency_ms <= 5_000
+            ? "warn"
+            : "fail",
       latency_ms: handshake?.latency_ms ?? null,
       evidence: {
         latency_ms: handshake?.latency_ms ?? null,
@@ -471,9 +470,9 @@ export type VerificationWorkerOptions = {
   log?: (message: string, data?: Record<string, unknown>) => void
 }
 
-export function startVerificationWorker(
-  options: VerificationWorkerOptions
-): { stop: () => void } {
+export function startVerificationWorker(options: VerificationWorkerOptions): {
+  stop: () => void
+} {
   if (!options.enabled) {
     return { stop: () => undefined }
   }
