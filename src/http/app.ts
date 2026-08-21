@@ -1,5 +1,7 @@
 import { createHash, randomUUID } from "node:crypto"
+import { readFileSync } from "node:fs"
 import { performance } from "node:perf_hooks"
+import { join } from "node:path"
 import rateLimit from "@fastify/rate-limit"
 import swagger from "@fastify/swagger"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
@@ -44,8 +46,10 @@ import {
 import { SERVICE_VERSION } from "../version.js"
 
 const INDEXNOW_KEY = "81aaad4415a83b2ddecc49c0897c9a74"
+const FAVICON = readFileSync(join(process.cwd(), "app", "favicon.ico"))
 const CACHEABLE_DISCOVERY_PATHS = new Set([
   "/",
+  "/favicon.ico",
   "/docs",
   "/docs.md",
   "/llms.txt",
@@ -455,6 +459,16 @@ export async function buildApp(
       reply
         .type("text/html; charset=utf-8")
         .send(renderHomepage(registry.discovery()))
+  )
+
+  app.get(
+    "/favicon.ico",
+    { schema: { hide: true } as FastifySchema },
+    async (_request, reply) =>
+      reply
+        .header("cache-control", "public, max-age=86400")
+        .type("image/x-icon")
+        .send(FAVICON)
   )
 
   for (const path of ["/docs", "/docs.md"]) {

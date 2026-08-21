@@ -229,6 +229,11 @@ describe("HTTP API", () => {
     expect(home.body).toContain("AWS")
     expect(home.body).toContain("Cloudflare")
 
+    const favicon = await app.inject({ method: "GET", url: "/favicon.ico" })
+    expect(favicon.statusCode).toBe(200)
+    expect(favicon.headers["content-type"]).toContain("image/x-icon")
+    expect(favicon.rawPayload.length).toBeGreaterThan(1_000)
+
     const connect = await app.inject({
       method: "GET",
       url: "/connect?source=awesome-remote",

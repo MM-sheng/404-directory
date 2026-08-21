@@ -23,6 +23,7 @@ RUN npm ci --omit=dev \
   && npm cache clean --force \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/dist ./dist
+COPY app/favicon.ico ./app/favicon.ico
 COPY drizzle ./drizzle
 COPY README.md .env.example ./
 
