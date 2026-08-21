@@ -64,6 +64,8 @@ const CACHEABLE_DISCOVERY_PATHS = new Set([
   "/mcp-info",
   "/.well-known/mcp.json",
   "/.well-known/mcp/server-card.json",
+  "/.well-known/integrations.json",
+  "/.well-known/api-catalog",
   "/openapi.json",
   `/${INDEXNOW_KEY}.txt`,
 ])
@@ -370,7 +372,7 @@ export async function buildApp(
     if (request.method === "GET" && path === "/") {
       reply.header(
         "link",
-        '</llms.txt>; rel="describedby", </docs.md>; rel="alternate"; type="text/markdown", </openapi.json>; rel="service-desc"; type="application/json"'
+        '</llms.txt>; rel="describedby", </docs.md>; rel="alternate"; type="text/markdown", </openapi.json>; rel="service-desc"; type="application/json", </.well-known/integrations.json>; rel="service-meta"; type="application/json", </.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"'
       )
     } else if (request.method === "GET" && path === "/docs") {
       reply.header(
@@ -662,50 +664,153 @@ export async function buildApp(
   app.get(
     "/.well-known/mcp/server-card.json",
     { schema: { hide: true } as FastifySchema },
-    async () => ({
-      serverInfo: {
-        name: "404.directory",
-        version: SERVICE_VERSION,
-        title: "404.directory — Agent Discovery + Trust",
+    async (_request, reply) => {
+      reply.header("access-control-allow-origin", "*")
+      return {
+        $schema:
+          "https://static.modelcontextprotocol.io/schemas/mcp-server-card/v1.json",
+        version: "1.0",
+        protocolVersion: "2025-11-25",
+        url: `${config.PUBLIC_BASE_URL}/mcp`,
+        serverInfo: {
+          name: "404.directory",
+          version: SERVICE_VERSION,
+          title: "404.directory — Agent Discovery + Trust",
+        },
         description:
-          "Discover, verify, trust, and safely invoke curated read-only remote MCP tools. Also provides verify_web and understand_webpage.",
-      },
-      authentication: {
-        required: false,
-        schemes: [],
-      },
-      tools: [
-        ...registry.listActive().map((tool) => ({
-          name: tool.name,
-          title: tool.mcp?.title ?? tool.name,
-          description: `${tool.description}\n\nWhen to use: ${tool.use_when}\n\nDo not use when: ${tool.do_not_use_when}`,
-          inputSchema: zodToJsonSchema(tool.inputSchema),
-          outputSchema: zodToJsonSchema(tool.outputSchema),
-          annotations: tool.mcp?.annotations,
-        })),
-        ...(catalog
-          ? catalogMcpToolNames.map((name) => ({
-              name,
-              title: name,
-              description: GATEWAY_MCP_TOOL_NAMES.includes(
-                name as (typeof GATEWAY_MCP_TOOL_NAMES)[number]
-              )
-                ? `404.directory curated remote execution tool: ${name}`
-                : `404.directory discovery tool: ${name}`,
-              annotations: {
-                readOnlyHint: true,
-                destructiveHint: false,
-                idempotentHint: name !== "invoke_registered_tool",
-                openWorldHint: GATEWAY_MCP_TOOL_NAMES.includes(
+          "Search official OpenAI, Microsoft, AWS, and Cloudflare documentation; discover, verify, compare, and safely invoke curated read-only MCP tools.",
+        iconUrl: `${config.PUBLIC_BASE_URL}/icon.svg`,
+        documentationUrl: `${config.PUBLIC_BASE_URL}/docs.md`,
+        transport: {
+          type: "streamable-http",
+          endpoint: "/mcp",
+        },
+        capabilities: {
+          tools: {},
+        },
+        authentication: {
+          required: false,
+          schemes: [],
+        },
+        tools: [
+          ...registry.listActive().map((tool) => ({
+            name: tool.name,
+            title: tool.mcp?.title ?? tool.name,
+            description: `${tool.description}\n\nWhen to use: ${tool.use_when}\n\nDo not use when: ${tool.do_not_use_when}`,
+            inputSchema: zodToJsonSchema(tool.inputSchema),
+            outputSchema: zodToJsonSchema(tool.outputSchema),
+            annotations: tool.mcp?.annotations,
+          })),
+          ...(catalog
+            ? catalogMcpToolNames.map((name) => ({
+                name,
+                title: name,
+                description: GATEWAY_MCP_TOOL_NAMES.includes(
                   name as (typeof GATEWAY_MCP_TOOL_NAMES)[number]
-                ),
-              },
-            }))
-          : []),
-      ],
-      resources: [],
-      prompts: [],
-    })
+                )
+                  ? `404.directory curated remote execution tool: ${name}`
+                  : `404.directory discovery tool: ${name}`,
+                annotations: {
+                  readOnlyHint: true,
+                  destructiveHint: false,
+                  idempotentHint: name !== "invoke_registered_tool",
+                  openWorldHint: GATEWAY_MCP_TOOL_NAMES.includes(
+                    name as (typeof GATEWAY_MCP_TOOL_NAMES)[number]
+                  ),
+                },
+              }))
+            : []),
+        ],
+        resources: [],
+        prompts: [],
+      }
+    }
+  )
+
+  app.get(
+    "/.well-known/integrations.json",
+    { schema: { hide: true } as FastifySchema },
+    async (_request, reply) => {
+      reply.header("access-control-allow-origin", "*")
+      const source = `${config.PUBLIC_BASE_URL}/.well-known/integrations.json`
+      const declaredBasis = { via: "declared", source }
+      return {
+        version: 3,
+        summary:
+          "404.directory exposes a public remote MCP server and REST/OpenAPI surface for official documentation search, tool discovery, verification, trust, and controlled read-only execution.",
+        surfaces: [
+          {
+            slug: "404-directory-mcp",
+            name: "404.directory MCP server",
+            type: "mcp",
+            docs: `${config.PUBLIC_BASE_URL}/docs.md`,
+            url: `${config.PUBLIC_BASE_URL}/mcp`,
+            transports: ["streamable-http"],
+            basis: declaredBasis,
+            auth: {
+              status: "none",
+              basis: declaredBasis,
+            },
+            notes:
+              "Public and read-only. A stable non-personal X-404-Agent-ID is recommended for privacy-safe adoption measurement, but is not required for access.",
+          },
+          {
+            slug: "404-directory-rest-api",
+            name: "404.directory REST API",
+            type: "http",
+            docs: `${config.PUBLIC_BASE_URL}/docs.md`,
+            spec: `${config.PUBLIC_BASE_URL}/openapi.json`,
+            url: config.PUBLIC_BASE_URL,
+            basis: declaredBasis,
+            auth: { status: "unknown" },
+            notes:
+              "Public discovery and read-only execution routes require no authentication; registry write routes require a bearer credential as documented per operation in OpenAPI.",
+          },
+        ],
+      }
+    }
+  )
+
+  app.get(
+    "/.well-known/api-catalog",
+    { schema: { hide: true } as FastifySchema },
+    async (_request, reply) =>
+      reply
+        .type(
+          'application/linkset+json; profile="https://www.rfc-editor.org/info/rfc9727"'
+        )
+        .send({
+          linkset: [
+            {
+              anchor: config.PUBLIC_BASE_URL,
+              item: [{ href: `${config.PUBLIC_BASE_URL}/mcp` }],
+              "service-desc": [
+                {
+                  href: `${config.PUBLIC_BASE_URL}/openapi.json`,
+                  type: "application/json",
+                },
+              ],
+              "service-doc": [
+                {
+                  href: `${config.PUBLIC_BASE_URL}/docs.md`,
+                  type: "text/markdown",
+                },
+              ],
+              "service-meta": [
+                {
+                  href: `${config.PUBLIC_BASE_URL}/.well-known/mcp/server-card.json`,
+                  type: "application/json",
+                },
+              ],
+              status: [
+                {
+                  href: `${config.PUBLIC_BASE_URL}/health`,
+                  type: "application/json",
+                },
+              ],
+            },
+          ],
+        })
   )
 
   app.get(
@@ -727,6 +832,8 @@ Use \`search_official_docs\` for one-call current OpenAI, Microsoft, AWS, and Cl
 - [understand_webpage metadata](${config.PUBLIC_BASE_URL}/tools/understand_webpage): Schemas and safety metadata.
 - [MCP connection metadata](${config.PUBLIC_BASE_URL}/mcp-info): Streamable HTTP endpoint, discovery + executable tool names.
 - [MCP server card](${config.PUBLIC_BASE_URL}/.well-known/mcp/server-card.json): Static tool schemas for registry scanners.
+- [Integration declaration](${config.PUBLIC_BASE_URL}/.well-known/integrations.json): Owner-declared MCP and REST surfaces for autonomous Agent discovery.
+- [API catalog](${config.PUBLIC_BASE_URL}/.well-known/api-catalog): RFC 9727 links to the REST, OpenAPI, MCP, docs, and health surfaces.
 - [OpenAPI document](${config.PUBLIC_BASE_URL}/openapi.json): REST discovery and invocation contract.
 - [Agent-readable documentation](${config.PUBLIC_BASE_URL}/docs.md): Setup and usage guidance.
 - [Agent connection guide](${config.PUBLIC_BASE_URL}/connect): Stable privacy-safe Agent ID configuration for Codex, Claude Code, and MCP SDK clients.
@@ -783,6 +890,8 @@ Sitemap: ${config.PUBLIC_BASE_URL}/sitemap.xml
         "/v1/metrics/agents",
         "/mcp-info",
         "/.well-known/mcp/server-card.json",
+        "/.well-known/integrations.json",
+        "/.well-known/api-catalog",
         "/openapi.json",
         "/docs.md",
         "/health",

@@ -1,1 +1,1 @@
-export const SERVICE_VERSION = "0.7.5"
+export const SERVICE_VERSION = "0.8.0"

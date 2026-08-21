@@ -402,7 +402,12 @@ describe("HTTP API", () => {
     })
     expect(serverCard.statusCode).toBe(200)
     expect(serverCard.json()).toMatchObject({
+      version: "1.0",
+      protocolVersion: "2025-11-25",
+      url: "https://404.directory/mcp",
       serverInfo: { name: "404.directory", version: SERVICE_VERSION },
+      transport: { type: "streamable-http", endpoint: "/mcp" },
+      capabilities: { tools: {} },
       authentication: { required: false, schemes: [] },
       tools: [
         {
@@ -418,6 +423,51 @@ describe("HTTP API", () => {
       ],
       resources: [],
       prompts: [],
+    })
+    expect(serverCard.headers["access-control-allow-origin"]).toBe("*")
+
+    const integrations = await app.inject({
+      method: "GET",
+      url: "/.well-known/integrations.json",
+    })
+    expect(integrations.statusCode).toBe(200)
+    expect(integrations.headers["content-type"]).toContain("application/json")
+    expect(integrations.headers["access-control-allow-origin"]).toBe("*")
+    expect(integrations.json()).toMatchObject({
+      version: 3,
+      surfaces: [
+        {
+          slug: "404-directory-mcp",
+          type: "mcp",
+          url: "https://404.directory/mcp",
+          transports: ["streamable-http"],
+          auth: { status: "none" },
+        },
+        {
+          slug: "404-directory-rest-api",
+          type: "http",
+          spec: "https://404.directory/openapi.json",
+          auth: { status: "unknown" },
+        },
+      ],
+    })
+
+    const apiCatalog = await app.inject({
+      method: "GET",
+      url: "/.well-known/api-catalog",
+    })
+    expect(apiCatalog.statusCode).toBe(200)
+    expect(apiCatalog.headers["content-type"]).toContain(
+      "application/linkset+json"
+    )
+    expect(apiCatalog.json()).toMatchObject({
+      linkset: [
+        {
+          anchor: "https://404.directory",
+          item: [{ href: "https://404.directory/mcp" }],
+          "service-desc": [{ href: "https://404.directory/openapi.json" }],
+        },
+      ],
     })
   })
 
@@ -605,6 +655,9 @@ describe("HTTP API", () => {
     expect(home.headers.link).toContain('</llms.txt>; rel="describedby"')
     expect(home.headers.link).toContain(
       '</docs.md>; rel="alternate"; type="text/markdown"'
+    )
+    expect(home.headers.link).toContain(
+      '</.well-known/integrations.json>; rel="service-meta"'
     )
 
     const tool = await app.inject({
