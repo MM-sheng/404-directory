@@ -49,9 +49,43 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
       font-weight: 600;
     }
     .tagline {
-      margin: 0 0 2rem;
+      margin: 0 0 1rem;
       color: var(--muted);
       font-size: 1.15rem;
+    }
+    .cta {
+      display: inline-block;
+      margin: 0 0 2.25rem;
+      padding: 0.75rem 1rem;
+      color: #0b0c0f;
+      background: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 0.4rem;
+      font-family: var(--mono);
+      font-weight: 700;
+    }
+    .cta:hover { color: #0b0c0f; border-bottom-color: var(--accent); }
+    .first-call {
+      margin: 0 0 2rem;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 0.5rem;
+      background: #101318;
+    }
+    .first-call p { margin: 0.45rem 0 0; color: var(--muted); }
+    .providers {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.85rem;
+    }
+    .providers span {
+      padding: 0.2rem 0.45rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--fg);
+      font-family: var(--mono);
+      font-size: 0.78rem;
     }
     h2 {
       margin: 0 0 0.75rem;
@@ -91,13 +125,22 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
 <body>
   <main>
     <h1>404.directory</h1>
-    <p class="tagline">Discover, verify, and execute trusted tools for AI agents.</p>
-    <h2>Available tools</h2>
+    <p class="tagline">One MCP connection for official docs and trusted read-only Agent tools.</p>
+    <a class="cta" href="/connect?source=homepage">Connect your Agent →</a>
+    <section class="first-call">
+      <h2>Get value on the first call</h2>
+      <code>search_official_docs</code>
+      <p>Search four first-party developer documentation sources in parallel, with source provenance and graceful partial results.</p>
+      <div class="providers">
+        <span>OpenAI</span><span>Microsoft Learn</span><span>AWS</span><span>Cloudflare</span>
+      </div>
+    </section>
+    <h2>Built-in web tools</h2>
     <ul>
 ${toolLines}
     </ul>
     <nav>
-      <a href="/connect">Connect</a>
+      <a href="/connect?source=homepage-nav">Connect</a>
       <a href="/tools">Tools</a>
       <a href="/v1/metrics/agents">Agent usage</a>
       <a href="/mcp-info">MCP</a>

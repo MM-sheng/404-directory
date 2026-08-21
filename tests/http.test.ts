@@ -222,6 +222,12 @@ describe("HTTP API", () => {
     expect(home.body).toContain("404.directory")
     expect(home.body).toContain("understand_webpage")
     expect(home.body).toContain("verify_web")
+    expect(home.body).toContain("search_official_docs")
+    expect(home.body).toContain("/connect?source=homepage")
+    expect(home.body).toContain("OpenAI")
+    expect(home.body).toContain("Microsoft Learn")
+    expect(home.body).toContain("AWS")
+    expect(home.body).toContain("Cloudflare")
 
     const connect = await app.inject({
       method: "GET",
