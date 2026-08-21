@@ -35,6 +35,13 @@ function tinyRegistry(): ToolRegistry {
   return new ToolRegistry().register(echo)
 }
 
+function testConfig() {
+  return loadConfig({
+    REGISTRY_REQUIRE_AUTH: "true",
+    REGISTRY_ADMIN_TOKEN: "test-admin-token-16chars",
+  })
+}
+
 let app: FastifyInstance | undefined
 afterEach(async () => {
   await app?.close()
@@ -42,13 +49,14 @@ afterEach(async () => {
 })
 
 describe("v1 discovery API", () => {
-  it("registers and searches tools via /v1", async () => {
+  it("registers with auth and exposes tools after activation", async () => {
     const store = new MemoryCatalogStore()
-    app = await buildApp(tinyRegistry(), loadConfig(), store)
+    app = await buildApp(tinyRegistry(), testConfig(), store)
 
     const created = await app.inject({
       method: "POST",
       url: "/v1/tools",
+      headers: { authorization: "Bearer test-admin-token-16chars" },
       payload: {
         name: "btc_analyzer",
         description: "Analyze BTC market signals for agents",
@@ -58,12 +66,19 @@ describe("v1 discovery API", () => {
         category: "finance",
         provider: {
           name: "Example Labs",
+          slug: "example-labs",
           identity: { type: "domain", value: "example.com" },
         },
       },
     })
     expect(created.statusCode).toBe(201)
     expect(created.json().tool.slug).toBe("btc_analyzer")
+    expect(created.json().tool.status).toBe("pending")
+
+    await store.setProviderVerified("example-labs", true, {
+      ownership_method: "dns_txt",
+    })
+    await store.setToolStatus(created.json().tool.id, "active")
 
     const search = await app.inject({
       method: "GET",
@@ -92,7 +107,11 @@ describe("v1 discovery API", () => {
   })
 
   it("keeps first-party /tools working without catalog changes", async () => {
-    app = await buildApp(tinyRegistry(), loadConfig(), new MemoryCatalogStore())
+    app = await buildApp(
+      tinyRegistry(),
+      testConfig(),
+      new MemoryCatalogStore()
+    )
     const tools = await app.inject({ method: "GET", url: "/tools" })
     expect(tools.statusCode).toBe(200)
     expect(

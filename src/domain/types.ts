@@ -95,6 +95,10 @@ export const ToolSearchQuerySchema = z
     capability: z.string().max(64).optional(),
     protocol: ToolProtocolSchema.optional(),
     category: z.string().max(64).optional(),
+    /** Default active — pending/quarantine tools are hidden from agents. */
+    status: z
+      .enum(["active", "pending", "deprecated", "suspended", "all"])
+      .default("active"),
     trust_threshold: z.coerce.number().min(0).max(1).optional(),
     limit: z.coerce.number().int().min(1).max(50).default(10),
   })

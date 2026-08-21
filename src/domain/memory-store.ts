@@ -101,10 +101,19 @@ export class MemoryCatalogStore implements CatalogStore {
   async searchTools(query: ToolSearchQuery): Promise<CatalogTool[]> {
     const q = query.q?.toLowerCase()
     const capability = query.capability?.toLowerCase()
+    const statusFilter = query.status ?? "active"
     const results: MemoryTool[] = []
 
     for (const tool of this.tools.values()) {
-      if (tool.status === "suspended") continue
+      if (statusFilter === "active" && tool.status !== "active") continue
+      if (
+        statusFilter !== "all" &&
+        statusFilter !== "active" &&
+        tool.status !== statusFilter
+      ) {
+        continue
+      }
+      if (statusFilter === "all" && tool.status === "suspended") continue
       if (query.protocol && tool.protocol !== query.protocol) continue
       if (query.category && tool.category !== query.category) continue
       if (
@@ -210,6 +219,17 @@ export class MemoryCatalogStore implements CatalogStore {
 
   async getProviderBySlug(slug: string): Promise<ProviderRecord | null> {
     return this.providers.get(slugify(slug)) ?? null
+  }
+
+  async getProviderByApiKeyHash(
+    apiKeyHash: string
+  ): Promise<ProviderRecord | null> {
+    for (const provider of this.providers.values()) {
+      if (provider.metadata.api_key_hash === apiKeyHash) {
+        return { ...provider }
+      }
+    }
+    return null
   }
 
   async setProviderVerified(

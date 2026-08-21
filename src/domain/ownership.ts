@@ -33,11 +33,27 @@ export type OwnershipChallenge = DnsOwnershipChallenge | GithubOwnershipChalleng
  */
 export async function createOwnershipChallenge(
   store: CatalogStore,
-  providerSlug: string
+  providerSlug: string,
+  options: { cooldownMs?: number; force?: boolean } = {}
 ): Promise<OwnershipChallenge> {
   const provider = await store.getProviderBySlug(providerSlug)
   if (!provider) {
     throw new Error(`Unknown provider: ${providerSlug}`)
+  }
+
+  const existing = provider.metadata.ownership_challenge as
+    | OwnershipChallenge
+    | undefined
+  const cooldownMs = options.cooldownMs ?? 3_600_000
+  if (
+    !options.force &&
+    existing?.created_at &&
+    Date.now() - new Date(existing.created_at).getTime() < cooldownMs &&
+    new Date(existing.expires_at).getTime() > Date.now()
+  ) {
+    throw new Error(
+      "Ownership challenge recently issued; wait for cooldown or use the existing challenge"
+    )
   }
 
   const token = randomBytes(16).toString("hex")
@@ -123,6 +139,7 @@ async function refreshProviderTools(
   const tools = await store.searchTools({
     q: providerName,
     limit: 50,
+    status: "all",
   })
   for (const tool of tools) {
     if (tool.provider.slug === providerSlug) {

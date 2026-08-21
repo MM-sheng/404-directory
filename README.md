@@ -224,10 +224,19 @@ Vercel terminates TLS for `https://404.directory`.
 
 The free-tier migration target is Cloud Run. `Dockerfile` uses Node slim and
 installs only Chromium's headless shell so the retained Artifact Registry image
-stays below the 0.5 GiB free storage allowance. Deploy with request-based
-billing, no warm instances, one maximum instance, and bounded concurrency:
+stays below the 0.5 GiB free storage allowance.
+
+**Catalog persistence is required in production.** Without `DATABASE_URL` and
+with `CATALOG_MEMORY_FALLBACK=true` (the local default), Registry / Trust /
+telemetry evaporate on every cold start. Also: request-based Cloud Run does
+**not** reliably run in-process `setInterval` workers — use an external worker.
 
 ```bash
+# 1) Managed Postgres (Cloud SQL / Neon / etc.) + migrate
+export DATABASE_URL=postgres://...
+npm run db:migrate
+
+# 2) API service
 gcloud run deploy directory-404 \
   --source . \
   --region asia-east1 \
@@ -239,8 +248,18 @@ gcloud run deploy directory-404 \
   --min-instances 0 \
   --max-instances 1 \
   --timeout 120 \
-  --port 8080
+  --port 8080 \
+  --set-env-vars "DATABASE_URL=${DATABASE_URL},CATALOG_MEMORY_FALLBACK=false,VERIFICATION_WORKER_MODE=external,REGISTRY_REQUIRE_AUTH=true,REGISTRY_ADMIN_TOKEN=${REGISTRY_ADMIN_TOKEN},PUBLIC_BASE_URL=https://404.directory,HOST=0.0.0.0,PORT=8080"
+
+# 3) Independent verification worker (Cloud Run Job + Scheduler, or always-on)
+#    VERIFICATION_WORKER_MODE=external on the API; run:
+#    npm run worker:verify
 ```
+
+Registry write APIs (`POST /v1/tools`, ownership challenge/verify, manual
+verify) require `Authorization: Bearer <REGISTRY_ADMIN_TOKEN|provider_api_key>`.
+New providers receive a one-time `provider_api_key`. Search defaults to
+`status=active` only — pending tools stay quarantined.
 
 Apply `cloudrun.cleanup-policy.json` to the source-deploy Artifact Registry
 repository so superseded, untagged images do not accumulate storage charges.
@@ -257,6 +276,8 @@ Production hardening notes:
 - Keep `BROWSER_EGRESS_ALLOWED_PORTS` narrow (default `80,443`)
 - Tune `RATE_LIMIT_*` and verify/browser timeouts for your traffic
 - Tool execution has a stricter `TOOL_RATE_LIMIT_MAX` than discovery
+- Set `CATALOG_MEMORY_FALLBACK=false` whenever `DATABASE_URL` is configured
+- Prefer `VERIFICATION_WORKER_MODE=external` on serverless
 
 ## Security boundaries
 

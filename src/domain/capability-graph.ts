@@ -68,7 +68,7 @@ async function loadCatalogTools(
   store: CatalogStore,
   limit = 100
 ): Promise<CatalogTool[]> {
-  return store.searchTools({ limit })
+  return store.searchTools({ limit, status: "active" })
 }
 
 /**
@@ -149,7 +149,7 @@ export async function toolsForCapability(
   capability: string,
   limit = 20
 ): Promise<CatalogTool[]> {
-  return store.searchTools({ capability, limit })
+  return store.searchTools({ capability, limit, status: "active" })
 }
 
 /**

@@ -226,7 +226,8 @@ describe("HTTP API", () => {
     expect(health.statusCode).toBe(200)
     expect(health.json()).toMatchObject({
       status: "ok",
-      version: "0.4.4",
+      version: "0.5.0",
+      catalog: false,
       browser_egress: "pinned_ip_proxy",
       tools: expect.arrayContaining(["understand_webpage", "verify_web"]),
     })
@@ -296,7 +297,14 @@ describe("HTTP API", () => {
       },
     })
     expect(spec.paths["/verify/web"].post.operationId).toBe("verify_web")
-    expect(spec.components?.securitySchemes).toBeUndefined()
+    expect(spec.components?.securitySchemes).toEqual({
+      bearerAuth: {
+        type: "http",
+        scheme: "bearer",
+        description:
+          "REGISTRY_ADMIN_TOKEN or provider_api_key from POST /v1/tools",
+      },
+    })
 
     const docs = await app.inject({ method: "GET", url: "/docs.md" })
     expect(docs.statusCode).toBe(200)
@@ -352,7 +360,9 @@ describe("HTTP API", () => {
       registry_name: "io.github.MM-sheng/404-directory",
       repository: "https://github.com/MM-sheng/404-directory",
       requires_auth: false,
+      positioning: "agent-discovery-trust",
       tools: ["understand_webpage", "verify_web"],
+      discovery_api: null,
     })
 
     const serverCard = await app.inject({
@@ -361,7 +371,7 @@ describe("HTTP API", () => {
     })
     expect(serverCard.statusCode).toBe(200)
     expect(serverCard.json()).toMatchObject({
-      serverInfo: { name: "404.directory", version: "0.4.4" },
+      serverInfo: { name: "404.directory", version: "0.5.0" },
       authentication: { required: false, schemes: [] },
       tools: [
         {

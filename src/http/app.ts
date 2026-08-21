@@ -14,7 +14,7 @@ import type { AppConfig } from "../config.js"
 import { registerV1Routes } from "../domain/http/v1-routes.js"
 import type { CatalogStore } from "../domain/store.js"
 import { classifyErrorType, trackInvocation } from "../domain/telemetry.js"
-import { createMcpServerFromRegistry } from "../mcp/create-server.js"
+import { createMcpServerFromRegistry, DISCOVERY_MCP_TOOL_NAMES } from "../mcp/create-server.js"
 import { UnsafeUrlError } from "../security/url.js"
 import {
   jsonValueComponentSchema,
@@ -383,11 +383,28 @@ export async function buildApp(
       info: {
         title: "404.directory",
         description:
-          "Tools built for AI agents. Discover capabilities via GET /tools, call them over REST or MCP.",
+          "Agent Discovery + Trust infrastructure. Discover via MCP/REST (/v1, search_tools), call first-party tools over REST or MCP. Registry writes require Bearer auth.",
         version: SERVICE_VERSION,
       },
       servers: [{ url: config.PUBLIC_BASE_URL }],
-      tags: [{ name: "tools", description: "Registered agent tools" }],
+      tags: [
+        { name: "tools", description: "First-party executable tools" },
+        {
+          name: "v1-discovery",
+          description:
+            "Ecosystem registry + discovery. Search is active-only; writes need Bearer admin or provider API key.",
+        },
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            description:
+              "REGISTRY_ADMIN_TOKEN or provider_api_key from POST /v1/tools",
+          },
+        },
+      },
     },
     refResolver: {
       // Preserve human/agent-readable component names (default is "def-N").
@@ -443,10 +460,11 @@ export async function buildApp(
           200: {
             type: "object",
             additionalProperties: false,
-            required: ["status", "version", "tools", "browser_egress"],
+            required: ["status", "version", "tools", "browser_egress", "catalog"],
             properties: {
               status: { type: "string", enum: ["ok"] },
               version: { type: "string" },
+              catalog: { type: "boolean" },
               browser_egress: {
                 type: "string",
                 enum: ["pinned_ip_proxy"],
@@ -464,7 +482,11 @@ export async function buildApp(
       status: "ok",
       version: SERVICE_VERSION,
       browser_egress: "pinned_ip_proxy",
-      tools: registry.listActive().map((tool) => tool.name),
+      catalog: Boolean(catalog),
+      tools: [
+        ...registry.listActive().map((tool) => tool.name),
+        ...(catalog ? [...DISCOVERY_MCP_TOOL_NAMES] : []),
+      ],
     })
   )
 
@@ -523,7 +545,19 @@ export async function buildApp(
       registry_name: "io.github.MM-sheng/404-directory",
       repository: "https://github.com/MM-sheng/404-directory",
       requires_auth: false,
-      tools: registry.listActive().map((tool) => tool.name),
+      positioning: "agent-discovery-trust",
+      tools: [
+        ...registry.listActive().map((tool) => tool.name),
+        ...(catalog ? [...DISCOVERY_MCP_TOOL_NAMES] : []),
+      ],
+      discovery_api: catalog
+        ? {
+            search: `${config.PUBLIC_BASE_URL}/v1/tools/search`,
+            register: `${config.PUBLIC_BASE_URL}/v1/tools`,
+            capabilities: `${config.PUBLIC_BASE_URL}/v1/capabilities`,
+            graph: `${config.PUBLIC_BASE_URL}/v1/graph/capabilities`,
+          }
+        : null,
     })
   )
 
@@ -538,7 +572,10 @@ export async function buildApp(
       url: `${config.PUBLIC_BASE_URL}/mcp`,
       server_url: `${config.PUBLIC_BASE_URL}/mcp`,
       authentication: { required: false, schemes: [] },
-      tools: registry.listActive().map((tool) => tool.name),
+      tools: [
+        ...registry.listActive().map((tool) => tool.name),
+        ...(catalog ? [...DISCOVERY_MCP_TOOL_NAMES] : []),
+      ],
     })
   )
 
@@ -549,19 +586,37 @@ export async function buildApp(
       serverInfo: {
         name: "404.directory",
         version: SERVICE_VERSION,
+        title: "404.directory — Agent Discovery + Trust",
+        description:
+          "Discover, verify, and trust tools before calling them. Also provides verify_web and understand_webpage.",
       },
       authentication: {
         required: false,
         schemes: [],
       },
-      tools: registry.listActive().map((tool) => ({
-        name: tool.name,
-        title: tool.mcp?.title ?? tool.name,
-        description: `${tool.description}\n\nWhen to use: ${tool.use_when}\n\nDo not use when: ${tool.do_not_use_when}`,
-        inputSchema: zodToJsonSchema(tool.inputSchema),
-        outputSchema: zodToJsonSchema(tool.outputSchema),
-        annotations: tool.mcp?.annotations,
-      })),
+      tools: [
+        ...registry.listActive().map((tool) => ({
+          name: tool.name,
+          title: tool.mcp?.title ?? tool.name,
+          description: `${tool.description}\n\nWhen to use: ${tool.use_when}\n\nDo not use when: ${tool.do_not_use_when}`,
+          inputSchema: zodToJsonSchema(tool.inputSchema),
+          outputSchema: zodToJsonSchema(tool.outputSchema),
+          annotations: tool.mcp?.annotations,
+        })),
+        ...(catalog
+          ? DISCOVERY_MCP_TOOL_NAMES.map((name) => ({
+              name,
+              title: name,
+              description: `404.directory discovery tool: ${name}`,
+              annotations: {
+                readOnlyHint: true,
+                destructiveHint: false,
+                idempotentHint: true,
+                openWorldHint: false,
+              },
+            }))
+          : []),
+      ],
       resources: [],
       prompts: [],
     })
@@ -573,24 +628,26 @@ export async function buildApp(
     async (_request, reply) =>
       reply.type("text/markdown; charset=utf-8").send(`# 404.directory
 
-> Public, read-only web tools built for AI agents. Connect over MCP Streamable HTTP or call the REST API without authentication.
+> Agent Discovery + Trust infrastructure for AI agents, plus public read-only web tools.
 
-Use verify_web to independently check whether a public site or deployment is reachable and matches an expected HTTP status or text. Use understand_webpage when an agent needs a structured model of a normal webpage's entities, state, actions, evidence, and confidence. Do not use either tool for private, internal, or authenticated URLs.
+Use the Discovery MCP tools (\`search_tools\`, \`get_tool\`, \`compare_tools\`, \`get_trust_score\`, \`recommend_tools\`, \`list_capabilities\`, \`get_capability_graph\`) or REST \`/v1/*\` to discover and trust ecosystem tools before selecting them. Use verify_web to check public deployments. Use understand_webpage for structured page models. Do not use either executable tool for private/internal URLs.
 
 ## Agent discovery
 
-- [Compact tool catalog](${config.PUBLIC_BASE_URL}/tools): Low-token list of available tools and when to use them.
-- [verify_web metadata](${config.PUBLIC_BASE_URL}/tools/verify_web): Complete input/output schemas, evidence contract, examples, cost, latency, and safety metadata.
-- [understand_webpage metadata](${config.PUBLIC_BASE_URL}/tools/understand_webpage): Complete input/output schemas, examples, cost, latency, and safety metadata.
-- [MCP connection metadata](${config.PUBLIC_BASE_URL}/mcp-info): Streamable HTTP endpoint and server identity.
+- [Compact first-party catalog](${config.PUBLIC_BASE_URL}/tools): Low-token list of executable tools.
+- [Ecosystem search](${config.PUBLIC_BASE_URL}/v1/tools/search): Capability/protocol/trust filtered tool search (active tools only).
+- [Capability graph](${config.PUBLIC_BASE_URL}/v1/graph/capabilities): Shared-capability edges for recommendations.
+- [verify_web metadata](${config.PUBLIC_BASE_URL}/tools/verify_web): Schemas and evidence contract.
+- [understand_webpage metadata](${config.PUBLIC_BASE_URL}/tools/understand_webpage): Schemas and safety metadata.
+- [MCP connection metadata](${config.PUBLIC_BASE_URL}/mcp-info): Streamable HTTP endpoint, discovery + executable tool names.
 - [MCP server card](${config.PUBLIC_BASE_URL}/.well-known/mcp/server-card.json): Static tool schemas for registry scanners.
 - [OpenAPI document](${config.PUBLIC_BASE_URL}/openapi.json): REST discovery and invocation contract.
 - [Agent-readable documentation](${config.PUBLIC_BASE_URL}/docs.md): Setup and usage guidance.
 
 ## Direct connection
 
-- [MCP endpoint](${config.PUBLIC_BASE_URL}/mcp): Send MCP initialize, tools/list, and tools/call requests here using Streamable HTTP.
-- [Service health](${config.PUBLIC_BASE_URL}/health): Current version and active tool names.
+- [MCP endpoint](${config.PUBLIC_BASE_URL}/mcp): initialize, tools/list, and tools/call (Streamable HTTP).
+- [Service health](${config.PUBLIC_BASE_URL}/health): Version, catalog status, and tool names.
 
 ## Optional
 
@@ -631,6 +688,9 @@ Sitemap: ${config.PUBLIC_BASE_URL}/sitemap.xml
         "/llms.txt",
         "/tools",
         ...registry.listActive().map((tool) => `/tools/${tool.name}`),
+        "/v1/tools/search",
+        "/v1/capabilities",
+        "/v1/graph/capabilities",
         "/mcp-info",
         "/.well-known/mcp/server-card.json",
         "/openapi.json",
@@ -707,7 +767,7 @@ ${urls}
   })
 
   if (catalog) {
-    await registerV1Routes(app, catalog)
+    await registerV1Routes(app, catalog, config)
   }
 
   await app.ready()

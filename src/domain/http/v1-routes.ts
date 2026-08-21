@@ -1,16 +1,28 @@
 import type { FastifyInstance, FastifyPluginAsync } from "fastify"
 import { ZodError, z } from "zod"
+import type { AppConfig } from "../../config.js"
 import {
-  compareCatalogTools,
-  getCatalogTool,
-  searchCatalogTools,
-} from "../discovery.js"
+  AuthError,
+  ForbiddenError,
+  assertCanRegisterProviderSlug,
+  assertCanRegisterToolSlug,
+  assertProviderAccess,
+  generateApiKey,
+  hashApiKey,
+  requireWriteAuth,
+  resolveRegistryAuth,
+} from "../auth.js"
 import {
   buildCapabilityGraph,
   listCapabilities,
   recommendRelatedTools,
   toolsForCapability,
 } from "../capability-graph.js"
+import {
+  compareCatalogTools,
+  getCatalogTool,
+  searchCatalogTools,
+} from "../discovery.js"
 import {
   createOwnershipChallenge,
   verifyOwnershipChallenge,
@@ -32,28 +44,101 @@ function invalidRequest(error: unknown): { error: string; message: string } {
   }
 }
 
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9:_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
 export type V1RoutesOptions = {
   store: CatalogStore
+  config: AppConfig
 }
 
 /**
  * Versioned Agent Discovery + Registry API.
- * Does not replace first-party /tools or /understand — those remain executable.
+ * Write paths require Bearer admin token or provider API key.
  */
 export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
   app,
   options
 ) => {
-  const { store } = options
+  const { store, config } = options
 
-  app.post("/v1/tools", async (request, reply) => {
+  app.addHook("onRoute", (routeOptions) => {
+    if (routeOptions.url?.startsWith("/v1")) {
+      routeOptions.schema = {
+        ...(routeOptions.schema as object),
+        tags: ["v1-discovery"],
+      }
+    }
+  })
+
+  app.post(
+    "/v1/tools",
+    {
+      schema: {
+        summary: "Register a tool (auth required)",
+        description:
+          "Bearer REGISTRY_ADMIN_TOKEN or provider API key. New providers receive a one-time provider_api_key. Tools stay pending (quarantine) until ownership + verification.",
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    async (request, reply) => {
     try {
+      const auth = await resolveRegistryAuth(request, store, config)
+      requireWriteAuth(auth, config)
+
       const body = RegisterToolRequestSchema.parse(request.body)
+      const toolSlug = slugify(body.name)
+      assertCanRegisterToolSlug(toolSlug)
+
+      const providerSlug = body.provider.slug ?? slugify(body.provider.name)
+      const existingProvider = await store.getProviderBySlug(providerSlug)
+
+      let issuedApiKey: string | undefined
+      if (existingProvider) {
+        assertProviderAccess(auth, providerSlug)
+      } else {
+        assertCanRegisterProviderSlug(providerSlug)
+        if (auth.kind === "provider") {
+          throw new ForbiddenError(
+            "Provider keys cannot create additional providers"
+          )
+        }
+        issuedApiKey = generateApiKey()
+      }
+
       const tool = await store.registerTool(body)
-      // Kick an immediate verification pass for the new tool.
-      void verifyTool(store, tool.id).catch(() => undefined)
-      return reply.status(201).send({ tool })
+
+      if (issuedApiKey) {
+        await store.setProviderMetadata(providerSlug, {
+          ...(
+            (await store.getProviderBySlug(providerSlug))?.metadata ?? {}
+          ),
+          api_key_hash: hashApiKey(issuedApiKey),
+        })
+      }
+
+      // Do not auto-verify; stay in quarantine until ownership + checks pass.
+      return reply.status(201).send({
+        tool,
+        ...(issuedApiKey
+          ? {
+              provider_api_key: issuedApiKey,
+              warning:
+                "Store provider_api_key now; it is shown only once and required for ownership + tool writes.",
+            }
+          : {}),
+      })
     } catch (error) {
+      if (error instanceof AuthError || error instanceof ForbiddenError) {
+        return reply.status(error.statusCode).send({
+          error: error.name === "AuthError" ? "unauthorized" : "forbidden",
+          message: error.message,
+        })
+      }
       if (error instanceof Error && /already registered/i.test(error.message)) {
         return reply.status(409).send({
           error: "conflict",
@@ -67,6 +152,16 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
   app.get("/v1/tools/search", async (request, reply) => {
     try {
       const query = ToolSearchQuerySchema.parse(request.query)
+      // Non-active statuses are quarantine — admin only.
+      if (query.status !== "active") {
+        const auth = await resolveRegistryAuth(request, store, config)
+        if (auth.kind !== "admin") {
+          return reply.status(403).send({
+            error: "forbidden",
+            message: "Only admin can query non-active (quarantine) tools",
+          })
+        }
+      }
       const tools = await searchCatalogTools(store, query)
       return {
         query,
@@ -89,7 +184,9 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
         .split(",")
         .map((part) => part.trim())
         .filter(Boolean)
-      const tools = await compareCatalogTools(store, keys)
+      const tools = (await compareCatalogTools(store, keys)).filter(
+        (tool) => tool.status === "active"
+      )
       return { count: tools.length, tools }
     } catch (error) {
       return reply.status(400).send(invalidRequest(error))
@@ -137,13 +234,29 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
         message: `Unknown tool: ${idOrSlug}`,
       })
     }
+    if (tool.status !== "active") {
+      const auth = await resolveRegistryAuth(request, store, config)
+      if (auth.kind === "admin") {
+        return { tool, quarantine: true }
+      }
+      if (
+        auth.kind === "provider" &&
+        auth.provider.slug === tool.provider.slug
+      ) {
+        return { tool, quarantine: true }
+      }
+      return reply.status(404).send({
+        error: "not_found",
+        message: `Unknown tool: ${idOrSlug}`,
+      })
+    }
     return { tool }
   })
 
   app.get("/v1/tools/:idOrSlug/trust", async (request, reply) => {
     const { idOrSlug } = request.params as { idOrSlug: string }
     const tool = await getCatalogTool(store, idOrSlug)
-    if (!tool) {
+    if (!tool || tool.status !== "active") {
       return reply.status(404).send({
         error: "not_found",
         message: `Unknown tool: ${idOrSlug}`,
@@ -163,7 +276,7 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
       .object({ limit: z.coerce.number().int().min(1).max(20).default(5) })
       .parse(request.query)
     const seed = await getCatalogTool(store, idOrSlug)
-    if (!seed) {
+    if (!seed || seed.status !== "active") {
       return reply.status(404).send({
         error: "not_found",
         message: `Unknown tool: ${idOrSlug}`,
@@ -186,22 +299,55 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
         message: `Unknown tool: ${idOrSlug}`,
       })
     }
+    const auth = await resolveRegistryAuth(request, store, config)
+    if (tool.status !== "active") {
+      try {
+        assertProviderAccess(auth, tool.provider.slug)
+      } catch (error) {
+        if (error instanceof AuthError || error instanceof ForbiddenError) {
+          return reply.status(error.statusCode).send({
+            error: error.name === "AuthError" ? "unauthorized" : "forbidden",
+            message: error.message,
+          })
+        }
+        throw error
+      }
+    }
     const checks = await store.listVerificationChecks(tool.id, 50)
     return { tool_id: tool.id, checks }
   })
 
   app.post("/v1/tools/:idOrSlug/verify", async (request, reply) => {
-    const { idOrSlug } = request.params as { idOrSlug: string }
-    const tool = await getCatalogTool(store, idOrSlug)
-    if (!tool) {
-      return reply.status(404).send({
-        error: "not_found",
-        message: `Unknown tool: ${idOrSlug}`,
-      })
+    try {
+      const auth = await resolveRegistryAuth(request, store, config)
+      requireWriteAuth(auth, config)
+      const { idOrSlug } = request.params as { idOrSlug: string }
+      const tool = await getCatalogTool(store, idOrSlug)
+      if (!tool) {
+        return reply.status(404).send({
+          error: "not_found",
+          message: `Unknown tool: ${idOrSlug}`,
+        })
+      }
+      assertProviderAccess(auth, tool.provider.slug)
+      const results = await verifyTool(store, tool.id)
+      const trust = await refreshTrustForTool(store, tool.id)
+      const refreshed = await store.getToolById(tool.id)
+      return {
+        tool_id: tool.id,
+        status: refreshed?.status,
+        results,
+        trust,
+      }
+    } catch (error) {
+      if (error instanceof AuthError || error instanceof ForbiddenError) {
+        return reply.status(error.statusCode).send({
+          error: error.name === "AuthError" ? "unauthorized" : "forbidden",
+          message: error.message,
+        })
+      }
+      return reply.status(400).send(invalidRequest(error))
     }
-    const results = await verifyTool(store, tool.id)
-    const trust = await refreshTrustForTool(store, tool.id)
-    return { tool_id: tool.id, results, trust }
   })
 
   app.get("/v1/providers/:slug", async (request, reply) => {
@@ -213,9 +359,8 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
         message: `Unknown provider: ${slug}`,
       })
     }
-    // Do not leak active challenge tokens in public GET — only challenge metadata
-    // without the token is exposed; full token is returned only by POST challenge.
     const metadata = { ...provider.metadata }
+    delete metadata.api_key_hash
     const challenge = metadata.ownership_challenge as
       | { token?: string }
       | undefined
@@ -230,10 +375,22 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
 
   app.post("/v1/providers/:slug/ownership/challenge", async (request, reply) => {
     try {
+      const auth = await resolveRegistryAuth(request, store, config)
+      requireWriteAuth(auth, config)
       const { slug } = request.params as { slug: string }
-      const challenge = await createOwnershipChallenge(store, slug)
+      assertProviderAccess(auth, slug)
+      const challenge = await createOwnershipChallenge(store, slug, {
+        cooldownMs: config.OWNERSHIP_CHALLENGE_COOLDOWN_MS,
+        force: auth.kind === "admin",
+      })
       return { challenge }
     } catch (error) {
+      if (error instanceof AuthError || error instanceof ForbiddenError) {
+        return reply.status(error.statusCode).send({
+          error: error.name === "AuthError" ? "unauthorized" : "forbidden",
+          message: error.message,
+        })
+      }
       if (error instanceof Error && /Unknown provider/i.test(error.message)) {
         return reply.status(404).send({
           error: "not_found",
@@ -246,10 +403,19 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
 
   app.post("/v1/providers/:slug/ownership/verify", async (request, reply) => {
     try {
+      const auth = await resolveRegistryAuth(request, store, config)
+      requireWriteAuth(auth, config)
       const { slug } = request.params as { slug: string }
+      assertProviderAccess(auth, slug)
       const result = await verifyOwnershipChallenge(store, slug)
       return reply.status(result.verified ? 200 : 400).send(result)
     } catch (error) {
+      if (error instanceof AuthError || error instanceof ForbiddenError) {
+        return reply.status(error.statusCode).send({
+          error: error.name === "AuthError" ? "unauthorized" : "forbidden",
+          message: error.message,
+        })
+      }
       if (error instanceof Error && /Unknown provider/i.test(error.message)) {
         return reply.status(404).send({
           error: "not_found",
@@ -263,7 +429,8 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
 
 export async function registerV1Routes(
   app: FastifyInstance,
-  store: CatalogStore
+  store: CatalogStore,
+  config: AppConfig
 ): Promise<void> {
-  await app.register(v1Routes, { store })
+  await app.register(v1Routes, { store, config })
 }

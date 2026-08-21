@@ -46,6 +46,9 @@ describe("capability graph", () => {
         identity: { type: "domain", value: "a.example" },
       },
     })
+    const a = await store.getToolBySlug("btc_analyzer")
+    await store.setToolStatus(a!.id, "active")
+
     await store.registerTool({
       name: "btc_news",
       description: "BTC news summarizer for agents",
@@ -61,6 +64,9 @@ describe("capability graph", () => {
         identity: { type: "domain", value: "b.example" },
       },
     })
+    const b = await store.getToolBySlug("btc_news")
+    await store.setToolStatus(b!.id, "active")
+
     await store.registerTool({
       name: "image_resize",
       description: "Resize images for agents",
@@ -76,6 +82,8 @@ describe("capability graph", () => {
         identity: { type: "domain", value: "c.example" },
       },
     })
+    const c = await store.getToolBySlug("image_resize")
+    await store.setToolStatus(c!.id, "active")
 
     const graph = await buildCapabilityGraph(store)
     expect(graph.algorithm_version).toBe("cap_v1")

@@ -64,6 +64,7 @@ export interface CatalogStore {
     sinceMs?: number
   ): Promise<{ invocations: number; successes: number }>
   getProviderBySlug(slug: string): Promise<ProviderRecord | null>
+  getProviderByApiKeyHash(apiKeyHash: string): Promise<ProviderRecord | null>
   setProviderVerified(
     slug: string,
     verified: boolean,

@@ -114,6 +114,20 @@ const EnvironmentSchema = z.object({
     .max(3_600_000)
     .default(300_000),
   VERIFICATION_BATCH_SIZE: z.coerce.number().int().min(1).max(200).default(20),
+  REGISTRY_REQUIRE_AUTH: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+  REGISTRY_ADMIN_TOKEN: z.preprocess(
+    (value) => (value === "" || value === undefined ? undefined : value),
+    z.string().min(16).optional()
+  ),
+  OWNERSHIP_CHALLENGE_COOLDOWN_MS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(86_400_000)
+    .default(3_600_000),
   SEED_FIRST_PARTY_TOOLS: z
     .enum(["true", "false"])
     .default("true")

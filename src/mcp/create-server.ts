@@ -1,8 +1,24 @@
+import { performance } from "node:perf_hooks"
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { CatalogStore } from "../domain/store.js"
+import {
+  classifyErrorType,
+  trackInvocation,
+} from "../domain/telemetry.js"
 import type { ToolRegistry } from "../tools/registry.js"
 import { SERVICE_VERSION } from "../version.js"
 import { registerDiscoveryMcpTools } from "./discovery-tools.js"
+
+/** Machine-discoverable MCP tool names (executable + discovery). */
+export const DISCOVERY_MCP_TOOL_NAMES = [
+  "search_tools",
+  "get_tool",
+  "compare_tools",
+  "get_trust_score",
+  "recommend_tools",
+  "list_capabilities",
+  "get_capability_graph",
+] as const
 
 export function createMcpServerFromRegistry(
   registry: ToolRegistry,
@@ -30,10 +46,19 @@ export function createMcpServerFromRegistry(
         annotations: tool.mcp?.annotations,
       },
       async (args) => {
+        const started = performance.now()
         let parsed: unknown
         try {
           parsed = tool.inputSchema.parse(args)
         } catch (error) {
+          await trackInvocation(catalog, {
+            tool_name: tool.name,
+            version: tool.version,
+            source: "mcp",
+            success: false,
+            latency_ms: performance.now() - started,
+            error_type: "validation",
+          })
           return {
             isError: true,
             content: [
@@ -49,11 +74,26 @@ export function createMcpServerFromRegistry(
         try {
           const result = await tool.handler(parsed)
           const validated = tool.outputSchema.parse(result)
+          await trackInvocation(catalog, {
+            tool_name: tool.name,
+            version: tool.version,
+            source: "mcp",
+            success: true,
+            latency_ms: performance.now() - started,
+          })
           return {
             content: [{ type: "text", text: JSON.stringify(validated) }],
             structuredContent: validated as Record<string, unknown>,
           }
-        } catch {
+        } catch (error) {
+          await trackInvocation(catalog, {
+            tool_name: tool.name,
+            version: tool.version,
+            source: "mcp",
+            success: false,
+            latency_ms: performance.now() - started,
+            error_type: classifyErrorType(error),
+          })
           return {
             isError: true,
             content: [

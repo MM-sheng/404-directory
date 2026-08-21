@@ -173,13 +173,36 @@ export class PostgresCatalogStore implements CatalogStore {
       .set({ isLatest: false })
       .where(eq(toolVersions.toolId, existing.id))
 
-    await this.db.insert(toolVersions).values({
-      toolId: existing.id,
-      version: input.version,
-      inputSchema: input.input_schema,
-      outputSchema: input.output_schema,
-      isLatest: true,
-    })
+    const existingVersion = await this.db
+      .select({ id: toolVersions.id })
+      .from(toolVersions)
+      .where(
+        and(
+          eq(toolVersions.toolId, existing.id),
+          eq(toolVersions.version, input.version)
+        )
+      )
+      .limit(1)
+      .then((rows) => rows[0])
+
+    if (existingVersion) {
+      await this.db
+        .update(toolVersions)
+        .set({
+          inputSchema: input.input_schema,
+          outputSchema: input.output_schema,
+          isLatest: true,
+        })
+        .where(eq(toolVersions.id, existingVersion.id))
+    } else {
+      await this.db.insert(toolVersions).values({
+        toolId: existing.id,
+        version: input.version,
+        inputSchema: input.input_schema,
+        outputSchema: input.output_schema,
+        isLatest: true,
+      })
+    }
 
     if (options.providerVerified !== undefined) {
       const providerSlug = input.provider.slug ?? slugify(input.provider.name)
@@ -209,6 +232,28 @@ export class PostgresCatalogStore implements CatalogStore {
       verified: row.verified,
       metadata: (row.metadata ?? {}) as Record<string, unknown>,
     }
+  }
+
+  async getProviderByApiKeyHash(
+    apiKeyHash: string
+  ): Promise<ProviderRecord | null> {
+    const rows = await this.db.select().from(providers)
+    for (const row of rows) {
+      const metadata = (row.metadata ?? {}) as Record<string, unknown>
+      if (metadata.api_key_hash === apiKeyHash) {
+        return {
+          id: row.id,
+          slug: row.slug,
+          name: row.name,
+          website_url: row.websiteUrl,
+          identity_type: row.identityType,
+          identity_value: row.identityValue,
+          verified: row.verified,
+          metadata,
+        }
+      }
+    }
+    return null
   }
 
   async setProviderVerified(
@@ -284,7 +329,15 @@ export class PostgresCatalogStore implements CatalogStore {
   }
 
   async searchTools(query: ToolSearchQuery): Promise<CatalogTool[]> {
-    const conditions = [sql`${tools.status} <> 'suspended'`]
+    const statusFilter = query.status ?? "active"
+    const conditions = []
+    if (statusFilter === "active") {
+      conditions.push(sql`${tools.status} = 'active'`)
+    } else if (statusFilter === "all") {
+      conditions.push(sql`${tools.status} <> 'suspended'`)
+    } else {
+      conditions.push(sql`${tools.status} = ${statusFilter}`)
+    }
     if (query.protocol) {
       conditions.push(sql`${tools.protocol} = ${query.protocol}`)
     }

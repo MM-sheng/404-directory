@@ -1,3 +1,4 @@
+import { performance } from "node:perf_hooks"
 import { z } from "zod"
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import {
@@ -11,8 +12,38 @@ import {
   searchCatalogTools,
 } from "../domain/discovery.js"
 import type { CatalogStore } from "../domain/store.js"
+import { trackInvocation } from "../domain/telemetry.js"
 import { refreshTrustForTool } from "../domain/trust.js"
 import { ToolProtocolSchema } from "../domain/types.js"
+
+async function withDiscoveryTelemetry<T>(
+  store: CatalogStore,
+  toolName: string,
+  run: () => Promise<T>
+): Promise<T> {
+  const started = performance.now()
+  try {
+    const result = await run()
+    await trackInvocation(store, {
+      tool_name: toolName,
+      version: "0.5.0",
+      source: "mcp:discovery",
+      success: true,
+      latency_ms: performance.now() - started,
+    })
+    return result
+  } catch (error) {
+    await trackInvocation(store, {
+      tool_name: toolName,
+      version: "0.5.0",
+      source: "mcp:discovery",
+      success: false,
+      latency_ms: performance.now() - started,
+      error_type: error instanceof Error ? error.name : "unknown",
+    })
+    throw error
+  }
+}
 
 /**
  * MCP Discovery tools — let agents discover/trust the 404 ecosystem
@@ -46,7 +77,12 @@ export function registerDiscoveryMcpTools(
       },
     },
     async (args) => {
-      const tools = await searchCatalogTools(store, args)
+      const tools = await withDiscoveryTelemetry(store, "search_tools", () =>
+        searchCatalogTools(store, {
+          ...args,
+          status: "active",
+        })
+      )
       const payload = { count: tools.length, tools }
       return {
         content: [{ type: "text", text: JSON.stringify(payload) }],
@@ -74,7 +110,9 @@ export function registerDiscoveryMcpTools(
       },
     },
     async (args) => {
-      const tool = await getCatalogTool(store, args.id_or_slug)
+      const tool = await withDiscoveryTelemetry(store, "get_tool", () =>
+        getCatalogTool(store, args.id_or_slug)
+      )
       if (!tool) {
         return {
           isError: true,
@@ -108,7 +146,9 @@ export function registerDiscoveryMcpTools(
       },
     },
     async (args) => {
-      const tools = await compareCatalogTools(store, args.ids_or_slugs)
+      const tools = await withDiscoveryTelemetry(store, "compare_tools", () =>
+        compareCatalogTools(store, args.ids_or_slugs)
+      )
       const payload = { count: tools.length, tools }
       return {
         content: [{ type: "text", text: JSON.stringify(payload) }],
@@ -136,18 +176,26 @@ export function registerDiscoveryMcpTools(
       },
     },
     async (args) => {
-      const tool = await getCatalogTool(store, args.id_or_slug)
-      if (!tool) {
+      const payload = await withDiscoveryTelemetry(
+        store,
+        "get_trust_score",
+        async () => {
+          const tool = await getCatalogTool(store, args.id_or_slug)
+          if (!tool) return null
+          const trust =
+            tool.trust ?? (await refreshTrustForTool(store, tool.id))
+          return {
+            tool_id: tool.id,
+            slug: tool.slug,
+            trust,
+          }
+        }
+      )
+      if (!payload) {
         return {
           isError: true,
           content: [{ type: "text", text: `Unknown tool: ${args.id_or_slug}` }],
         }
-      }
-      const trust = tool.trust ?? (await refreshTrustForTool(store, tool.id))
-      const payload = {
-        tool_id: tool.id,
-        slug: tool.slug,
-        trust,
       }
       return {
         content: [{ type: "text", text: JSON.stringify(payload) }],
@@ -176,10 +224,10 @@ export function registerDiscoveryMcpTools(
       },
     },
     async (args) => {
-      const related = await recommendRelatedTools(
+      const related = await withDiscoveryTelemetry(
         store,
-        args.id_or_slug,
-        args.limit
+        "recommend_tools",
+        () => recommendRelatedTools(store, args.id_or_slug, args.limit)
       )
       if (related.length === 0) {
         const seed = await getCatalogTool(store, args.id_or_slug)
@@ -215,7 +263,11 @@ export function registerDiscoveryMcpTools(
       },
     },
     async () => {
-      const capabilities = await listCapabilities(store)
+      const capabilities = await withDiscoveryTelemetry(
+        store,
+        "list_capabilities",
+        () => listCapabilities(store)
+      )
       const payload = { count: capabilities.length, capabilities }
       return {
         content: [{ type: "text", text: JSON.stringify(payload) }],
@@ -244,10 +296,15 @@ export function registerDiscoveryMcpTools(
       },
     },
     async (args) => {
-      const graph = await buildCapabilityGraph(store, {
-        limit: args.limit,
-        minSimilarity: args.min_similarity,
-      })
+      const graph = await withDiscoveryTelemetry(
+        store,
+        "get_capability_graph",
+        () =>
+          buildCapabilityGraph(store, {
+            limit: args.limit,
+            minSimilarity: args.min_similarity,
+          })
+      )
       return {
         content: [{ type: "text", text: JSON.stringify(graph) }],
         structuredContent: graph as unknown as Record<string, unknown>,

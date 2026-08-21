@@ -1,18 +1,25 @@
 {
   "name": "404-directory",
-  "version": "0.4.4",
-  "description": "Understand public webpages and verify public web deployments with structured evidence.",
+  "version": "0.5.0",
+  "description": "Agent Discovery + Trust: search, verify, and trust tools before calling them — plus webpage understanding and deployment verification.",
   "author": {
     "name": "404.directory",
     "url": "https://404.directory"
   },
   "homepage": "https://404.directory/docs",
-  "keywords": ["agents", "mcp", "web", "verification", "evidence"],
+  "keywords": [
+    "agents",
+    "mcp",
+    "discovery",
+    "trust",
+    "verification",
+    "evidence"
+  ],
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "404.directory",
-    "shortDescription": "Web understanding and deployment verification for agents",
-    "longDescription": "Use read-only tools to understand the entities, state, and actions on a public webpage or independently verify that a public deployment reached an expected HTTP, HTTPS, redirect, and text state.",
+    "shortDescription": "Discovery + Trust infrastructure for agent tools",
+    "longDescription": "Discover and trust ecosystem tools via search_tools / get_trust_score / recommend_tools, and use read-only verify_web / understand_webpage for public web checks.",
     "developerName": "404.directory",
     "category": "Developer Tools",
     "capabilities": ["Read"],
@@ -20,9 +27,9 @@
     "privacyPolicyURL": "https://404.directory/privacy",
     "termsOfServiceURL": "https://404.directory/terms",
     "defaultPrompt": [
-      "Verify that my latest website deployment is really live.",
-      "Explain this public webpage's state and available actions.",
-      "Check whether this site returns 200 and contains my build ID."
+      "Search 404 for tools that can verify a public deployment.",
+      "Compare trust profiles for two candidate MCP tools.",
+      "Verify that my latest website deployment is really live."
     ],
     "brandColor": "#C8F542"
   }

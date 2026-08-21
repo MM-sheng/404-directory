@@ -46,6 +46,8 @@ describe("catalog registry + discovery", () => {
     expect(tool.slug).toBe("btc_analyzer")
     expect(tool.status).toBe("pending")
 
+    await store.setToolStatus(tool.id, "active")
+
     const results = await searchCatalogTools(store, {
       capability: "btc",
       protocol: "mcp",
