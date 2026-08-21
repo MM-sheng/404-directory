@@ -7,8 +7,6 @@ dist
 !.env.example
 coverage
 *.tsbuildinfo
-app
-!app/
 app/*
 !app/favicon.ico
 components
