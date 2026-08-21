@@ -10,7 +10,8 @@ coverage
 .env.*
 !.env.example
 *.tsbuildinfo
-app
+app/*
+!app/favicon.ico
 components
 hooks
 lib
