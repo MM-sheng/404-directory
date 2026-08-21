@@ -11,6 +11,13 @@ https://404.directory/connect?source=github
 
 Agent-readable installation instructions: [`llms-install.md`](./llms-install.md)
 
+Install the Agent Skill in Codex, Claude Code, Cursor, Cline, or another Agent
+Skills client:
+
+```bash
+npx skills add MM-sheng/404-directory --skill use-404-directory -g -y
+```
+
 ## Two layers
 
 | Layer                         | Purpose                                              | Surface                                                                        |

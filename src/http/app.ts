@@ -837,6 +837,7 @@ Use \`search_official_docs\` for one-call current OpenAI, Microsoft, AWS, and Cl
 - [OpenAPI document](${config.PUBLIC_BASE_URL}/openapi.json): REST discovery and invocation contract.
 - [Agent-readable documentation](${config.PUBLIC_BASE_URL}/docs.md): Setup and usage guidance.
 - [Agent connection guide](${config.PUBLIC_BASE_URL}/connect): Stable privacy-safe Agent ID configuration for Codex, Claude Code, and MCP SDK clients.
+- [Installable Agent Skill](https://github.com/MM-sheng/404-directory/tree/main/skills/use-404-directory): Cross-client workflow for official docs search, verification, tool discovery, and the first successful call. Install with \`npx skills add MM-sheng/404-directory --skill use-404-directory -g -y\`.
 - [External Agent progress](${config.PUBLIC_BASE_URL}/v1/metrics/agents): Public, de-duplicated successful external Agent usage metric.
 
 ## Direct connection

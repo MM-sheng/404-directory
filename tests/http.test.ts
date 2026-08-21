@@ -224,6 +224,9 @@ describe("HTTP API", () => {
     expect(home.body).toContain("verify_web")
     expect(home.body).toContain("search_official_docs")
     expect(home.body).toContain("/connect?source=homepage")
+    expect(home.body).toContain(
+      "npx skills add MM-sheng/404-directory --skill use-404-directory -g -y"
+    )
     expect(home.body).toContain("OpenAI")
     expect(home.body).toContain("Microsoft Learn")
     expect(home.body).toContain("AWS")
@@ -357,6 +360,8 @@ describe("HTTP API", () => {
     expect(llms.body).toContain(
       "[verify_web metadata](https://404.directory/tools/verify_web)"
     )
+    expect(llms.body).toContain("[Installable Agent Skill]")
+    expect(llms.body).toContain("--skill use-404-directory")
 
     const robots = await app.inject({ method: "GET", url: "/robots.txt" })
     expect(robots.statusCode).toBe(200)

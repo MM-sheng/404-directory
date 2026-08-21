@@ -1,0 +1,13 @@
+interface:
+  display_name: "Use 404.directory"
+  short_description: "Official docs search and trusted MCP tool discovery"
+  default_prompt: "Use $use-404-directory to find authoritative technical guidance and verify it with a real tool call."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "404-directory"
+      description: "Public read-only MCP server for official docs search, web verification, and trusted tool discovery"
+      transport: "streamable_http"
+      url: "https://404.directory/mcp"
+policy:
+  allow_implicit_invocation: true

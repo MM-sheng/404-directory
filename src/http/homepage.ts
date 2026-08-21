@@ -73,6 +73,21 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
       background: #101318;
     }
     .first-call p { margin: 0.45rem 0 0; color: var(--muted); }
+    .skill-install {
+      margin: 0 0 2rem;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 0.5rem;
+      background: #101318;
+    }
+    .skill-install p { margin: 0 0 0.65rem; color: var(--muted); }
+    pre {
+      margin: 0;
+      padding: 0.75rem;
+      overflow-x: auto;
+      border-radius: 0.35rem;
+      background: #080a0d;
+    }
     .providers {
       display: flex;
       flex-wrap: wrap;
@@ -127,6 +142,11 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
     <h1>404.directory</h1>
     <p class="tagline">One MCP connection for official docs and trusted read-only Agent tools.</p>
     <a class="cta" href="/connect?source=homepage">Connect your Agent →</a>
+    <section class="skill-install">
+      <h2>Install as an Agent Skill</h2>
+      <p>Works with Codex, Claude Code, Cursor, Cline, and other Agent Skills clients.</p>
+      <pre><code>npx skills add MM-sheng/404-directory --skill use-404-directory -g -y</code></pre>
+    </section>
     <section class="first-call">
       <h2>Get value on the first call</h2>
       <code>search_official_docs</code>
