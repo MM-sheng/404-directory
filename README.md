@@ -14,7 +14,7 @@ https://404.directory/connect?source=github
 | Layer                         | Purpose                                              | Surface                                                                        |
 | ----------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------ |
 | **First-party execution**     | Run first-party tools in this process                | `GET /tools`, `POST /understand`, `POST /verify/web`, MCP tools                |
-| **Curated remote execution**  | Search and call approved read-only remote MCP tools | MCP `search_official_docs` / `inspect_tool_server` / `invoke_registered_tool`  |
+| **Curated remote execution**  | Search and call approved read-only remote MCP tools  | MCP `search_official_docs` / `inspect_tool_server` / `invoke_registered_tool`  |
 | **Ecosystem catalog + trust** | Register / verify / trust / search third-party tools | `/v1/*`, MCP `search_tools` / `get_tool` / `compare_tools` / `get_trust_score` |
 
 The long-term moat is invocation telemetry + trust/verification data — not a
@@ -214,6 +214,11 @@ The official MCP Registry entry also declares `X-404-Agent-ID` as an install
 input and defaults `X-404-Source` to `official-registry`, so compatible clients
 can preserve a privacy-safe identity instead of silently creating anonymous
 usage. The service remains usable without either header.
+
+The dynamic install page also generates a one-click VS Code / GitHub Copilot
+Agent link with a unique non-personal ID already embedded:
+
+https://404.directory/connect?source=github
 
 Codex supports MCP HTTP headers in `~/.codex/config.toml`:
 

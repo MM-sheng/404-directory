@@ -242,9 +242,7 @@ Security and privacy questions: use the project support channel associated with 
 function campaignSource(value?: string): string | undefined {
   if (!value) return undefined
   const normalized = value.toLowerCase().trim()
-  return /^[a-z0-9][a-z0-9._-]{0,47}$/.test(normalized)
-    ? normalized
-    : undefined
+  return /^[a-z0-9][a-z0-9._-]{0,47}$/.test(normalized) ? normalized : undefined
 }
 
 export function renderConnect(baseUrl: string, campaign?: string): string {
@@ -262,6 +260,17 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     })
   ).toString("base64")
   const cursorInstallUrl = `cursor://anysphere.cursor-deeplink/mcp/install?name=404.directory&config=${encodeURIComponent(cursorConfig)}`
+  const vscodeInstallUrl = `vscode:mcp/install?${encodeURIComponent(
+    JSON.stringify({
+      name: "404-directory",
+      type: "http",
+      url: `${baseUrl}/mcp`,
+      headers: {
+        "X-404-Agent-ID": generatedAgentId,
+        "X-404-Source": attributedSource("vscode"),
+      },
+    })
+  )}`
   return [
     "# Connect an Agent to 404.directory",
     "",
@@ -282,6 +291,10 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     `url = "${baseUrl}/mcp"`,
     `http_headers = { "X-404-Agent-ID" = "${generatedAgentId}", "X-404-Source" = "${attributedSource("codex")}" }`,
     "```",
+    "",
+    "## VS Code / GitHub Copilot",
+    "",
+    `[Install in VS Code](${vscodeInstallUrl})`,
     "",
     "## Cursor",
     "",
