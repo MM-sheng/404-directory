@@ -48,6 +48,38 @@ generated above:
 }
 ```
 
+## OpenAI Responses API
+
+Pass 404.directory as a remote MCP tool. Persist the same random Agent ID for
+this application or deployment instead of generating a new value per request:
+
+```json
+{
+  "model": "gpt-5.6",
+  "tools": [
+    {
+      "type": "mcp",
+      "server_label": "directory_404",
+      "server_description": "Search current official AI and cloud documentation, verify public deployments, and discover trusted read-only Agent tools.",
+      "server_url": "https://404.directory/mcp",
+      "headers": {
+        "X-404-Agent-ID": "agent:REPLACE_WITH_THE_GENERATED_UUID",
+        "X-404-Source": "openai-responses"
+      },
+      "require_approval": "never"
+    }
+  ],
+  "input": "Use search_official_docs to find the current OpenAI guidance for remote MCP servers and cite the official sources."
+}
+```
+
+Send this payload to `POST https://api.openai.com/v1/responses` with the normal
+OpenAI API authorization header. The `X-404-*` headers go inside the MCP tool
+configuration; do not send them to the OpenAI API itself.
+
+Official OpenAI reference:
+https://developers.openai.com/api/docs/guides/tools-connectors-mcp
+
 ## Cursor, Claude Code, VS Code, Codex, and other MCP clients
 
 Open the client-specific generator and follow the configuration it returns:

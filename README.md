@@ -212,6 +212,11 @@ client-IP header (or the socket IP locally).
 
 Point MCP clients at `https://404.directory/mcp` (or local `http://127.0.0.1:4040/mcp`).
 
+The hosted endpoint can also be used directly as an OpenAI Responses API
+remote MCP tool. A copy-ready payload with privacy-safe attribution headers is
+available in [`llms-install.md`](./llms-install.md#openai-responses-api); see the
+[official OpenAI MCP guide](https://developers.openai.com/api/docs/guides/tools-connectors-mcp).
+
 To count as a de-duplicated real external Agent, send a stable random,
 non-personal identifier in `X-404-Agent-ID`. The server persists only an HMAC
 digest, never the raw ID, prompts, arguments, or results. `X-404-Source` is an
