@@ -102,7 +102,7 @@ single rank; notes that trust metadata is evidence, not a guarantee.
 ### 4. Deployment verification
 
 **Prompt:** Verify that https://404.directory/health returns HTTP 200 and
-contains the release string `0.8.6`.
+contains the release string `0.9.0`.
 
 **Expected:** Calls `verify_web` with explicit expected status and text; reports
 Claim → Evidence → Result; includes final URL, HTTP status, TLS/redirect evidence,

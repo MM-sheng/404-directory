@@ -224,7 +224,8 @@ IDs, and raw IP addresses are not stored in product analytics.
 - Header: \`X-404-Agent-ID: agent:<your-stable-random-id>\`
 - Optional attribution: \`X-404-Source: <source>\`
 - Public progress: \`GET /v1/metrics/agents\`
-- Complete setup: \`GET /connect\`
+- Human setup: \`GET /connect\`
+- Agent-readable setup: \`GET /connect.md\`
 
 Connect from Codex CLI:
 
@@ -265,17 +266,31 @@ function campaignSource(value?: string): string | undefined {
   return /^[a-z0-9][a-z0-9._-]{0,47}$/.test(normalized) ? normalized : undefined
 }
 
-export function renderConnect(baseUrl: string, campaign?: string): string {
+type ConnectionArtifacts = {
+  generatedAgentId: string
+  endpoint: string
+  cursorInstallUrl: string
+  vscodeInstallUrl: string
+  codexToml: string
+  claudeCommand: string
+  sourceFor: (client: string) => string
+}
+
+function createConnectionArtifacts(
+  baseUrl: string,
+  campaign?: string
+): ConnectionArtifacts {
   const generatedAgentId = `agent:${randomUUID()}`
   const source = campaignSource(campaign)
-  const attributedSource = (client: string) =>
+  const sourceFor = (client: string) =>
     source ? `${source}.${client}` : client
+  const endpoint = `${baseUrl}/mcp`
   const cursorConfig = Buffer.from(
     JSON.stringify({
-      url: `${baseUrl}/mcp`,
+      url: endpoint,
       headers: {
         "X-404-Agent-ID": generatedAgentId,
-        "X-404-Source": attributedSource("cursor"),
+        "X-404-Source": sourceFor("cursor"),
       },
     })
   ).toString("base64")
@@ -284,13 +299,132 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     JSON.stringify({
       name: "404-directory",
       type: "http",
-      url: `${baseUrl}/mcp`,
+      url: endpoint,
       headers: {
         "X-404-Agent-ID": generatedAgentId,
-        "X-404-Source": attributedSource("vscode"),
+        "X-404-Source": sourceFor("vscode"),
       },
     })
   )}`
+  const codexToml = `[mcp_servers.404_directory]
+url = "${endpoint}"
+http_headers = { "X-404-Agent-ID" = "${generatedAgentId}", "X-404-Source" = "${sourceFor("codex")}" }`
+  const claudeCommand = `claude mcp add --transport http --scope user 404-directory ${endpoint} \\
+  --header "X-404-Agent-ID: ${generatedAgentId}" \\
+  --header "X-404-Source: ${sourceFor("claude-code")}"`
+
+  return {
+    generatedAgentId,
+    endpoint,
+    cursorInstallUrl,
+    vscodeInstallUrl,
+    codexToml,
+    claudeCommand,
+    sourceFor,
+  }
+}
+
+export function renderConnectHtml(baseUrl: string, campaign?: string): string {
+  const connection = createConnectionArtifacts(baseUrl, campaign)
+  const source = campaignSource(campaign)
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Connect an Agent — 404.directory</title>
+  <meta name="description" content="Connect Cursor, GitHub Copilot, Claude Code, or Codex to 404.directory and complete one useful MCP call." />
+  <style>
+    :root {
+      --bg: #0b0c0f;
+      --panel: #11151b;
+      --fg: #edf0f2;
+      --muted: #9da5ae;
+      --line: #2c333d;
+      --accent: #c8f542;
+      --mono: "IBM Plex Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+      --sans: "IBM Plex Sans", "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--fg);
+      background: radial-gradient(900px 500px at 15% -10%, #1c2838 0%, transparent 58%), var(--bg);
+      font-family: var(--sans);
+      line-height: 1.55;
+    }
+    main { max-width: 58rem; margin: 0 auto; padding: 3.5rem 1.25rem 4rem; }
+    a { color: inherit; }
+    .back { color: var(--muted); text-decoration: none; font-family: var(--mono); font-size: 0.9rem; }
+    h1 { margin: 1.2rem 0 0.55rem; font-size: clamp(2.15rem, 6vw, 3.5rem); letter-spacing: -0.045em; }
+    .lead { max-width: 46rem; margin: 0; color: var(--muted); font-size: 1.12rem; }
+    .badges { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 1.1rem 0 2rem; }
+    .badge { border: 1px solid var(--line); border-radius: 999px; padding: 0.25rem 0.55rem; font-family: var(--mono); font-size: 0.78rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
+    .card { padding: 1.15rem; border: 1px solid var(--line); border-radius: 0.7rem; background: var(--panel); }
+    .card h2 { margin: 0 0 0.4rem; font-size: 1.05rem; }
+    .card p { margin: 0 0 1rem; color: var(--muted); font-size: 0.93rem; }
+    .button { display: inline-block; width: 100%; padding: 0.75rem 0.9rem; border: 1px solid var(--accent); border-radius: 0.42rem; background: var(--accent); color: #0b0c0f; text-align: center; text-decoration: none; font-family: var(--mono); font-weight: 750; }
+    section { margin-top: 1.2rem; padding: 1.15rem; border: 1px solid var(--line); border-radius: 0.7rem; background: var(--panel); }
+    section h2 { margin: 0 0 0.7rem; font-size: 1.05rem; }
+    pre { margin: 0; padding: 0.85rem; overflow-x: auto; border-radius: 0.45rem; background: #080a0d; color: #fff; font-family: var(--mono); font-size: 0.82rem; white-space: pre-wrap; word-break: break-word; }
+    .first-call { border-color: #5f7425; }
+    .first-call strong { color: var(--accent); }
+    .first-call p { margin: 0.55rem 0 0; color: var(--muted); }
+    .privacy { margin: 1.2rem 0 0; color: var(--muted); font-size: 0.88rem; }
+    .links { display: flex; flex-wrap: wrap; gap: 0.7rem 1rem; margin-top: 1.5rem; font-family: var(--mono); font-size: 0.86rem; }
+    .links a { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="/">← 404.directory</a>
+    <h1>Connect an Agent</h1>
+    <p class="lead">One read-only MCP connection for current official documentation, deployment verification, and trusted tool discovery. No account or API key.</p>
+    <div class="badges"><span class="badge">12 tools</span><span class="badge">read-only defaults</span><span class="badge">privacy-safe identity</span></div>
+    <div class="grid">
+      <article class="card">
+        <h2>Cursor</h2>
+        <p>Open Cursor's MCP installer with a unique non-personal Agent ID already configured.</p>
+        <a class="button" href="${escapeHtml(connection.cursorInstallUrl)}">Add to Cursor →</a>
+      </article>
+      <article class="card">
+        <h2>VS Code / Copilot</h2>
+        <p>Open VS Code's MCP installer with the same privacy-safe attribution setup.</p>
+        <a class="button" href="${escapeHtml(connection.vscodeInstallUrl)}">Install in VS Code →</a>
+      </article>
+    </div>
+    <section>
+      <h2>Claude Code plugin</h2>
+      <pre><code>/plugin marketplace add MM-sheng/404-directory
+/plugin install 404-directory@404-directory</code></pre>
+    </section>
+    <section>
+      <h2>Claude Code direct MCP</h2>
+      <pre><code>${escapeHtml(connection.claudeCommand)}</code></pre>
+    </section>
+    <section>
+      <h2>Codex</h2>
+      <p class="privacy">Add this configuration to <code>~/.codex/config.toml</code>.</p>
+      <pre><code>${escapeHtml(connection.codexToml)}</code></pre>
+    </section>
+    <section class="first-call">
+      <h2>Complete the first useful call</h2>
+      <strong>Ask your Agent:</strong>
+      <pre><code>Use search_official_docs to find the current official guidance for MCP Streamable HTTP. Cite the first-party sources and distinguish facts from inference.</code></pre>
+      <p>Installation counts only after a non-error tool result. Connection checks, probes, and repeated calls do not count.</p>
+    </section>
+    <p class="privacy">For the direct configurations above, this page generated <code>${escapeHtml(connection.generatedAgentId)}</code> randomly; keep it stable for that installation. The Claude marketplace plugin creates and preserves its own local random ID. 404.directory stores only an HMAC digest after a successful tool call—never the raw ID, prompt, arguments, or result.</p>
+    <nav class="links"><a href="/connect.md${source ? `?source=${escapeHtml(source)}` : ""}">Agent-readable setup</a><a href="/v1/metrics/agents">Live adoption metric</a><a href="/privacy">Privacy</a><a href="https://github.com/MM-sheng/404-directory">Source</a></nav>
+  </main>
+</body>
+</html>`
+}
+
+export function renderConnect(baseUrl: string, campaign?: string): string {
+  const connection = createConnectionArtifacts(baseUrl, campaign)
   return [
     "# Connect an Agent to 404.directory",
     "",
@@ -300,7 +434,7 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     "email address, user name, device name, or other personal value. The examples",
     "below already contain a newly generated ID; keep it stable after installing.",
     "",
-    `MCP endpoint: \`${baseUrl}/mcp\``,
+    `MCP endpoint: \`${connection.endpoint}\``,
     "",
     "## Codex",
     "",
@@ -308,36 +442,34 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     "",
     "```toml",
     "[mcp_servers.404_directory]",
-    `url = "${baseUrl}/mcp"`,
-    `http_headers = { "X-404-Agent-ID" = "${generatedAgentId}", "X-404-Source" = "${attributedSource("codex")}" }`,
+    `url = "${connection.endpoint}"`,
+    `http_headers = { "X-404-Agent-ID" = "${connection.generatedAgentId}", "X-404-Source" = "${connection.sourceFor("codex")}" }`,
     "```",
     "",
     "## VS Code / GitHub Copilot",
     "",
-    `[Install in VS Code](${vscodeInstallUrl})`,
+    `[Install in VS Code](${connection.vscodeInstallUrl})`,
     "",
     "## Cursor",
     "",
-    `[Add 404.directory to Cursor](${cursorInstallUrl})`,
+    `[Add 404.directory to Cursor](${connection.cursorInstallUrl})`,
     "",
     "## Claude Code",
     "",
     "```bash",
-    `claude mcp add --transport http --scope user 404-directory ${baseUrl}/mcp \\`,
-    `  --header "X-404-Agent-ID: ${generatedAgentId}" \\`,
-    `  --header "X-404-Source: ${attributedSource("claude-code")}"`,
+    connection.claudeCommand,
     "```",
     "",
     "## JavaScript MCP SDK",
     "",
     "```ts",
     "const transport = new StreamableHTTPClientTransport(",
-    `  new URL("${baseUrl}/mcp"),`,
+    `  new URL("${connection.endpoint}"),`,
     "  {",
     "    requestInit: {",
     "      headers: {",
-    `        "X-404-Agent-ID": "${generatedAgentId}",`,
-    `        "X-404-Source": "${attributedSource("sdk")}",`,
+    `        "X-404-Agent-ID": "${connection.generatedAgentId}",`,
+    `        "X-404-Source": "${connection.sourceFor("sdk")}",`,
     "      },",
     "    },",
     "  }",

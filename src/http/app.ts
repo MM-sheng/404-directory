@@ -38,6 +38,7 @@ import type { ToolRegistry } from "../tools/registry.js"
 import type { ToolDefinition } from "../tools/types.js"
 import {
   renderConnect,
+  renderConnectHtml,
   renderDocs,
   renderHomepage,
   renderPrivacy,
@@ -504,6 +505,20 @@ export async function buildApp(
     { schema: { hide: true } as FastifySchema },
     async (request, reply) =>
       reply
+        .type("text/html; charset=utf-8")
+        .send(
+          renderConnectHtml(
+            config.PUBLIC_BASE_URL,
+            boundedString((request.query as { source?: unknown }).source, 48)
+          )
+        )
+  )
+
+  app.get(
+    "/connect.md",
+    { schema: { hide: true } as FastifySchema },
+    async (request, reply) =>
+      reply
         .type("text/markdown; charset=utf-8")
         .send(
           renderConnect(
@@ -836,7 +851,8 @@ Use \`search_official_docs\` for one-call current OpenAI, Microsoft, AWS, and Cl
 - [API catalog](${config.PUBLIC_BASE_URL}/.well-known/api-catalog): RFC 9727 links to the REST, OpenAPI, MCP, docs, and health surfaces.
 - [OpenAPI document](${config.PUBLIC_BASE_URL}/openapi.json): REST discovery and invocation contract.
 - [Agent-readable documentation](${config.PUBLIC_BASE_URL}/docs.md): Setup and usage guidance.
-- [Agent connection guide](${config.PUBLIC_BASE_URL}/connect): Stable privacy-safe Agent ID configuration for Codex, Claude Code, and MCP SDK clients.
+- [Human installation page](${config.PUBLIC_BASE_URL}/connect): One-click Cursor and VS Code installation plus Claude Code and Codex setup.
+- [Agent-readable connection guide](${config.PUBLIC_BASE_URL}/connect.md): Stable privacy-safe Agent ID configuration for Codex, Claude Code, Cursor, VS Code, and MCP SDK clients.
 - [Installable Agent Skill](https://github.com/MM-sheng/404-directory/tree/main/skills/use-404-directory): Cross-client workflow for official docs search, verification, tool discovery, and the first successful call. Install with \`npx skills add MM-sheng/404-directory --skill use-404-directory -g -y\`.
 - [External Agent progress](${config.PUBLIC_BASE_URL}/v1/metrics/agents): Public, de-duplicated successful external Agent usage metric.
 
@@ -883,6 +899,7 @@ Sitemap: ${config.PUBLIC_BASE_URL}/sitemap.xml
         "/",
         "/llms.txt",
         "/connect",
+        "/connect.md",
         "/tools",
         ...registry.listActive().map((tool) => `/tools/${tool.name}`),
         "/v1/tools/search",

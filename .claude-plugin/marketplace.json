@@ -9,7 +9,7 @@
       "name": "404-directory",
       "source": "./distribution/404-directory",
       "description": "Search current official AI and cloud documentation, verify public deployments, and discover trusted read-only MCP tools.",
-      "version": "0.8.6",
+      "version": "0.9.0",
       "author": {
         "name": "404.directory"
       },

@@ -248,13 +248,25 @@ describe("HTTP API", () => {
       url: "/connect?source=awesome-remote",
     })
     expect(connect.statusCode).toBe(200)
-    expect(connect.body).toContain("Add 404.directory to Cursor")
+    expect(connect.headers["content-type"]).toContain("text/html")
+    expect(connect.body).toContain("Add to Cursor")
     expect(connect.body).toContain("Install in VS Code")
     expect(connect.body).toContain("vscode:mcp/install?")
     expect(connect.body).toContain("awesome-remote.vscode")
     expect(connect.body).toContain("awesome-remote.codex")
     expect(connect.body).toContain("awesome-remote.claude-code")
+    expect(connect.body).toContain("Complete the first useful call")
+    expect(connect.body).toContain("/connect.md?source=awesome-remote")
     expect(connect.body).not.toContain("agent:REPLACE_WITH")
+
+    const connectMarkdown = await app.inject({
+      method: "GET",
+      url: "/connect.md?source=agent-reader",
+    })
+    expect(connectMarkdown.statusCode).toBe(200)
+    expect(connectMarkdown.headers["content-type"]).toContain("text/markdown")
+    expect(connectMarkdown.body).toContain("Add 404.directory to Cursor")
+    expect(connectMarkdown.body).toContain("agent-reader.codex")
 
     const health = await app.inject({ method: "GET", url: "/health" })
     expect(health.statusCode).toBe(200)
