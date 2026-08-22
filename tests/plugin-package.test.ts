@@ -13,8 +13,10 @@ type McpConfig = {
     string,
     {
       type: string
-      url: string
+      url?: string
       headers?: Record<string, string>
+      command?: string
+      args?: string[]
     }
   >
 }
@@ -42,9 +44,9 @@ describe("Agent Plugins package", () => {
       "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
     )
     expect(config.mcpServers["404-directory"]).toEqual({
-      type: "streamable-http",
-      url: "https://404.directory/mcp",
-      headers: { "X-404-Source": "agent-plugin" },
+      type: "stdio",
+      command: "node",
+      args: ["${PLUGIN_ROOT}/scripts/agent-plugin-proxy.mjs"],
     })
   })
 })

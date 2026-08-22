@@ -19,8 +19,10 @@ npx skills add MM-sheng/404-directory --skill use-404-directory -g -y
 ```
 
 The repository also conforms to Agent Plugins 1.0: compatible clients discover
-the Agent Skill from `skills/` and the hosted Streamable HTTP server from the
-root `mcp.json`.
+the Agent Skill from `skills/` and an identity-preserving bridge to the hosted
+Streamable HTTP server from the root `mcp.json`. The bridge creates one random
+ID in the client-managed `PLUGIN_DATA` directory. The raw ID stays local; the
+service stores only an HMAC digest after a successful tool call.
 
 ## Two layers
 
