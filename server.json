@@ -3,7 +3,7 @@
   "name": "io.github.MM-sheng/404-directory",
   "title": "404.directory",
   "description": "Search official OpenAI, Microsoft, AWS, and Cloudflare docs; discover and verify read-only tools.",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "websiteUrl": "https://404.directory",
   "icons": [
     {

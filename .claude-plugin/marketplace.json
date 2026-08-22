@@ -1,0 +1,29 @@
+{
+  "name": "404-directory",
+  "description": "Official documentation search, deployment verification, and trusted read-only MCP tool discovery for Claude Agents.",
+  "owner": {
+    "name": "404.directory"
+  },
+  "plugins": [
+    {
+      "name": "404-directory",
+      "source": "./distribution/404-directory",
+      "description": "Search current official AI and cloud documentation, verify public deployments, and discover trusted read-only MCP tools.",
+      "version": "0.8.6",
+      "author": {
+        "name": "404.directory"
+      },
+      "homepage": "https://404.directory/docs",
+      "repository": "https://github.com/MM-sheng/404-directory",
+      "license": "MIT",
+      "keywords": [
+        "agent-tools",
+        "mcp",
+        "official-documentation",
+        "tool-discovery",
+        "web-verification"
+      ],
+      "category": "developer-tools"
+    }
+  ]
+}

@@ -28,6 +28,14 @@ Claude Code and Cowork use the native manifest in `.claude-plugin/`. It loads
 the same Skill and identity-preserving bridge with Claude's persistent plugin
 data directory, so updates keep the installation identity stable.
 
+Install it directly in Claude Code while the official directory submission is
+under review:
+
+```text
+/plugin marketplace add MM-sheng/404-directory
+/plugin install 404-directory@404-directory
+```
+
 ## Two layers
 
 | Layer                         | Purpose                                              | Surface                                                                        |
