@@ -1,6 +1,12 @@
 {
   "name": "404-directory",
-  "version": "0.8.1",
+  "version": "0.8.2",
+  "description": "Agent Discovery + Trust infrastructure and public read-only MCP tools for AI Agents.",
+  "homepage": "https://404.directory",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MM-sheng/404-directory.git"
+  },
   "type": "module",
   "private": true,
   "scripts": {

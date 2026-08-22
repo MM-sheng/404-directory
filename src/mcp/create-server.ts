@@ -32,7 +32,11 @@ export function createMcpServerFromRegistry(
   const server = new McpServer(
     {
       name: "404.directory",
+      title: "404.directory — Agent Discovery + Trust",
       version: SERVICE_VERSION,
+      description:
+        "Discover, compare, trust, and safely invoke public read-only AI Agent tools, including current official documentation search and public web verification.",
+      websiteUrl: "https://404.directory",
     },
     {
       instructions:

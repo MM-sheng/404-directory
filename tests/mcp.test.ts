@@ -37,6 +37,13 @@ describe("registry MCP adapter", () => {
     )
     const client = await connect(registry)
 
+    expect(client.getServerVersion()).toMatchObject({
+      name: "404.directory",
+      title: "404.directory — Agent Discovery + Trust",
+      description: expect.stringContaining("AI Agent tools"),
+      websiteUrl: "https://404.directory",
+    })
+
     const instructions = client.getInstructions()
     expect(instructions).toContain("Do not call verify_web merely")
 
