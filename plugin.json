@@ -1,0 +1,20 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "404-directory",
+  "version": "0.8.3",
+  "description": "Search official AI and cloud documentation, verify public deployments, and discover trusted read-only MCP tools.",
+  "author": {
+    "name": "404.directory",
+    "url": "https://404.directory"
+  },
+  "homepage": "https://404.directory/docs",
+  "repository": "https://github.com/MM-sheng/404-directory",
+  "license": "MIT",
+  "keywords": [
+    "agent-tools",
+    "mcp",
+    "official-documentation",
+    "tool-discovery",
+    "web-verification"
+  ]
+}

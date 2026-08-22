@@ -18,6 +18,10 @@ Skills client:
 npx skills add MM-sheng/404-directory --skill use-404-directory -g -y
 ```
 
+The repository also conforms to Agent Plugins 1.0: compatible clients discover
+the Agent Skill from `skills/` and the hosted Streamable HTTP server from the
+root `mcp.json`.
+
 ## Two layers
 
 | Layer                         | Purpose                                              | Surface                                                                        |
