@@ -24,6 +24,10 @@ Streamable HTTP server from the root `mcp.json`. The bridge creates one random
 ID in the client-managed `PLUGIN_DATA` directory. The raw ID stays local; the
 service stores only an HMAC digest after a successful tool call.
 
+Claude Code and Cowork use the native manifest in `.claude-plugin/`. It loads
+the same Skill and identity-preserving bridge with Claude's persistent plugin
+data directory, so updates keep the installation identity stable.
+
 ## Two layers
 
 | Layer                         | Purpose                                              | Surface                                                                        |

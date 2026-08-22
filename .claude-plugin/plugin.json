@@ -1,6 +1,6 @@
 {
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "404-directory",
+  "displayName": "404.directory",
   "version": "0.8.5",
   "description": "Search official AI and cloud documentation, verify public deployments, and discover trusted read-only MCP tools.",
   "author": {
@@ -16,5 +16,6 @@
     "official-documentation",
     "tool-discovery",
     "web-verification"
-  ]
+  ],
+  "mcpServers": "./.claude-plugin/mcp.json"
 }

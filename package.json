@@ -1,6 +1,6 @@
 {
   "name": "404-directory",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "Agent Discovery + Trust infrastructure and public read-only MCP tools for AI Agents.",
   "homepage": "https://404.directory",
   "repository": {
