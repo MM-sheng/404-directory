@@ -260,6 +260,8 @@ describe("HTTP API", () => {
     )
     expect(connect.body).toContain("awesome-remote.codex")
     expect(connect.body).toContain("awesome-remote.claude-code")
+    expect(connect.body).toContain("@mmvv1638/404-directory-mcp")
+    expect(connect.body).toContain("awesome-remote.npx")
     expect(connect.body).toContain("Complete the first useful call")
     expect(connect.body).toContain("/connect.md?source=awesome-remote")
     expect(connect.body).toContain(
@@ -278,6 +280,8 @@ describe("HTTP API", () => {
       "/connect/install/cursor?source=agent-reader"
     )
     expect(connectMarkdown.body).toContain("agent-reader.codex")
+    expect(connectMarkdown.body).toContain("@mmvv1638/404-directory-mcp")
+    expect(connectMarkdown.body).toContain("agent-reader.npx")
     expect(connectMarkdown.body).toContain(
       "https://github.com/MM-sheng/404-directory/issues/1"
     )
