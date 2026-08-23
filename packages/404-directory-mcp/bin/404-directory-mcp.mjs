@@ -52,8 +52,20 @@ export async function loadAgentId(dataDirectory = defaultDataDirectory()) {
   }
 
   const agentId = `agent:${randomUUID()}`
-  await writeFile(identityPath, `${agentId}\n`, { mode: 0o600 })
-  return agentId
+  try {
+    await writeFile(identityPath, `${agentId}\n`, {
+      flag: "wx",
+      mode: 0o600,
+    })
+    return agentId
+  } catch (error) {
+    if (error?.code !== "EEXIST") throw error
+    const existing = (await readFile(identityPath, "utf8")).trim()
+    if (AGENT_ID_PATTERN.test(existing)) return existing
+    throw new Error(
+      `Refusing to overwrite invalid 404.directory identity file: ${identityPath}`
+    )
+  }
 }
 
 export function identityDirectory(dataDirectory, clientName = "unknown-client") {
@@ -112,7 +124,7 @@ function writeForwardingError(message, error) {
 }
 
 export async function runProxy({
-  endpoint = process.env.DIRECTORY_404_ENDPOINT ?? DEFAULT_ENDPOINT,
+  endpoint = DEFAULT_ENDPOINT,
   dataDirectory = defaultDataDirectory(),
   source = process.env.DIRECTORY_404_SOURCE ?? "npx-proxy",
   agentClass = process.env.DIRECTORY_404_AGENT_CLASS,

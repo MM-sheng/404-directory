@@ -1,4 +1,10 @@
-import { mkdtemp, readFile, rm, symlink } from "node:fs/promises"
+import {
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
@@ -60,6 +66,31 @@ describe("Agent Plugin identity bridge", () => {
 
     expect(second).toBe(first)
     expect(persisted.trim()).toBe(first)
+  })
+
+  it("creates exactly one identity during concurrent first starts", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "404-race-test-"))
+    temporaryDirectories.push(directory)
+
+    const identities = await Promise.all(
+      Array.from({ length: 12 }, () => loadUniversalAgentId(directory))
+    )
+
+    expect(new Set(identities)).toHaveLength(1)
+  })
+
+  it("refuses to overwrite an invalid identity file", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "404-invalid-test-"))
+    temporaryDirectories.push(directory)
+    const identityPath = path.join(directory, "agent-id")
+    await writeFile(identityPath, "do-not-overwrite\n")
+
+    await expect(loadUniversalAgentId(directory)).rejects.toThrow(
+      "Refusing to overwrite invalid 404.directory identity file"
+    )
+    await expect(readFile(identityPath, "utf8")).resolves.toBe(
+      "do-not-overwrite\n"
+    )
   })
 
   it("uses platform data directories without personal identifiers", () => {
