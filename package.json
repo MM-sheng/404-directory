@@ -15,6 +15,8 @@
     "start": "node dist/server.js",
     "mcp": "tsx src/mcp/server.ts",
     "mcp:start": "node dist/mcp/server.js",
+    "mcp:proxy": "node packages/404-directory-mcp/bin/404-directory-mcp.mjs",
+    "mcp:proxy:pack": "npm pack --dry-run ./packages/404-directory-mcp",
     "mcp:smoke": "tsx scripts/smoke-mcp.ts",
     "mcp:gateway:smoke": "tsx scripts/smoke-gateway.ts",
     "mcp:openai:review": "tsx scripts/review-openai-plugin.ts",

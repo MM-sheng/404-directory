@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises"
+import { mkdtemp, readFile, rm, symlink } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
@@ -6,6 +6,12 @@ import {
   loadAgentId,
   parseSseMessages,
 } from "../scripts/agent-plugin-proxy.mjs"
+import {
+  defaultDataDirectory,
+  identityDirectory,
+  invokedAsMain,
+  loadAgentId as loadUniversalAgentId,
+} from "../packages/404-directory-mcp/bin/404-directory-mcp.mjs"
 
 const temporaryDirectories: string[] = []
 
@@ -42,5 +48,54 @@ describe("Agent Plugin identity bridge", () => {
         'event: message\r\ndata: {"jsonrpc":"2.0","id":1,"result":{}}\r\n\r\n'
       )
     ).toEqual([{ jsonrpc: "2.0", id: 1, result: {} }])
+  })
+
+  it("persists one identity for the universal npx bridge", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "404-npx-test-"))
+    temporaryDirectories.push(directory)
+
+    const first = await loadUniversalAgentId(directory)
+    const second = await loadUniversalAgentId(directory)
+    const persisted = await readFile(path.join(directory, "agent-id"), "utf8")
+
+    expect(second).toBe(first)
+    expect(persisted.trim()).toBe(first)
+  })
+
+  it("uses platform data directories without personal identifiers", () => {
+    expect(
+      defaultDataDirectory({
+        platform: "linux",
+        environment: { XDG_DATA_HOME: "/tmp/agent-data" },
+        homeDirectory: "/tmp/home",
+      })
+    ).toBe(path.join("/tmp/agent-data", "404-directory"))
+
+    expect(
+      defaultDataDirectory({
+        platform: "darwin",
+        environment: {},
+        homeDirectory: "/tmp/home",
+      })
+    ).toBe(path.join("/tmp/home", "Library", "Application Support", "404-directory"))
+
+    const clientDirectory = identityDirectory(
+      "/tmp/agent-data/404-directory",
+      "Custom Client Name"
+    )
+    expect(clientDirectory).not.toContain("Custom Client Name")
+    expect(clientDirectory).toMatch(/\/clients\/[0-9a-f]{24}$/)
+  })
+
+  it("recognizes the npm bin symlink as the executable entry point", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "404-bin-test-"))
+    temporaryDirectories.push(directory)
+    const modulePath = path.resolve(
+      "packages/404-directory-mcp/bin/404-directory-mcp.mjs"
+    )
+    const binPath = path.join(directory, "404-directory-mcp")
+    await symlink(modulePath, binPath)
+
+    await expect(invokedAsMain(binPath, modulePath)).resolves.toBe(true)
   })
 })

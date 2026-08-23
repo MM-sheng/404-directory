@@ -1,0 +1,228 @@
+#!/usr/bin/env node
+
+import { createHash, randomUUID } from "node:crypto"
+import { mkdir, readFile, realpath, writeFile } from "node:fs/promises"
+import os from "node:os"
+import path from "node:path"
+import { createInterface } from "node:readline"
+import { fileURLToPath } from "node:url"
+
+const DEFAULT_ENDPOINT = "https://404.directory/mcp"
+const AGENT_ID_PATTERN =
+  /^agent:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const SAFE_SOURCE = /^[a-z0-9][a-z0-9._-]{0,63}$/
+
+export function defaultDataDirectory({
+  platform = process.platform,
+  environment = process.env,
+  homeDirectory = os.homedir(),
+} = {}) {
+  if (environment.DIRECTORY_404_DATA_DIR) {
+    return path.resolve(environment.DIRECTORY_404_DATA_DIR)
+  }
+  if (environment.PLUGIN_DATA) return path.resolve(environment.PLUGIN_DATA)
+
+  if (platform === "win32") {
+    const appData = environment.LOCALAPPDATA || environment.APPDATA
+    return path.join(appData || homeDirectory, "404-directory")
+  }
+  if (platform === "darwin") {
+    return path.join(
+      homeDirectory,
+      "Library",
+      "Application Support",
+      "404-directory"
+    )
+  }
+  return path.join(
+    environment.XDG_DATA_HOME || path.join(homeDirectory, ".local", "share"),
+    "404-directory"
+  )
+}
+
+export async function loadAgentId(dataDirectory = defaultDataDirectory()) {
+  await mkdir(dataDirectory, { recursive: true })
+  const identityPath = path.join(dataDirectory, "agent-id")
+
+  try {
+    const existing = (await readFile(identityPath, "utf8")).trim()
+    if (AGENT_ID_PATTERN.test(existing)) return existing
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error
+  }
+
+  const agentId = `agent:${randomUUID()}`
+  await writeFile(identityPath, `${agentId}\n`, { mode: 0o600 })
+  return agentId
+}
+
+export function identityDirectory(dataDirectory, clientName = "unknown-client") {
+  const clientKey = createHash("sha256")
+    .update(clientName.trim().toLowerCase() || "unknown-client")
+    .digest("hex")
+    .slice(0, 24)
+  return path.join(dataDirectory, "clients", clientKey)
+}
+
+export function parseSseMessages(body) {
+  const messages = []
+  const events = body.replace(/\r\n/g, "\n").split(/\n\n+/)
+
+  for (const event of events) {
+    const data = event
+      .split("\n")
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).replace(/^ /, ""))
+      .join("\n")
+
+    if (!data || data === "[DONE]") continue
+    messages.push(JSON.parse(data))
+  }
+
+  return messages
+}
+
+function writeMessage(message) {
+  process.stdout.write(`${JSON.stringify(message)}\n`)
+}
+
+function requestId(message) {
+  return message && typeof message === "object" && "id" in message
+    ? message.id
+    : undefined
+}
+
+function writeForwardingError(message, error) {
+  const id = requestId(message)
+  if (id === undefined) {
+    process.stderr.write(
+      `404.directory MCP forwarding error: ${error.message}\n`
+    )
+    return
+  }
+
+  writeMessage({
+    jsonrpc: "2.0",
+    id,
+    error: {
+      code: -32000,
+      message: `404.directory MCP forwarding error: ${error.message}`,
+    },
+  })
+}
+
+export async function runProxy({
+  endpoint = process.env.DIRECTORY_404_ENDPOINT ?? DEFAULT_ENDPOINT,
+  dataDirectory = defaultDataDirectory(),
+  source = process.env.DIRECTORY_404_SOURCE ?? "npx-proxy",
+  agentClass = process.env.DIRECTORY_404_AGENT_CLASS,
+} = {}) {
+  const safeSource = SAFE_SOURCE.test(source) ? source : "npx-proxy"
+  let agentId
+  let sessionId
+  let protocolVersion
+  let clientName
+
+  const headers = () => {
+    const result = {
+      Accept: "application/json, text/event-stream",
+      "Content-Type": "application/json",
+      "X-404-Agent-ID": agentId,
+      "X-404-Source": safeSource,
+    }
+    if (agentClass === "internal") result["X-404-Agent-Class"] = "internal"
+    if (clientName) result["X-404-Client-Name"] = clientName
+    if (sessionId) result["Mcp-Session-Id"] = sessionId
+    if (sessionId && protocolVersion) {
+      result["MCP-Protocol-Version"] = protocolVersion
+    }
+    return result
+  }
+
+  const input = createInterface({ input: process.stdin, crlfDelay: Infinity })
+
+  for await (const line of input) {
+    if (!line.trim()) continue
+
+    let message
+    try {
+      message = JSON.parse(line)
+    } catch {
+      writeMessage({
+        jsonrpc: "2.0",
+        id: null,
+        error: { code: -32700, message: "Parse error" },
+      })
+      continue
+    }
+
+    if (message?.method === "initialize") {
+      protocolVersion = message.params?.protocolVersion
+      const requestedName = message.params?.clientInfo?.name
+      if (typeof requestedName === "string") {
+        clientName = requestedName.replace(/[\r\n]/g, " ").slice(0, 96)
+      }
+    }
+
+    if (!agentId) {
+      agentId = await loadAgentId(identityDirectory(dataDirectory, clientName))
+    }
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify(message),
+      })
+
+      sessionId = response.headers.get("mcp-session-id") ?? sessionId
+
+      if (response.status === 202 || response.status === 204) continue
+
+      const body = await response.text()
+      if (!response.ok) {
+        throw new Error(
+          `HTTP ${response.status}${body ? `: ${body.slice(0, 240)}` : ""}`
+        )
+      }
+
+      const contentType = response.headers.get("content-type") ?? ""
+      const messages = contentType.includes("text/event-stream")
+        ? parseSseMessages(body)
+        : [JSON.parse(body)]
+      for (const forwarded of messages) writeMessage(forwarded)
+    } catch (error) {
+      writeForwardingError(
+        message,
+        error instanceof Error ? error : new Error(String(error))
+      )
+    }
+  }
+
+  if (sessionId) {
+    await fetch(endpoint, { method: "DELETE", headers: headers() }).catch(
+      () => {}
+    )
+  }
+}
+
+export async function invokedAsMain(
+  invokedPath = process.argv[1],
+  modulePath = fileURLToPath(import.meta.url)
+) {
+  if (!invokedPath) return false
+  try {
+    return (await realpath(invokedPath)) === (await realpath(modulePath))
+  } catch {
+    return false
+  }
+}
+
+if (await invokedAsMain()) {
+  runProxy().catch((error) => {
+    process.stderr.write(
+      `${error instanceof Error ? error.message : String(error)}\n`
+    )
+    process.exitCode = 1
+  })
+}

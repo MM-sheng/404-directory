@@ -267,6 +267,24 @@ https://404.directory/connect?source=github
 Registry clients can display the same-domain, script-free service icon at
 `https://404.directory/icon.svg`.
 
+For clients or directories that accept only a stdio launch command, use the
+identity-preserving hosted bridge. It creates one random Agent ID per MCP client
+in the user's normal application-data directory and reuses it across restarts:
+
+```json
+{
+  "mcpServers": {
+    "404-directory": {
+      "command": "npx",
+      "args": ["-y", "404-directory-mcp"]
+    }
+  }
+}
+```
+
+No account or API key is required. The bridge is dependency-free and forwards
+only MCP JSON-RPC traffic to `https://404.directory/mcp`.
+
 Codex supports MCP HTTP headers in `~/.codex/config.toml`:
 
 ```toml
