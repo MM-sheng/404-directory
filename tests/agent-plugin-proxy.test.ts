@@ -17,6 +17,7 @@ import {
   identityDirectory,
   invokedAsMain,
   loadAgentId as loadUniversalAgentId,
+  parseCliOptions,
 } from "../packages/404-directory-mcp/bin/404-directory-mcp.mjs"
 
 const temporaryDirectories: string[] = []
@@ -139,5 +140,16 @@ describe("Agent Plugin identity bridge", () => {
     await symlink(modulePath, binPath)
 
     await expect(invokedAsMain(binPath, modulePath)).resolves.toBe(true)
+  })
+
+  it("accepts only safe non-personal source labels", () => {
+    expect(parseCliOptions(["--source", "tensorblock"])).toEqual({
+      source: "tensorblock",
+    })
+    expect(() => parseCliOptions(["--source", "Personal Email@example.com"]))
+      .toThrow("--source must be a lowercase, non-personal label")
+    expect(() => parseCliOptions(["--endpoint", "https://example.com"])).toThrow(
+      "Unknown argument: --endpoint"
+    )
   })
 })

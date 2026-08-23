@@ -76,6 +76,25 @@ export function identityDirectory(dataDirectory, clientName = "unknown-client") 
   return path.join(dataDirectory, "clients", clientKey)
 }
 
+export function parseCliOptions(args = process.argv.slice(2)) {
+  let source
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index]
+    if (argument !== "--source") {
+      throw new Error(`Unknown argument: ${argument}`)
+    }
+    const value = args[index + 1]
+    if (!value || !SAFE_SOURCE.test(value)) {
+      throw new Error(
+        "--source must be a lowercase, non-personal label using a-z, 0-9, dot, underscore, or hyphen"
+      )
+    }
+    source = value
+    index += 1
+  }
+  return { source }
+}
+
 export function parseSseMessages(body) {
   const messages = []
   const events = body.replace(/\r\n/g, "\n").split(/\n\n+/)
@@ -231,10 +250,22 @@ export async function invokedAsMain(
 }
 
 if (await invokedAsMain()) {
-  runProxy().catch((error) => {
+  let options
+  try {
+    options = parseCliOptions()
+  } catch (error) {
     process.stderr.write(
       `${error instanceof Error ? error.message : String(error)}\n`
     )
-    process.exitCode = 1
-  })
+    process.exitCode = 2
+  }
+
+  if (options) {
+    runProxy(options).catch((error) => {
+      process.stderr.write(
+        `${error instanceof Error ? error.message : String(error)}\n`
+      )
+      process.exitCode = 1
+    })
+  }
 }
