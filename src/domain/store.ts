@@ -66,8 +66,11 @@ export type ActivationFunnelSummary = {
     source: string
     connect_views: number
     install_clicks: number
+    initialize_events: number
     initialized_agents: number
+    tools_list_events: number
     tools_listed_agents: number
+    successful_invocations: number
     successful_agents: number
   }>
 }

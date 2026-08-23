@@ -377,8 +377,11 @@ export class MemoryCatalogStore implements CatalogStore {
         source: key,
         connect_views: 0,
         install_clicks: 0,
+        initialize_events: 0,
         initialized_agents: 0,
+        tools_list_events: 0,
         tools_listed_agents: 0,
+        successful_invocations: 0,
         successful_agents: 0,
       }
       sourceMap.set(key, created)
@@ -388,6 +391,8 @@ export class MemoryCatalogStore implements CatalogStore {
       const source = sourceEntry(event.source)
       if (event.stage === "connect_view") source.connect_views += 1
       if (event.stage === "install_click") source.install_clicks += 1
+      if (event.stage === "mcp_initialize") source.initialize_events += 1
+      if (event.stage === "tools_list") source.tools_list_events += 1
     }
     for (const stage of ["mcp_initialize", "tools_list"] as const) {
       const bySource = new Map<string, Set<string>>()
@@ -421,6 +426,9 @@ export class MemoryCatalogStore implements CatalogStore {
     for (const [source, agents] of successBySource) {
       sourceEntry(source).successful_agents = agents.size
     }
+    for (const event of successful) {
+      sourceEntry(event.attribution_source).successful_invocations += 1
+    }
 
     return {
       window_start: since.toISOString(),
@@ -431,7 +439,9 @@ export class MemoryCatalogStore implements CatalogStore {
       sources: [...sourceMap.values()].sort(
         (a, b) =>
           b.successful_agents - a.successful_agents ||
+          b.successful_invocations - a.successful_invocations ||
           b.initialized_agents - a.initialized_agents ||
+          b.initialize_events - a.initialize_events ||
           b.install_clicks - a.install_clicks ||
           b.connect_views - a.connect_views
       ),

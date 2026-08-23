@@ -695,7 +695,9 @@ export class PostgresCatalogStore implements CatalogStore {
         source: activationEvents.source,
         connectViews: sql<number>`count(*) filter (where ${activationEvents.stage} = 'connect_view')::int`,
         installClicks: sql<number>`count(*) filter (where ${activationEvents.stage} = 'install_click')::int`,
+        initializeEvents: sql<number>`count(*) filter (where ${activationEvents.stage} = 'mcp_initialize')::int`,
         initializedAgents: sql<number>`count(distinct ${activationEvents.agentKey}) filter (where ${activationEvents.stage} = 'mcp_initialize' and ${activationEvents.isExternal} = true and ${activationEvents.agentIdentityKind} = 'explicit')::int`,
+        toolsListEvents: sql<number>`count(*) filter (where ${activationEvents.stage} = 'tools_list')::int`,
         toolsListedAgents: sql<number>`count(distinct ${activationEvents.agentKey}) filter (where ${activationEvents.stage} = 'tools_list' and ${activationEvents.isExternal} = true and ${activationEvents.agentIdentityKind} = 'explicit')::int`,
       })
       .from(activationEvents)
@@ -705,15 +707,15 @@ export class PostgresCatalogStore implements CatalogStore {
     const successSourceRows = await this.db
       .select({
         source: invocations.attributionSource,
-        successfulAgents: sql<number>`count(distinct ${invocations.agentKey})::int`,
+        successfulInvocations: sql<number>`count(*)::int`,
+        successfulAgents: sql<number>`count(distinct ${invocations.agentKey}) filter (where ${invocations.agentIdentityKind} = 'explicit')::int`,
       })
       .from(invocations)
       .where(
         and(
           gte(invocations.createdAt, since),
           eq(invocations.success, true),
-          eq(invocations.isExternal, true),
-          eq(invocations.agentIdentityKind, "explicit")
+          eq(invocations.isExternal, true)
         )
       )
       .groupBy(invocations.attributionSource)
@@ -730,8 +732,11 @@ export class PostgresCatalogStore implements CatalogStore {
         source: key,
         connect_views: 0,
         install_clicks: 0,
+        initialize_events: 0,
         initialized_agents: 0,
+        tools_list_events: 0,
         tools_listed_agents: 0,
+        successful_invocations: 0,
         successful_agents: 0,
       }
       sourceMap.set(key, created)
@@ -741,11 +746,15 @@ export class PostgresCatalogStore implements CatalogStore {
       const entry = sourceEntry(row.source)
       entry.connect_views = Number(row.connectViews)
       entry.install_clicks = Number(row.installClicks)
+      entry.initialize_events = Number(row.initializeEvents)
       entry.initialized_agents = Number(row.initializedAgents)
+      entry.tools_list_events = Number(row.toolsListEvents)
       entry.tools_listed_agents = Number(row.toolsListedAgents)
     }
     for (const row of successSourceRows) {
-      sourceEntry(row.source).successful_agents = Number(row.successfulAgents)
+      const entry = sourceEntry(row.source)
+      entry.successful_invocations = Number(row.successfulInvocations)
+      entry.successful_agents = Number(row.successfulAgents)
     }
 
     const stageOrder = [
@@ -785,7 +794,9 @@ export class PostgresCatalogStore implements CatalogStore {
       sources: [...sourceMap.values()].sort(
         (a, b) =>
           b.successful_agents - a.successful_agents ||
+          b.successful_invocations - a.successful_invocations ||
           b.initialized_agents - a.initialized_agents ||
+          b.initialize_events - a.initialize_events ||
           b.install_clicks - a.install_clicks ||
           b.connect_views - a.connect_views
       ),

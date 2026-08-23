@@ -244,8 +244,11 @@ describe("privacy-safe Agent attribution", () => {
         expect.objectContaining({
           source: "cursor-marketplace.cursor",
           install_clicks: 1,
+          initialize_events: 2,
           initialized_agents: 1,
+          tools_list_events: 2,
           tools_listed_agents: 1,
+          successful_invocations: 1,
           successful_agents: 1,
         }),
       ])
