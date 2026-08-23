@@ -301,6 +301,7 @@ type ConnectionArtifacts = {
   vscodeInstallUrl: string
   codexToml: string
   claudeCommand: string
+  universalConfig: string
   sourceFor: (client: string) => string
 }
 
@@ -322,6 +323,23 @@ http_headers = { "X-404-Agent-ID" = "${generatedAgentId}", "X-404-Source" = "${s
   const claudeCommand = `claude mcp add --transport http --scope user 404-directory ${endpoint} \\
   --header "X-404-Agent-ID: ${generatedAgentId}" \\
   --header "X-404-Source: ${sourceFor("claude-code")}"`
+  const universalConfig = JSON.stringify(
+    {
+      mcpServers: {
+        "404-directory": {
+          command: "npx",
+          args: [
+            "-y",
+            "@mmvv1638/404-directory-mcp",
+            "--source",
+            sourceFor("npx"),
+          ],
+        },
+      },
+    },
+    null,
+    2
+  )
 
   return {
     generatedAgentId,
@@ -330,6 +348,7 @@ http_headers = { "X-404-Agent-ID" = "${generatedAgentId}", "X-404-Source" = "${s
     vscodeInstallUrl,
     codexToml,
     claudeCommand,
+    universalConfig,
     sourceFor,
   }
 }
@@ -407,6 +426,11 @@ export function renderConnectHtml(baseUrl: string, campaign?: string): string {
       </article>
     </div>
     <section>
+      <h2>Any stdio MCP client</h2>
+      <p class="privacy">Use the dependency-free npm bridge when a client or directory accepts only a command. It creates and preserves one privacy-safe Agent ID automatically.</p>
+      <pre><code>${escapeHtml(connection.universalConfig)}</code></pre>
+    </section>
+    <section>
       <h2>Claude Code plugin</h2>
       <pre><code>/plugin marketplace add MM-sheng/404-directory
 /plugin install 404-directory@404-directory</code></pre>
@@ -426,7 +450,7 @@ export function renderConnectHtml(baseUrl: string, campaign?: string): string {
       <pre><code>Use search_official_docs to find the current official guidance for MCP Streamable HTTP. Cite the first-party sources and distinguish facts from inference.</code></pre>
       <p>Installation counts only after a non-error tool result. Connection checks, probes, and repeated calls do not count.</p>
     </section>
-    <p class="privacy">For the direct configurations above, this page generated <code>${escapeHtml(connection.generatedAgentId)}</code> randomly; keep it stable for that installation. The Claude marketplace plugin creates and preserves its own local random ID. 404.directory stores only an HMAC digest after a successful tool call—never the raw ID, prompt, arguments, or result.</p>
+    <p class="privacy">For the direct configurations above, this page generated <code>${escapeHtml(connection.generatedAgentId)}</code> randomly; keep it stable for that installation. The npm bridge and Claude marketplace plugin create and preserve their own local random IDs. 404.directory stores only an HMAC digest after a successful tool call—never the raw ID, prompt, arguments, or result.</p>
     <nav class="links"><a href="/connect.md${source ? `?source=${escapeHtml(source)}` : ""}">Agent-readable setup</a><a href="https://github.com/MM-sheng/404-directory/issues/1">External Agent pilot</a><a href="/v1/metrics/agents">Live adoption metric</a><a href="/privacy">Privacy</a><a href="https://github.com/MM-sheng/404-directory">Source</a></nav>
   </main>
 </body>
@@ -445,6 +469,16 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     "below already contain a newly generated ID; keep it stable after installing.",
     "",
     `MCP endpoint: \`${connection.endpoint}\``,
+    "",
+    "## Any stdio MCP client",
+    "",
+    "Use this when a client or Agent directory accepts a command-based MCP server.",
+    "The dependency-free bridge creates and preserves one privacy-safe Agent ID",
+    "for the installation automatically.",
+    "",
+    "```json",
+    connection.universalConfig,
+    "```",
     "",
     "## Codex",
     "",
