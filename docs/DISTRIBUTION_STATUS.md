@@ -1,6 +1,6 @@
 # Distribution status
 
-Last audited: 2026-08-23 16:45 UTC
+Last audited: 2026-08-23 17:03 UTC
 
 This tracker separates a submission from a public listing and a public listing
 from a qualified external Agent. A channel is successful only after it produces
@@ -19,8 +19,8 @@ at least one de-duplicated external Agent with a successful tool execution.
 
 | Channel | Evidence checked | State | Next action |
 | --- | --- | --- | --- |
-| Cursor Marketplace | Previously submitted; account-gated form | Review/public status not independently visible | Owner checks account dashboard after v0.9.2 release; update evidence without duplicate submission |
-| Claude Plugin Directory | Previously submitted; account-gated form | Review/public status not independently visible | Owner checks account dashboard after v0.9.2 release |
+| Cursor Marketplace | Signed-in publisher form inspected; only organization name/handle and account Owner currently persist | Not submitted; required listing fields are blank | Complete the listing, review Publisher Terms, and obtain action-time confirmation before submission |
+| Claude Connectors Directory | Official process re-audited against current Anthropic documentation | Not submitted; the old remote form is deprecated and the open Google form is for local MCPB extensions | Use the Claude.ai organization portal as a remote MCP connector; requires Team/Enterprise plus Directory management access |
 | MCP.Directory | Submission page reported that the repository was already submitted | In review queue, not proof of public listing | Do not resubmit; check listing after the review window |
 | mcpservers.org | Public form inspected and valid public fields prepared | Not submitted | Owner supplies/approves contact email and confirms the representational submission |
 | GitHub MCP Registry | Not found in public discovery during this audit | Nomination not sent | After v0.9.2, Owner approves the official nomination email; measure Copilot/CLI attribution |
@@ -41,6 +41,21 @@ at least one de-duplicated external Agent with a successful tool execution.
 | ZeroClaw Skills | [#21](https://github.com/zeroclaw-labs/zeroclaw-skills/pull/21) | Open, mergeable, blocked | Maintainer review |
 | MCPfinder | [#9](https://github.com/mcpfinder/mcpfinder/pull/9) | Open, mergeable, review required | Maintainer review and upstream deployment secret |
 | TensorBlock | [#1910](https://github.com/TensorBlock/awesome-mcp-servers/pull/1910) | Merged on 2026-08-23 | Verify public listing attribution and wait for qualified external usage |
+
+## Additional directory actions
+
+- A v0.9.2 GitHub Release now exists at
+  `https://github.com/MM-sheng/404-directory/releases/tag/v0.9.2`.
+- A source-labelled submission was added to the canonical mcp.so intake issue.
+- GitHub's public MCP Registry does not yet show 404.directory. A nomination
+  email is prepared as an unsent draft and still requires owner review and
+  explicit send authorization.
+- MCPCentral already lists `io.github.MM-sheng/404-directory` at v0.9.0 and
+  documents automatic synchronization from the Official MCP Registry; avoid a
+  duplicate manual submission while v0.9.2 propagates.
+- PulseMCP has paused new submissions. Smithery requires account
+  authentication. The appcypher upstream repository is archived, so it cannot
+  accept a new pull request.
 
 A single v0.9.2 release-evidence update was posted to ten still-open listing or
 skill PRs after production, npm and Official Registry publication were verified.
