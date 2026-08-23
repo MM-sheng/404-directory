@@ -9,6 +9,10 @@ first-party executable tools (`verify_web`, `understand_webpage`).
 Connect a real Agent in under a minute (Codex, Cursor, Claude Code, or MCP SDK):
 https://404.directory/connect?source=github
 
+External users can join the first-10 activation pilot and report only the
+client, task category, and failure stage:
+https://github.com/MM-sheng/404-directory/issues/1
+
 Agent-readable installation instructions: [`llms-install.md`](./llms-install.md)
 
 Install the Agent Skill in Codex, Claude Code, Cursor, Cline, or another Agent
