@@ -139,3 +139,19 @@ tests pass and the remaining gaps are external, high-risk, time-dependent or
 account-dependent. The overall execution plan is escalated rather than marked
 complete: releasing, deploying and acquiring 999 additional real external
 Agents remain required outcomes.
+
+## Post-report production lineage audit
+
+At 2026-08-23 12:48 UTC, Cloud Run revision `directory-404-00036-wkw`
+was built from a `gcloud`-uploaded local ZIP rather than GitHub `main` or a
+release tag. The ZIP matches the uncommitted `/Users/m/privacy-ai-chat`
+workspace and reports v0.9.2, while GitHub main, npm and the Official Registry
+remain on older releases. It does not contain the reliability API/dashboard.
+
+The uploaded source also contained an earlier version of migration `0005` that
+created a raw `session_id` column. A read-only production audit found 106
+invocation rows and zero non-null `session_id` values. Migration
+`0006_session_key_privacy.sql` now additively creates the HMAC-only
+`session_key` column for that already-migrated production lineage. The unused
+legacy column is deliberately left in place until an explicitly approved
+schema-cleanup window; current code neither reads nor writes it.

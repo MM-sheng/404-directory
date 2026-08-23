@@ -54,6 +54,24 @@ describe("postgres ensureTool idempotency", () => {
   })
 
   it.skipIf(!url)(
+    "has the HMAC-only session correlation column after migrations",
+    async () => {
+      const handle = openDatabase(url)
+      expect(handle).not.toBeNull()
+      const columns = await handle!.sql<
+        Array<{ column_name: string }>
+      >`select column_name
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'invocations'
+          and column_name = 'session_key'`
+
+      expect(columns).toEqual([{ column_name: "session_key" }])
+      await handle!.close()
+    }
+  )
+
+  it.skipIf(!url)(
     "aggregates qualified clients and provider reliability",
     async () => {
       const handle = openDatabase(url)
