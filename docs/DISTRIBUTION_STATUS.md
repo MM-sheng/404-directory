@@ -1,6 +1,6 @@
 # Distribution status
 
-Last audited: 2026-08-23 17:09 UTC
+Last audited: 2026-08-23 17:13 UTC
 
 This tracker separates a submission from a public listing and a public listing
 from a qualified external Agent. A channel is successful only after it produces
@@ -24,7 +24,7 @@ at least one de-duplicated external Agent with a successful tool execution.
 | MCP.Directory | Submission page reported that the repository was already submitted | In review queue, not proof of public listing | Do not resubmit; check listing after the review window |
 | mcpservers.org | Public form inspected and valid public fields prepared | Not submitted | Owner supplies/approves contact email and confirms the representational submission |
 | GitHub MCP Registry | Not found in public discovery during this audit | Nomination not sent | After v0.9.2, Owner approves the official nomination email; measure Copilot/CLI attribution |
-| Glama | Connector page reachable; requested score badge URL returned 404 | Listed, badge evidence unavailable | Ask for a hosted-connector exception; do not invent a badge |
+| Glama | Public connector is Healthy but still exposes the old two-tool snapshot | Listed with stale metadata; production exposes 12 tools | Claiming requires publishing a maintainer email that matches a Glama account; obtain owner approval before exposing it, then request/rescan the listing |
 
 ## Open upstream pull requests
 
