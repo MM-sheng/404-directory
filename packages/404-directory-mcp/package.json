@@ -1,10 +1,10 @@
 {
-  "name": "directory-404-mcp",
+  "name": "@mmvv1638/404-directory-mcp",
   "version": "0.9.0",
   "description": "Identity-preserving stdio bridge for the public 404.directory MCP server.",
   "type": "module",
   "bin": {
-    "directory-404-mcp": "bin/404-directory-mcp.mjs"
+    "404-directory-mcp": "bin/404-directory-mcp.mjs"
   },
   "files": [
     "bin",

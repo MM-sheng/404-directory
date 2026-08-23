@@ -140,10 +140,10 @@ describe("Agent Plugins package", () => {
     ])
 
     expect(proxyManifest).toMatchObject({
-      name: "directory-404-mcp",
+      name: "@mmvv1638/404-directory-mcp",
       version: rootManifest.version,
       bin: {
-        "directory-404-mcp": "bin/404-directory-mcp.mjs",
+        "404-directory-mcp": "bin/404-directory-mcp.mjs",
       },
     })
     expect(proxyManifest.dependencies).toBeUndefined()

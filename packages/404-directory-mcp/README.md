@@ -8,7 +8,7 @@ server while preserving one privacy-safe identity for the installation.
   "mcpServers": {
     "404-directory": {
       "command": "npx",
-      "args": ["-y", "directory-404-mcp", "--source", "your-directory"]
+      "args": ["-y", "@mmvv1638/404-directory-mcp", "--source", "your-directory"]
     }
   }
 }
