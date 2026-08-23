@@ -49,8 +49,8 @@ import { SERVICE_VERSION } from "../version.js"
 const INDEXNOW_KEY = "81aaad4415a83b2ddecc49c0897c9a74"
 const FAVICON = readFileSync(join(process.cwd(), "app", "favicon.ico"))
 const SERVICE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="404 Directory">
-  <rect width="128" height="128" rx="24" fill="#07110f"/>
-  <text x="64" y="78" text-anchor="middle" fill="#4ade80" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="42" font-weight="700">404</text>
+  <rect width="128" height="128" rx="24" fill="#000"/>
+  <path d="M64 30 32 88h64L64 30Z" fill="#fff"/>
 </svg>`
 const CACHEABLE_DISCOVERY_PATHS = new Set([
   "/",
