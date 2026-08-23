@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it } from "vitest"
 import {
   loadAgentId,
   parseSseMessages,
+  safeClientLabel as safePluginClientLabel,
 } from "../scripts/agent-plugin-proxy.mjs"
 import {
   defaultDataDirectory,
@@ -18,6 +19,7 @@ import {
   invokedAsMain,
   loadAgentId as loadUniversalAgentId,
   parseCliOptions,
+  safeClientLabel,
 } from "../packages/404-directory-mcp/bin/404-directory-mcp.mjs"
 
 const temporaryDirectories: string[] = []
@@ -151,5 +153,14 @@ describe("Agent Plugin identity bridge", () => {
     expect(() => parseCliOptions(["--endpoint", "https://example.com"])).toThrow(
       "Unknown argument: --endpoint"
     )
+  })
+
+  it("never forwards arbitrary client names into analytics headers", () => {
+    expect(safeClientLabel("Claude Code")).toBe("claude")
+    expect(safePluginClientLabel("Visual Studio Code")).toBe("vscode")
+    expect(safeClientLabel("Alice's private workstation agent")).toBe(
+      "mcp-client"
+    )
+    expect(safePluginClientLabel("bob@example.com")).toBe("mcp-client")
   })
 })

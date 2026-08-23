@@ -11,6 +11,16 @@ const DEFAULT_ENDPOINT = "https://404.directory/mcp"
 const AGENT_ID_PATTERN =
   /^agent:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SAFE_SOURCE = /^[a-z0-9][a-z0-9._-]{0,63}$/
+const CLIENT_FAMILIES = [
+  [/chatgpt|openai/i, "openai"],
+  [/claude|anthropic/i, "claude"],
+  [/cursor/i, "cursor"],
+  [/cline/i, "cline"],
+  [/codex/i, "codex"],
+  [/visual studio code|vscode/i, "vscode"],
+  [/goose/i, "goose"],
+  [/mcp[ /_-]?inspector/i, "mcp-inspector"],
+]
 
 export function defaultDataDirectory({
   platform = process.platform,
@@ -95,6 +105,14 @@ export function parseCliOptions(args = process.argv.slice(2)) {
   return { source }
 }
 
+export function safeClientLabel(value) {
+  if (!value) return "mcp-client"
+  return (
+    CLIENT_FAMILIES.find(([pattern]) => pattern.test(value))?.[1] ??
+    "mcp-client"
+  )
+}
+
 export function parseSseMessages(body) {
   const messages = []
   const events = body.replace(/\r\n/g, "\n").split(/\n\n+/)
@@ -153,6 +171,7 @@ export async function runProxy({
   let sessionId
   let protocolVersion
   let clientName
+  let clientIdentityName
 
   const headers = () => {
     const result = {
@@ -191,12 +210,15 @@ export async function runProxy({
       protocolVersion = message.params?.protocolVersion
       const requestedName = message.params?.clientInfo?.name
       if (typeof requestedName === "string") {
-        clientName = requestedName.replace(/[\r\n]/g, " ").slice(0, 96)
+        clientIdentityName = requestedName.replace(/[\r\n]/g, " ").slice(0, 96)
+        clientName = safeClientLabel(clientIdentityName)
       }
     }
 
     if (!agentId) {
-      agentId = await loadAgentId(identityDirectory(dataDirectory, clientName))
+      agentId = await loadAgentId(
+        identityDirectory(dataDirectory, clientIdentityName)
+      )
     }
 
     try {
