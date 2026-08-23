@@ -12,6 +12,25 @@ https://404.directory/mcp
 The server is public, read-only by default, and does not require an account or
 API key.
 
+## Universal identity-preserving bridge
+
+For an MCP client or directory that accepts only a stdio launch command, use:
+
+```json
+{
+  "mcpServers": {
+    "404-directory": {
+      "command": "npx",
+      "args": ["-y", "@mmvv1638/404-directory-mcp"]
+    }
+  }
+}
+```
+
+The bridge generates and persists one random Agent ID per MCP client in the
+local application data directory, then forwards MCP JSON-RPC to the hosted
+endpoint. It has no runtime dependencies and requires no account or API key.
+
 ## Create a privacy-safe Agent ID
 
 Generate one random UUID locally and keep it stable for this installation. Add

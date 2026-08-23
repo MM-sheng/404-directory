@@ -1,0 +1,34 @@
+{
+  "name": "@mmvv1638/404-directory-mcp",
+  "version": "0.9.0",
+  "description": "Identity-preserving stdio bridge for the public 404.directory MCP server.",
+  "type": "module",
+  "bin": {
+    "404-directory-mcp": "bin/404-directory-mcp.mjs"
+  },
+  "files": [
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai-agent",
+    "official-documentation",
+    "tool-discovery"
+  ],
+  "homepage": "https://404.directory/connect?source=npm",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MM-sheng/404-directory.git",
+    "directory": "packages/404-directory-mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/MM-sheng/404-directory/issues"
+  },
+  "license": "MIT"
+}

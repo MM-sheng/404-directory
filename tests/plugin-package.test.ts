@@ -128,6 +128,27 @@ describe("Agent Plugins package", () => {
     ).rejects.toMatchObject({ code: "ENOENT" })
   })
 
+  it("packages a dependency-free identity-preserving universal bridge", async () => {
+    const [rootManifest, proxyManifest] = await Promise.all([
+      readJson<{ version: string }>("package.json"),
+      readJson<{
+        name: string
+        version: string
+        bin: Record<string, string>
+        dependencies?: Record<string, string>
+      }>("packages/404-directory-mcp/package.json"),
+    ])
+
+    expect(proxyManifest).toMatchObject({
+      name: "@mmvv1638/404-directory-mcp",
+      version: rootManifest.version,
+      bin: {
+        "404-directory-mcp": "bin/404-directory-mcp.mjs",
+      },
+    })
+    expect(proxyManifest.dependencies).toBeUndefined()
+  })
+
   it("documents a valid first official-docs tool call", async () => {
     const guide = await readFile("llms-install.md", "utf8")
 

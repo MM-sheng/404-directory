@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
-import { randomUUID } from "node:crypto"
-import { mkdir, readFile, writeFile } from "node:fs/promises"
-import { createInterface } from "node:readline"
+import { createHash, randomUUID } from "node:crypto"
+import { mkdir, readFile, realpath, writeFile } from "node:fs/promises"
+import os from "node:os"
 import path from "node:path"
-import { pathToFileURL } from "node:url"
+import { createInterface } from "node:readline"
+import { fileURLToPath } from "node:url"
 
-const ENDPOINT = "https://404.directory/mcp"
+const DEFAULT_ENDPOINT = "https://404.directory/mcp"
 const AGENT_ID_PATTERN =
   /^agent:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SAFE_SOURCE = /^[a-z0-9][a-z0-9._-]{0,63}$/
@@ -21,21 +22,37 @@ const CLIENT_FAMILIES = [
   [/mcp[ /_-]?inspector/i, "mcp-inspector"],
 ]
 
-export function safeClientLabel(value) {
-  if (!value) return "mcp-client"
-  return (
-    CLIENT_FAMILIES.find(([pattern]) => pattern.test(value))?.[1] ??
-    "mcp-client"
+export function defaultDataDirectory({
+  platform = process.platform,
+  environment = process.env,
+  homeDirectory = os.homedir(),
+} = {}) {
+  if (environment.DIRECTORY_404_DATA_DIR) {
+    return path.resolve(environment.DIRECTORY_404_DATA_DIR)
+  }
+  if (environment.PLUGIN_DATA) return path.resolve(environment.PLUGIN_DATA)
+
+  if (platform === "win32") {
+    const appData = environment.LOCALAPPDATA || environment.APPDATA
+    return path.join(appData || homeDirectory, "404-directory")
+  }
+  if (platform === "darwin") {
+    return path.join(
+      homeDirectory,
+      "Library",
+      "Application Support",
+      "404-directory"
+    )
+  }
+  return path.join(
+    environment.XDG_DATA_HOME || path.join(homeDirectory, ".local", "share"),
+    "404-directory"
   )
 }
 
-export async function loadAgentId(dataDirectory) {
-  if (!dataDirectory) {
-    throw new Error("PLUGIN_DATA is required by the Agent Plugins runtime")
-  }
-
+export async function loadAgentId(dataDirectory = defaultDataDirectory()) {
   await mkdir(dataDirectory, { recursive: true })
-  const identityPath = path.join(dataDirectory, "404-directory-agent-id")
+  const identityPath = path.join(dataDirectory, "agent-id")
 
   try {
     const existing = (await readFile(identityPath, "utf8")).trim()
@@ -56,9 +73,44 @@ export async function loadAgentId(dataDirectory) {
     const existing = (await readFile(identityPath, "utf8")).trim()
     if (AGENT_ID_PATTERN.test(existing)) return existing
     throw new Error(
-      `Refusing to overwrite invalid 404.directory plugin identity file: ${identityPath}`
+      `Refusing to overwrite invalid 404.directory identity file: ${identityPath}`
     )
   }
+}
+
+export function identityDirectory(dataDirectory, clientName = "unknown-client") {
+  const clientKey = createHash("sha256")
+    .update(clientName.trim().toLowerCase() || "unknown-client")
+    .digest("hex")
+    .slice(0, 24)
+  return path.join(dataDirectory, "clients", clientKey)
+}
+
+export function parseCliOptions(args = process.argv.slice(2)) {
+  let source
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index]
+    if (argument !== "--source") {
+      throw new Error(`Unknown argument: ${argument}`)
+    }
+    const value = args[index + 1]
+    if (!value || !SAFE_SOURCE.test(value)) {
+      throw new Error(
+        "--source must be a lowercase, non-personal label using a-z, 0-9, dot, underscore, or hyphen"
+      )
+    }
+    source = value
+    index += 1
+  }
+  return { source }
+}
+
+export function safeClientLabel(value) {
+  if (!value) return "mcp-client"
+  return (
+    CLIENT_FAMILIES.find(([pattern]) => pattern.test(value))?.[1] ??
+    "mcp-client"
+  )
 }
 
 export function parseSseMessages(body) {
@@ -109,16 +161,17 @@ function writeForwardingError(message, error) {
 }
 
 export async function runProxy({
-  endpoint = ENDPOINT,
-  dataDirectory = process.env.PLUGIN_DATA,
-  source = process.env.DIRECTORY_404_SOURCE ?? "agent-plugin",
+  endpoint = DEFAULT_ENDPOINT,
+  dataDirectory = defaultDataDirectory(),
+  source = process.env.DIRECTORY_404_SOURCE ?? "npx-proxy",
   agentClass = process.env.DIRECTORY_404_AGENT_CLASS,
 } = {}) {
-  const agentId = await loadAgentId(dataDirectory)
-  const safeSource = SAFE_SOURCE.test(source) ? source : "agent-plugin"
+  const safeSource = SAFE_SOURCE.test(source) ? source : "npx-proxy"
+  let agentId
   let sessionId
   let protocolVersion
   let clientName
+  let clientIdentityName
 
   const headers = () => {
     const result = {
@@ -157,8 +210,15 @@ export async function runProxy({
       protocolVersion = message.params?.protocolVersion
       const requestedName = message.params?.clientInfo?.name
       if (typeof requestedName === "string") {
-        clientName = safeClientLabel(requestedName)
+        clientIdentityName = requestedName.replace(/[\r\n]/g, " ").slice(0, 96)
+        clientName = safeClientLabel(clientIdentityName)
       }
+    }
+
+    if (!agentId) {
+      agentId = await loadAgentId(
+        identityDirectory(dataDirectory, clientIdentityName)
+      )
     }
 
     try {
@@ -199,14 +259,35 @@ export async function runProxy({
   }
 }
 
-if (
-  process.argv[1] &&
-  import.meta.url === pathToFileURL(process.argv[1]).href
+export async function invokedAsMain(
+  invokedPath = process.argv[1],
+  modulePath = fileURLToPath(import.meta.url)
 ) {
-  runProxy().catch((error) => {
+  if (!invokedPath) return false
+  try {
+    return (await realpath(invokedPath)) === (await realpath(modulePath))
+  } catch {
+    return false
+  }
+}
+
+if (await invokedAsMain()) {
+  let options
+  try {
+    options = parseCliOptions()
+  } catch (error) {
     process.stderr.write(
       `${error instanceof Error ? error.message : String(error)}\n`
     )
-    process.exitCode = 1
-  })
+    process.exitCode = 2
+  }
+
+  if (options) {
+    runProxy(options).catch((error) => {
+      process.stderr.write(
+        `${error instanceof Error ? error.message : String(error)}\n`
+      )
+      process.exitCode = 1
+    })
+  }
 }
