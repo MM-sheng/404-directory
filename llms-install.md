@@ -111,7 +111,7 @@ Recommended first tool:
   "name": "search_official_docs",
   "arguments": {
     "query": "Model Context Protocol Streamable HTTP",
-    "limit": 5
+    "limit_per_source": 4
   }
 }
 ```

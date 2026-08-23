@@ -127,4 +127,12 @@ describe("Agent Plugins package", () => {
       readFile("distribution/404-directory/package.json", "utf8")
     ).rejects.toMatchObject({ code: "ENOENT" })
   })
+
+  it("documents a valid first official-docs tool call", async () => {
+    const guide = await readFile("llms-install.md", "utf8")
+
+    expect(guide).toContain('"name": "search_official_docs"')
+    expect(guide).toContain('"limit_per_source": 4')
+    expect(guide).not.toContain('"limit": 5')
+  })
 })

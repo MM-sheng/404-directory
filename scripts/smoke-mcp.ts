@@ -3,7 +3,14 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 
 const serverUrl = process.argv[2] ?? "https://404.directory/mcp"
 const client = new Client({ name: "404-directory-smoke", version: "1.0.0" })
-const transport = new StreamableHTTPClientTransport(new URL(serverUrl))
+const transport = new StreamableHTTPClientTransport(new URL(serverUrl), {
+  requestInit: {
+    headers: {
+      "X-404-Agent-Class": "internal",
+      "X-404-Source": "release-smoke",
+    },
+  },
+})
 
 try {
   // connect() performs the MCP initialize handshake and sends initialized.

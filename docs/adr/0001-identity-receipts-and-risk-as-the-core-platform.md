@@ -1,8 +1,12 @@
 # Make identity, receipts, and risk the core platform
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-08-23
 - Owners: 404.directory
+
+This proposal was superseded on 2026-08-23 before implementation. The project
+is finishing and validating its existing read-only Agent tools before choosing
+a broader platform direction.
 
 ## Context and problem statement
 
