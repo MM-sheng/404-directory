@@ -1,6 +1,6 @@
 # Distribution status
 
-Last audited: 2026-08-23 UTC
+Last audited: 2026-08-23 16:45 UTC
 
 This tracker separates a submission from a public listing and a public listing
 from a qualified external Agent. A channel is successful only after it produces
@@ -10,10 +10,10 @@ at least one de-duplicated external Agent with a successful tool execution.
 
 | Surface | Current public state | Prepared state | Next action | Blocker |
 | --- | --- | --- | --- | --- |
-| GitHub PR #5 | Draft, mergeable, CI passing | v0.9.2 code and metadata | Owner enables npm Trusted Publisher, then make Ready/merge | Login, terms and irreversible release actions |
-| npm | v0.9.0 public | Local v0.9.2 package validates and installs cleanly | Publish through GitHub OIDC after merge/tag | Trusted Publisher must be configured by Owner |
-| Official MCP Registry | v0.9.1 latest | `server.json` validates against the live Registry | Publish v0.9.2 after npm propagation | Depends on merge, tag and npm publish |
-| Production | Cloud Run v0.9.1 | v0.9.2 service, web and container builds validated locally | Backup, migrate, canary and deploy | Production mutation intentionally not autonomous |
+| GitHub PR #5 | Merged as `8a12355`; release tag `v0.9.2` exists | Release code and metadata are on `main` | None for v0.9.2 | None |
+| npm | v0.9.2 public | Trusted Publisher release workflow passed | Measure clean-install activation by source | None |
+| Official MCP Registry | v0.9.2 public | npm package and remote HTTP metadata are published | Measure Registry-client activation | None |
+| Production | Cloud Run v0.9.2, 12 MCP tools | Production smoke passed `verify_web`, `search_official_docs`, and `search_tools` | Monitor reliability and qualified external usage | None |
 
 ## Marketplace and directory surfaces
 
@@ -40,11 +40,14 @@ at least one de-duplicated external Agent with a successful tool execution.
 | Awesome Agent Skills | [#435](https://github.com/heilcheng/awesome-agent-skills/pull/435) | Open, mergeable; Vercel check fails | Upstream Vercel team authorization |
 | ZeroClaw Skills | [#21](https://github.com/zeroclaw-labs/zeroclaw-skills/pull/21) | Open, mergeable, blocked | Maintainer review |
 | MCPfinder | [#9](https://github.com/mcpfinder/mcpfinder/pull/9) | Open, mergeable, review required | Maintainer review and upstream deployment secret |
-| TensorBlock | [#1910](https://github.com/TensorBlock/awesome-mcp-servers/pull/1910) | Draft, mergeable, review required | Maintainer-owned branch and review |
+| TensorBlock | [#1910](https://github.com/TensorBlock/awesome-mcp-servers/pull/1910) | Merged on 2026-08-23 | Verify public listing attribution and wait for qualified external usage |
 
-No additional comments were posted during this audit because there was no new
-maintainer question or actionable failure. Repeated status comments would add
-noise without increasing the chance of a qualified Agent.
+A single v0.9.2 release-evidence update was posted to ten still-open listing or
+skill PRs after production, npm and Official Registry publication were verified.
+MCPfinder PR #9 did not receive a version comment because it is an upstream
+ingestion-pipeline change and the release version does not affect its review.
+No repeat reminder will be posted without a maintainer question, state change or
+new actionable result.
 
 ## Measurement rule after acceptance
 
