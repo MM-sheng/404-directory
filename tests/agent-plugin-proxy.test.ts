@@ -48,6 +48,17 @@ describe("Agent Plugin identity bridge", () => {
     expect(persisted.trim()).toBe(first)
   })
 
+  it("keeps one plugin identity during concurrent first starts", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "404-plugin-race-"))
+    temporaryDirectories.push(directory)
+
+    const identities = await Promise.all(
+      Array.from({ length: 12 }, () => loadAgentId(directory))
+    )
+
+    expect(new Set(identities)).toHaveLength(1)
+  })
+
   it("extracts JSON-RPC messages from Streamable HTTP SSE responses", () => {
     expect(
       parseSseMessages(

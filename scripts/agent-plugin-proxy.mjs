@@ -27,8 +27,20 @@ export async function loadAgentId(dataDirectory) {
   }
 
   const agentId = `agent:${randomUUID()}`
-  await writeFile(identityPath, `${agentId}\n`, { mode: 0o600 })
-  return agentId
+  try {
+    await writeFile(identityPath, `${agentId}\n`, {
+      flag: "wx",
+      mode: 0o600,
+    })
+    return agentId
+  } catch (error) {
+    if (error?.code !== "EEXIST") throw error
+    const existing = (await readFile(identityPath, "utf8")).trim()
+    if (AGENT_ID_PATTERN.test(existing)) return existing
+    throw new Error(
+      `Refusing to overwrite invalid 404.directory plugin identity file: ${identityPath}`
+    )
+  }
 }
 
 export function parseSseMessages(body) {
