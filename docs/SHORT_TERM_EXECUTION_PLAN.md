@@ -444,7 +444,7 @@ client_disconnected
 | npm | 公开 v0.9.0 | OIDC 发布 v0.9.2 | 干净安装成功 |
 | Cursor Marketplace | 已提交，状态待确认 | 更新版本和安装证据，跟进审核 | 出现 `cursor-marketplace` 合格 Agent |
 | Claude Connectors Directory | 未提交；旧远程表单已废弃，本地 MCPB 表单不适用 | 由 Team/Enterprise 组织的 Directory 管理员在 Claude.ai 提交远程 MCP | 出现 Claude 来源合格 Agent |
-| Glama | 已收录，12 工具健康 | 更新版本并观察转化 | 出现合格 Agent，不只探测 |
+| Glama | 已收录且健康，但仍缓存旧版 2 工具 | 获得公开维护者邮箱授权后认领并触发 12 工具重扫 | 出现合格 Agent，不只探测 |
 | MCP.Directory | 已提交、待审核 | 不重复提交；等待审核并补充版本 | 出现来源归因 |
 | GitHub MCP Registry | 尚未出现在搜索结果 | v0.9.2 后准备官方合作/收录请求 | Copilot/CLI 来源真实调用 |
 | Cline Marketplace | PR #55/#56 待审核 | 更新 v0.9.2 和验证证据 | Cline 来源真实调用 |
