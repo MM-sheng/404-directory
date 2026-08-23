@@ -28,6 +28,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
+    "data:retention:report": "tsx scripts/retention-cleanup.ts",
     "worker:verify": "tsx src/workers/verification-worker.ts",
     "worker:verify:start": "node dist/workers/verification-worker.js",
     "docker:build": "docker build -t 404-directory:latest .",

@@ -47,6 +47,7 @@ import {
   renderConnectHtml,
   renderDocs,
   renderHomepage,
+  renderMetricsDashboard,
   renderPrivacy,
   renderTerms,
 } from "./homepage.js"
@@ -603,11 +604,7 @@ export async function buildApp(
         .status(302)
         .header(
           "location",
-          createDirectClientInstallUrl(
-            config.PUBLIC_BASE_URL,
-            client,
-            campaign
-          )
+          createDirectClientInstallUrl(config.PUBLIC_BASE_URL, client, campaign)
         )
         .send()
     }
@@ -618,6 +615,30 @@ export async function buildApp(
     { schema: { hide: true } as FastifySchema },
     async (_request, reply) =>
       reply.type("text/markdown; charset=utf-8").send(renderPrivacy())
+  )
+
+  app.get(
+    "/metrics",
+    { schema: { hide: true } as FastifySchema },
+    async (_request, reply) => {
+      if (!catalog) {
+        return reply.status(503).send({
+          error: "catalog_unavailable",
+          message: "Agent evidence requires the catalog store",
+        })
+      }
+      const [agents, activation, reliability] = await Promise.all([
+        catalog.agentUsageSummary(),
+        catalog.activationFunnelSummary(),
+        catalog.reliabilitySummary(
+          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        ),
+      ])
+      return reply
+        .header("cache-control", "no-store")
+        .type("text/html; charset=utf-8")
+        .send(renderMetricsDashboard(agents, activation, reliability))
+    }
   )
 
   app.get(
@@ -958,6 +979,9 @@ Use \`search_official_docs\` for one-call current OpenAI, Microsoft, AWS, and Cl
 - [Agent-readable connection guide](${config.PUBLIC_BASE_URL}/connect.md): Stable privacy-safe Agent ID configuration for Codex, Claude Code, Cursor, VS Code, and MCP SDK clients.
 - [Installable Agent Skill](https://github.com/MM-sheng/404-directory/tree/main/skills/use-404-directory): Cross-client workflow for official docs search, verification, tool discovery, and the first successful call. Install with \`npx skills add MM-sheng/404-directory --skill use-404-directory -g -y\`.
 - [External Agent progress](${config.PUBLIC_BASE_URL}/v1/metrics/agents): Public, de-duplicated successful external Agent usage metric.
+- [Activation funnel](${config.PUBLIC_BASE_URL}/v1/metrics/activation): Diagnostic Connect, install, initialize, tools/list, and successful-tool stages.
+- [Reliability evidence](${config.PUBLIC_BASE_URL}/v1/metrics/reliability?days=30): Privacy-safe tool, provider, client, source, latency, and error aggregates.
+- [Evidence dashboard](${config.PUBLIC_BASE_URL}/metrics): Human-readable strict adoption, retention, activation, reliability, and error view.
 
 ## Direct connection
 
@@ -1009,6 +1033,9 @@ Sitemap: ${config.PUBLIC_BASE_URL}/sitemap.xml
         "/v1/capabilities",
         "/v1/graph/capabilities",
         "/v1/metrics/agents",
+        "/v1/metrics/activation",
+        "/v1/metrics/reliability",
+        "/metrics",
         "/mcp-info",
         "/.well-known/mcp/server-card.json",
         "/.well-known/integrations.json",

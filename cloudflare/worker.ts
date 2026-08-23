@@ -24,8 +24,10 @@ interface Env {
   DIRECTORY_CONTAINER: DurableObjectNamespace
 }
 
-export default {
+const worker = {
   async fetch(request: Request, env: Env): Promise<Response> {
     return getContainer(env.DIRECTORY_CONTAINER, "404-directory").fetch(request)
   },
 }
+
+export default worker

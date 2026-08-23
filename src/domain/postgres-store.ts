@@ -29,6 +29,11 @@ import type {
   TrustProfile,
   VerificationCheckRecord,
 } from "./types.js"
+import {
+  buildAgentRetention,
+  buildReliabilitySummary,
+  type ReliabilitySummary,
+} from "./metrics.js"
 import { nextVerifyBackoffMs } from "./verification.js"
 
 function toolMetadata(input: RegisterToolRequest): Record<string, unknown> {
@@ -738,6 +743,7 @@ export class PostgresCatalogStore implements CatalogStore {
         tools_listed_agents: 0,
         successful_invocations: 0,
         successful_agents: 0,
+        activation_rate: null,
       }
       sourceMap.set(key, created)
       return created
@@ -755,6 +761,14 @@ export class PostgresCatalogStore implements CatalogStore {
       const entry = sourceEntry(row.source)
       entry.successful_invocations = Number(row.successfulInvocations)
       entry.successful_agents = Number(row.successfulAgents)
+    }
+    for (const source of sourceMap.values()) {
+      source.activation_rate =
+        source.initialized_agents > 0
+          ? Number(
+              (source.successful_agents / source.initialized_agents).toFixed(4)
+            )
+          : null
     }
 
     const stageOrder = [
@@ -876,6 +890,39 @@ export class PostgresCatalogStore implements CatalogStore {
       .groupBy(invocations.attributionSource)
       .orderBy(sql`count(distinct ${invocations.agentKey}) desc`)
 
+    const retentionRows = await this.db
+      .select({
+        agentKey: invocations.agentKey,
+        clientName: invocations.clientName,
+        attributionSource: invocations.attributionSource,
+        createdAt: invocations.createdAt,
+      })
+      .from(invocations)
+      .where(
+        and(
+          gte(invocations.createdAt, since),
+          eq(invocations.success, true),
+          eq(invocations.isExternal, true),
+          eq(invocations.agentIdentityKind, "explicit")
+        )
+      )
+
+    const byClient = new Map<
+      string,
+      { agents: Set<string>; invocations: number }
+    >()
+    for (const row of retentionRows) {
+      if (!row.agentKey) continue
+      const client = row.clientName ?? "unknown-client"
+      const entry = byClient.get(client) ?? {
+        agents: new Set<string>(),
+        invocations: 0,
+      }
+      entry.agents.add(row.agentKey)
+      entry.invocations += 1
+      byClient.set(client, entry)
+    }
+
     const target = 1_000
     const identified = Number(totals?.identifiedExternalAgents ?? 0)
     return {
@@ -890,12 +937,85 @@ export class PostgresCatalogStore implements CatalogStore {
         totals?.anonymousSuccessfulInvocations ?? 0
       ),
       progress_ratio: Number(Math.min(1, identified / target).toFixed(4)),
+      retention: buildAgentRetention(
+        retentionRows.map((row) => ({
+          tool_name: "qualified_external_execution",
+          success: true,
+          latency_ms: 0,
+          agent_key: row.agentKey,
+          agent_identity_kind: "explicit",
+          client_name: row.clientName,
+          attribution_source: row.attributionSource,
+          is_external: true,
+          created_at: row.createdAt,
+        }))
+      ),
       sources: sourceRows.map((row) => ({
         source: row.source ?? "direct",
         identified_agents: Number(row.identifiedAgents),
         successful_invocations: Number(row.successfulInvocations),
       })),
+      clients: [...byClient.entries()]
+        .map(([client, value]) => ({
+          client,
+          identified_agents: value.agents.size,
+          successful_invocations: value.invocations,
+        }))
+        .sort(
+          (a, b) =>
+            b.identified_agents - a.identified_agents ||
+            b.successful_invocations - a.successful_invocations
+        ),
     }
+  }
+
+  async reliabilitySummary(
+    since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  ): Promise<ReliabilitySummary> {
+    const rows = await this.db
+      .select({
+        toolName: invocations.toolName,
+        version: invocations.version,
+        providerSlug: providers.slug,
+        providerName: providers.name,
+        success: invocations.success,
+        latencyMs: invocations.latencyMs,
+        errorType: invocations.errorType,
+        agentKey: invocations.agentKey,
+        agentIdentityKind: invocations.agentIdentityKind,
+        clientName: invocations.clientName,
+        attributionSource: invocations.attributionSource,
+        isExternal: invocations.isExternal,
+        resultCount: invocations.resultCount,
+        createdAt: invocations.createdAt,
+      })
+      .from(invocations)
+      .leftJoin(tools, eq(invocations.toolId, tools.id))
+      .leftJoin(providers, eq(tools.providerId, providers.id))
+      .where(
+        and(gte(invocations.createdAt, since), eq(invocations.isExternal, true))
+      )
+
+    return buildReliabilitySummary(
+      rows.map((row) => ({
+        tool_name: row.toolName,
+        version: row.version,
+        provider_slug: row.providerSlug,
+        provider_name: row.providerName,
+        success: row.success,
+        latency_ms: row.latencyMs,
+        error_type: row.errorType,
+        agent_key: row.agentKey,
+        agent_identity_kind: row.agentIdentityKind as
+          "explicit" | "anonymous" | "internal" | null,
+        client_name: row.clientName,
+        attribution_source: row.attributionSource,
+        is_external: row.isExternal,
+        result_count: row.resultCount,
+        created_at: row.createdAt,
+      })),
+      since
+    )
   }
 
   private async hydrateTool(

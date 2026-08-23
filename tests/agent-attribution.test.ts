@@ -146,6 +146,14 @@ describe("privacy-safe Agent attribution", () => {
       successful_external_invocations: 2,
       anonymous_successful_invocations: 0,
       progress_ratio: 0.001,
+      retention: {
+        repeat_agents_on_later_day: 0,
+        day_7: {
+          eligible_agents: 0,
+          retained_agents: 0,
+          retention_rate: null,
+        },
+      },
       sources: [
         {
           source: "codex",
@@ -153,6 +161,30 @@ describe("privacy-safe Agent attribution", () => {
           successful_invocations: 2,
         },
       ],
+      clients: [
+        {
+          client: "codex-test",
+          identified_agents: 1,
+          successful_invocations: 2,
+        },
+      ],
+    })
+
+    const reliability = await app.inject({
+      method: "GET",
+      url: "/v1/metrics/reliability?days=30",
+    })
+    expect(reliability.statusCode).toBe(200)
+    expect(reliability.json()).toMatchObject({
+      metric: "privacy_safe_tool_provider_reliability",
+      window_days: 30,
+      overall: {
+        invocations: 2,
+        successes: 2,
+        identified_agents: 1,
+      },
+      clients: [expect.objectContaining({ client: "codex-test" })],
+      sources: [expect.objectContaining({ source: "codex" })],
     })
   })
 
@@ -283,6 +315,7 @@ describe("privacy-safe Agent attribution", () => {
           tools_listed_agents: 1,
           successful_invocations: 1,
           successful_agents: 1,
+          activation_rate: 1,
         }),
       ])
     )

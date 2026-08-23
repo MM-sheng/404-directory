@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto"
+import { createHash, randomBytes } from "node:crypto"
 import type { FastifyRequest } from "fastify"
 import type { AppConfig } from "../config.js"
 import type { CatalogStore, ProviderRecord } from "./store.js"
@@ -36,17 +36,6 @@ export function extractBearerToken(request: FastifyRequest): string | null {
   if (!header || typeof header !== "string") return null
   const match = /^Bearer\s+(.+)$/i.exec(header.trim())
   return match?.[1]?.trim() || null
-}
-
-function safeEqualHex(a: string, b: string): boolean {
-  try {
-    const left = Buffer.from(a, "hex")
-    const right = Buffer.from(b, "hex")
-    if (left.length !== right.length) return false
-    return timingSafeEqual(left, right)
-  } catch {
-    return false
-  }
 }
 
 /**

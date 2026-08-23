@@ -221,7 +221,30 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
     }
   })
 
-  app.get("/v1/capabilities/:capability/tools", async (request, reply) => {
+  app.get("/v1/metrics/reliability", async (request, reply) => {
+    try {
+      const { days } = z
+        .object({
+          days: z.coerce.number().int().min(1).max(90).default(30),
+        })
+        .strict()
+        .parse(request.query)
+      const reliability = await store.reliabilitySummary(
+        new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+      )
+      return {
+        metric: "privacy_safe_tool_provider_reliability",
+        definition:
+          "Aggregated real external execution evidence by tool, registered provider, safe client label, and attribution source. Internal executions are excluded; anonymous external executions can inform reliability but never count as identified Agents.",
+        window_days: days,
+        ...reliability,
+      }
+    } catch (error) {
+      return reply.status(400).send(invalidRequest(error))
+    }
+  })
+
+  app.get("/v1/capabilities/:capability/tools", async (request) => {
     const { capability } = request.params as { capability: string }
     const query = z
       .object({ limit: z.coerce.number().int().min(1).max(50).default(20) })

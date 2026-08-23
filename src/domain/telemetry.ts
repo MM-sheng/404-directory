@@ -31,7 +31,9 @@ export async function trackInvocation(
       source: event.source.slice(0, 32),
       success: event.success,
       latency_ms: Math.max(0, Math.round(event.latency_ms)),
-      error_type: event.error_type ? event.error_type.slice(0, 64) : null,
+      error_type: event.error_type
+        ? normalizeErrorType(event.error_type)
+        : null,
       agent_key: event.agent_key ?? attribution?.agent_key ?? null,
       agent_identity_kind:
         event.agent_identity_kind ??
@@ -67,12 +69,95 @@ export async function trackInvocation(
 
 export function classifyErrorType(error: unknown): string {
   if (!error) return "unknown"
-  if (typeof error === "string") return error.slice(0, 64)
+  if (typeof error === "string") return normalizeErrorType(error)
   if (error instanceof Error) {
-    if (/timeout|exceeded/i.test(error.message)) return "timeout"
-    if (/unsafe|private|reserved/i.test(error.message)) return "unsafe_url"
-    if (/validation|invalid/i.test(error.message)) return "validation"
-    return "execution_failed"
+    const code = (error as Error & { code?: unknown }).code
+    if (typeof code === "string") {
+      const classifiedCode = normalizeErrorType(code)
+      if (classifiedCode !== "unknown") return classifiedCode
+    }
+    return normalizeErrorType(`${error.name} ${error.message}`)
+  }
+  return "unknown"
+}
+
+export type CanonicalErrorType =
+  | "invalid_arguments"
+  | "protocol_mismatch"
+  | "tool_not_found"
+  | "tool_not_allowed"
+  | "authentication_not_supported"
+  | "provider_not_verified"
+  | "provider_timeout"
+  | "provider_rate_limited"
+  | "provider_unavailable"
+  | "empty_result"
+  | "unsafe_url"
+  | "client_disconnected"
+  | "tool_execution_failed"
+  | "unknown"
+
+/**
+ * Converts provider/library errors into a finite, non-sensitive taxonomy.
+ * Raw exception text is never persisted as an analytics dimension.
+ */
+export function normalizeErrorType(value: string): CanonicalErrorType {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_")
+  if (/rate.?limit|too_many_requests|\b429\b/.test(normalized)) {
+    return "provider_rate_limited"
+  }
+  if (/timeout|timed_out|exceeded/.test(normalized)) return "provider_timeout"
+  if (
+    /disconnect|socket_closed|connection_reset|econnreset|broken_pipe/.test(
+      normalized
+    )
+  ) {
+    return "client_disconnected"
+  }
+  if (/protocol|unsupported_protocol|version_mismatch/.test(normalized)) {
+    return "protocol_mismatch"
+  }
+  if (
+    /authentication_not_supported|auth_required|credentials_required/.test(
+      normalized
+    )
+  ) {
+    return "authentication_not_supported"
+  }
+  if (/provider_not_verified|ownership_not_verified/.test(normalized)) {
+    return "provider_not_verified"
+  }
+  if (/unsafe|private|reserved|ssrf/.test(normalized)) return "unsafe_url"
+  if (
+    /validation|invalid|arguments_too_large|bad_request|zoderror/.test(
+      normalized
+    )
+  ) {
+    return "invalid_arguments"
+  }
+  if (/not_allowed|became_destructive|destructive|forbidden/.test(normalized)) {
+    return "tool_not_allowed"
+  }
+  if (
+    /not_found|unknown_server|remote_tool_missing|missing_tool/.test(normalized)
+  ) {
+    return "tool_not_found"
+  }
+  if (/empty_result|no_results|zero_results/.test(normalized)) {
+    return "empty_result"
+  }
+  if (
+    /unavailable|gateway_failed|all_sources_failed|missing_endpoint|server_not_active|network|dns|econnrefused/.test(
+      normalized
+    )
+  ) {
+    return "provider_unavailable"
+  }
+  if (/execution|tool_error|remote_tool_error|failed|error/.test(normalized)) {
+    return "tool_execution_failed"
   }
   return "unknown"
 }

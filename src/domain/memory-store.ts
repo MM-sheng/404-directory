@@ -17,6 +17,11 @@ import type {
   TrustProfile,
   VerificationCheckRecord,
 } from "./types.js"
+import {
+  buildAgentRetention,
+  buildReliabilitySummary,
+  type ReliabilitySummary,
+} from "./metrics.js"
 import { nextVerifyBackoffMs } from "./verification.js"
 import { isDiscoverableStatus } from "./lifecycle.js"
 
@@ -383,6 +388,7 @@ export class MemoryCatalogStore implements CatalogStore {
         tools_listed_agents: 0,
         successful_invocations: 0,
         successful_agents: 0,
+        activation_rate: null,
       }
       sourceMap.set(key, created)
       return created
@@ -428,6 +434,15 @@ export class MemoryCatalogStore implements CatalogStore {
     }
     for (const event of successful) {
       sourceEntry(event.attribution_source).successful_invocations += 1
+    }
+
+    for (const source of sourceMap.values()) {
+      source.activation_rate =
+        source.initialized_agents > 0
+          ? Number(
+              (source.successful_agents / source.initialized_agents).toFixed(4)
+            )
+          : null
     }
 
     return {
@@ -483,6 +498,10 @@ export class MemoryCatalogStore implements CatalogStore {
       string,
       { agents: Set<string>; invocations: number }
     >()
+    const byClient = new Map<
+      string,
+      { agents: Set<string>; invocations: number }
+    >()
     for (const row of explicit) {
       const source = row.attribution_source ?? "direct"
       const current = bySource.get(source) ?? {
@@ -492,6 +511,15 @@ export class MemoryCatalogStore implements CatalogStore {
       current.agents.add(row.agent_key!)
       current.invocations += 1
       bySource.set(source, current)
+
+      const client = row.client_name ?? "unknown-client"
+      const clientCurrent = byClient.get(client) ?? {
+        agents: new Set<string>(),
+        invocations: 0,
+      }
+      clientCurrent.agents.add(row.agent_key!)
+      clientCurrent.invocations += 1
+      byClient.set(client, clientCurrent)
     }
     return {
       window_start: since.toISOString(),
@@ -507,6 +535,7 @@ export class MemoryCatalogStore implements CatalogStore {
             row.agent_identity_kind === "anonymous")
       ).length,
       progress_ratio: Number(Math.min(1, agents.size / 1_000).toFixed(4)),
+      retention: buildAgentRetention(rows),
       sources: [...bySource.entries()]
         .map(([source, value]) => ({
           source,
@@ -514,7 +543,34 @@ export class MemoryCatalogStore implements CatalogStore {
           successful_invocations: value.invocations,
         }))
         .sort((a, b) => b.identified_agents - a.identified_agents),
+      clients: [...byClient.entries()]
+        .map(([client, value]) => ({
+          client,
+          identified_agents: value.agents.size,
+          successful_invocations: value.invocations,
+        }))
+        .sort(
+          (a, b) =>
+            b.identified_agents - a.identified_agents ||
+            b.successful_invocations - a.successful_invocations
+        ),
     }
+  }
+
+  async reliabilitySummary(
+    since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  ): Promise<ReliabilitySummary> {
+    return buildReliabilitySummary(
+      this.invocations.map((row) => {
+        const tool = row.tool_id ? this.byId.get(row.tool_id) : undefined
+        return {
+          ...row,
+          provider_slug: tool?.provider.slug ?? null,
+          provider_name: tool?.provider.name ?? null,
+        }
+      }),
+      since
+    )
   }
 
   async getProviderBySlug(slug: string): Promise<ProviderRecord | null> {

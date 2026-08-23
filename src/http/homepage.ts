@@ -1,4 +1,9 @@
 import { randomUUID } from "node:crypto"
+import type {
+  ActivationFunnelSummary,
+  AgentUsageSummary,
+} from "../domain/store.js"
+import type { ReliabilitySummary } from "../domain/metrics.js"
 import type { ToolCatalogEntry, ToolDiscoveryEntry } from "../tools/types.js"
 
 export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
@@ -163,6 +168,8 @@ ${toolLines}
       <a href="/connect?source=homepage-nav">Connect</a>
       <a href="/tools">Tools</a>
       <a href="/v1/metrics/agents">Agent usage</a>
+      <a href="/v1/metrics/reliability">Reliability</a>
+      <a href="/metrics">Dashboard</a>
       <a href="/mcp-info">MCP</a>
       <a href="/openapi.json">OpenAPI</a>
       <a href="/docs">Docs</a>
@@ -224,6 +231,8 @@ IDs, and raw IP addresses are not stored in product analytics.
 - Header: \`X-404-Agent-ID: agent:<your-stable-random-id>\`
 - Optional attribution: \`X-404-Source: <source>\`
 - Public progress: \`GET /v1/metrics/agents\`
+- Activation and retention: \`GET /v1/metrics/activation\` and \`GET /v1/metrics/agents\`
+- Tool/provider reliability: \`GET /v1/metrics/reliability?days=30\`
 - Human setup: \`GET /connect\`
 - Agent-readable setup: \`GET /connect.md\`
 
@@ -246,7 +255,7 @@ Effective: 2026-08-17
 
 - Submitted URLs and optional expected text are used only to perform the requested tool call.
 - The service does not require an account and does not use submitted data for advertising.
-- The application does not intentionally persist tool inputs or results in a database. For Agent usage measurement it may store activation stage, tool name, success, latency, client label, attribution source, external/internal classification, and an irreversible HMAC digest of an optional \`X-404-Agent-ID\`. Connect views and installer clicks are diagnostic only and do not count as Agent users. Raw Agent IDs, prompts, arguments, results, and raw IP addresses are not stored in product analytics. Infrastructure logs may retain request metadata such as timestamp, route, status, duration, request ID, and client IP for security and reliability; request bodies are not logged by the application.
+- The application does not intentionally persist tool inputs or results in a database. For Agent usage measurement it may store activation stage, tool/provider name and version, success, finite error category, latency, result count, timestamps, safe client label, attribution source, external/internal classification, request ID, and irreversible HMAC digests of optional Agent and MCP session identifiers. Connect views and installer clicks are diagnostic only and do not count as Agent users. Raw Agent IDs, raw MCP session IDs, prompts, arguments, results, and raw IP addresses are not stored in product analytics. Infrastructure logs may retain request metadata such as timestamp, route, status, duration, request ID, and client IP for security and reliability; request bodies are not logged by the application.
 - Fetching a submitted URL sends a request from 404.directory infrastructure to that public destination. The destination may process that request under its own policy.
 - Do not submit private, internal, authenticated, personal, or sensitive URLs or content.
 
@@ -451,7 +460,7 @@ export function renderConnectHtml(baseUrl: string, campaign?: string): string {
       <p>Installation counts only after a non-error tool result. Connection checks, probes, and repeated calls do not count.</p>
     </section>
     <p class="privacy">For the direct configurations above, this page generated <code>${escapeHtml(connection.generatedAgentId)}</code> randomly; keep it stable for that installation. The npm bridge and Claude marketplace plugin create and preserve their own local random IDs. 404.directory stores only an HMAC digest after a successful tool call—never the raw ID, prompt, arguments, or result.</p>
-    <nav class="links"><a href="/connect.md${source ? `?source=${escapeHtml(source)}` : ""}">Agent-readable setup</a><a href="https://github.com/MM-sheng/404-directory/issues/1">External Agent pilot</a><a href="/v1/metrics/agents">Live adoption metric</a><a href="/privacy">Privacy</a><a href="https://github.com/MM-sheng/404-directory">Source</a></nav>
+    <nav class="links"><a href="/connect.md${source ? `?source=${escapeHtml(source)}` : ""}">Agent-readable setup</a><a href="https://github.com/MM-sheng/404-directory/issues/1">External Agent pilot</a><a href="/v1/metrics/agents">Live adoption metric</a><a href="/v1/metrics/reliability">Reliability evidence</a><a href="/privacy">Privacy</a><a href="https://github.com/MM-sheng/404-directory">Source</a></nav>
   </main>
 </body>
 </html>`
@@ -528,6 +537,7 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     "public unique-Agent target, regardless of how many later calls that Agent makes.",
     "",
     `Progress: ${baseUrl}/v1/metrics/agents`,
+    `Reliability: ${baseUrl}/v1/metrics/reliability?days=30`,
     "External Agent pilot: https://github.com/MM-sheng/404-directory/issues/1",
     `Privacy: ${baseUrl}/privacy`,
     "",
@@ -547,6 +557,86 @@ Effective: 2026-08-17
 - Access may be rate-limited, changed, or suspended to protect service stability and safety.
 - Current tools are free and require no authentication. Material pricing or access changes will be disclosed before they apply.
 `
+}
+
+function percent(value: number | null): string {
+  return value === null ? "not enough data" : `${(value * 100).toFixed(1)}%`
+}
+
+export function renderMetricsDashboard(
+  agents: AgentUsageSummary,
+  activation: ActivationFunnelSummary,
+  reliability: ReliabilitySummary
+): string {
+  const sourceRows = activation.sources
+    .slice(0, 12)
+    .map(
+      (source) => `<tr>
+        <td><code>${escapeHtml(source.source)}</code></td>
+        <td>${source.connect_views}</td><td>${source.install_clicks}</td>
+        <td>${source.initialized_agents}</td><td>${source.successful_agents}</td>
+        <td>${percent(source.activation_rate)}</td>
+      </tr>`
+    )
+    .join("\n")
+  const toolRows = reliability.tools
+    .slice(0, 12)
+    .map(
+      (tool) => `<tr>
+        <td><code>${escapeHtml(tool.tool_name)}</code></td>
+        <td>${tool.invocations}</td><td>${tool.identified_agents}</td>
+        <td>${percent(tool.success_rate)}</td><td>${tool.p95_latency_ms ?? "—"}</td>
+        <td>${escapeHtml(tool.last_observed_at)}</td>
+      </tr>`
+    )
+    .join("\n")
+  const errorRows = reliability.errors
+    .slice(0, 10)
+    .map(
+      (error) =>
+        `<tr><td><code>${escapeHtml(error.error_type)}</code></td><td>${error.events}</td></tr>`
+    )
+    .join("\n")
+  const progress = Math.min(100, agents.progress_ratio * 100)
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent evidence — 404.directory</title>
+  <style>
+    :root { --bg:#0b0c0f; --panel:#11151b; --fg:#edf0f2; --muted:#9da5ae; --line:#2c333d; --accent:#c8f542; --mono:"IBM Plex Mono","SF Mono",monospace; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--fg); background:var(--bg); font-family:system-ui,sans-serif; line-height:1.5; }
+    main { max-width:78rem; margin:0 auto; padding:2rem 1rem 4rem; }
+    a { color:var(--accent); } h1 { margin:.6rem 0 .2rem; } h2 { margin:0 0 .8rem; font-size:1rem; }
+    .muted { color:var(--muted); } .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(13rem,1fr)); gap:.8rem; margin:1.4rem 0; }
+    .card, section { border:1px solid var(--line); border-radius:.65rem; background:var(--panel); padding:1rem; }
+    .value { font:700 1.55rem var(--mono); } .progress { height:.65rem; border-radius:1rem; background:#262c34; overflow:hidden; margin-top:.7rem; }
+    .progress span { display:block; height:100%; background:var(--accent); width:${progress}%; }
+    section { margin-top:1rem; overflow-x:auto; } table { width:100%; border-collapse:collapse; font-size:.86rem; }
+    th,td { padding:.55rem; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; }
+    th { color:var(--muted); font-weight:600; } code { font-family:var(--mono); }
+  </style>
+</head>
+<body><main>
+  <a href="/">← 404.directory</a>
+  <h1>Real Agent evidence</h1>
+  <p class="muted">Only de-duplicated external Agents with a successful tool execution count. Internal tests, probes, anonymous calls and repeated sessions are excluded.</p>
+  <div class="grid">
+    <article class="card"><div class="muted">Qualified Agents</div><div class="value">${agents.identified_external_agents} / ${agents.target_external_agents}</div><div class="progress"><span></span></div></article>
+    <article class="card"><div class="muted">Qualified successes</div><div class="value">${agents.successful_external_invocations}</div></article>
+    <article class="card"><div class="muted">Anonymous successes</div><div class="value">${agents.anonymous_successful_invocations}</div></article>
+    <article class="card"><div class="muted">7-day retention</div><div class="value">${percent(agents.retention.day_7.retention_rate)}</div><div class="muted">${agents.retention.day_7.retained_agents}/${agents.retention.day_7.eligible_agents} eligible</div></article>
+    <article class="card"><div class="muted">30-day retention</div><div class="value">${percent(agents.retention.day_30.retention_rate)}</div><div class="muted">${agents.retention.day_30.retained_agents}/${agents.retention.day_30.eligible_agents} eligible</div></article>
+    <article class="card"><div class="muted">30-day external success rate</div><div class="value">${percent(reliability.overall.success_rate)}</div><div class="muted">${reliability.overall.invocations} observations</div></article>
+  </div>
+  <section><h2>Activation by source</h2><table><thead><tr><th>Source</th><th>Views</th><th>Installs</th><th>Initialized Agents</th><th>Successful Agents</th><th>Activation</th></tr></thead><tbody>${sourceRows || '<tr><td colspan="6">No evidence yet</td></tr>'}</tbody></table></section>
+  <section><h2>Tool reliability — last 30 days</h2><table><thead><tr><th>Tool</th><th>Calls</th><th>Agents</th><th>Success</th><th>P95 ms</th><th>Last observed</th></tr></thead><tbody>${toolRows || '<tr><td colspan="6">No external executions yet</td></tr>'}</tbody></table></section>
+  <section><h2>Canonical errors — last 30 days</h2><table><thead><tr><th>Error</th><th>Events</th></tr></thead><tbody>${errorRows || '<tr><td colspan="2">No external failures observed</td></tr>'}</tbody></table></section>
+  <p class="muted">Generated ${escapeHtml(agents.generated_at)}. Raw Agent IDs, session IDs, prompts, arguments and results are never shown.</p>
+</main></body></html>`
 }
 
 function escapeHtml(value: string): string {
