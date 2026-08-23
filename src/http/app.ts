@@ -247,7 +247,8 @@ async function handleMcpRequest(
     await server.connect(transport)
     const attribution = agentAttributionFromHeaders(
       request.headers,
-      agentAnalyticsSalt ?? "development-only-agent-analytics"
+      agentAnalyticsSalt ?? "development-only-agent-analytics",
+      telemetry.mcp_client
     )
     await withAgentAttribution(attribution, () =>
       transport.handleRequest(request.raw, reply.raw, request.body)

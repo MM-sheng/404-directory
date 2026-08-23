@@ -80,6 +80,39 @@ describe("privacy-safe Agent attribution", () => {
     ).toBe(false)
   })
 
+  it("attributes standard MCP client hints to safe channel families", () => {
+    expect(
+      agentAttributionFromHeaders(
+        { "user-agent": "node" },
+        salt,
+        "ChatGPT Connector"
+      )
+    ).toMatchObject({
+      client_name: "ChatGPT Connector",
+      attribution_source: "openai",
+      agent_identity_kind: "anonymous",
+      is_external: true,
+    })
+    expect(
+      agentAttributionFromHeaders(
+        {
+          "x-404-source": "marketplace-campaign",
+          "user-agent": "Cursor/2.0",
+        },
+        salt
+      ).attribution_source
+    ).toBe("marketplace-campaign")
+    expect(
+      agentAttributionFromHeaders({}, salt, "MCPBeat Scanner").is_external
+    ).toBe(false)
+    expect(
+      agentAttributionFromHeaders(
+        { "user-agent": "unrecognized-client/1.0" },
+        salt
+      ).attribution_source
+    ).toBe("direct")
+  })
+
   it("counts one identified external Agent only after successful execution", async () => {
     const store = new MemoryCatalogStore()
     app = await buildApp(
