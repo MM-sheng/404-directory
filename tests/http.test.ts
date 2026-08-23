@@ -262,6 +262,9 @@ describe("HTTP API", () => {
     expect(connect.body).toContain("awesome-remote.claude-code")
     expect(connect.body).toContain("Complete the first useful call")
     expect(connect.body).toContain("/connect.md?source=awesome-remote")
+    expect(connect.body).toContain(
+      "https://github.com/MM-sheng/404-directory/issues/1"
+    )
     expect(connect.body).not.toContain("agent:REPLACE_WITH")
 
     const connectMarkdown = await app.inject({
@@ -275,6 +278,9 @@ describe("HTTP API", () => {
       "/connect/install/cursor?source=agent-reader"
     )
     expect(connectMarkdown.body).toContain("agent-reader.codex")
+    expect(connectMarkdown.body).toContain(
+      "https://github.com/MM-sheng/404-directory/issues/1"
+    )
 
     const health = await app.inject({ method: "GET", url: "/health" })
     expect(health.statusCode).toBe(200)

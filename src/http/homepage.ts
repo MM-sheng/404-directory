@@ -435,7 +435,7 @@ export function renderConnectHtml(baseUrl: string, campaign?: string): string {
       <p>Installation counts only after a non-error tool result. Connection checks, probes, and repeated calls do not count.</p>
     </section>
     <p class="privacy">For the direct configurations above, this page generated <code>${escapeHtml(connection.generatedAgentId)}</code> randomly; keep it stable for that installation. The Claude marketplace plugin creates and preserves its own local random ID. 404.directory stores only an HMAC digest after a successful tool call—never the raw ID, prompt, arguments, or result.</p>
-    <nav class="links"><a href="/connect.md${source ? `?source=${escapeHtml(source)}` : ""}">Agent-readable setup</a><a href="/v1/metrics/agents">Live adoption metric</a><a href="/privacy">Privacy</a><a href="https://github.com/MM-sheng/404-directory">Source</a></nav>
+    <nav class="links"><a href="/connect.md${source ? `?source=${escapeHtml(source)}` : ""}">Agent-readable setup</a><a href="https://github.com/MM-sheng/404-directory/issues/1">External Agent pilot</a><a href="/v1/metrics/agents">Live adoption metric</a><a href="/privacy">Privacy</a><a href="https://github.com/MM-sheng/404-directory">Source</a></nav>
   </main>
 </body>
 </html>`
@@ -502,6 +502,7 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     "public unique-Agent target, regardless of how many later calls that Agent makes.",
     "",
     `Progress: ${baseUrl}/v1/metrics/agents`,
+    "External Agent pilot: https://github.com/MM-sheng/404-directory/issues/1",
     `Privacy: ${baseUrl}/privacy`,
     "",
   ].join("\n")
