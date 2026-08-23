@@ -592,6 +592,20 @@ describe("HTTP API", () => {
     })
   })
 
+  it("renders a no-store evidence dashboard without raw identity data", async () => {
+    const store = new MemoryCatalogStore()
+    app = await buildApp(mockRegistry(), loadConfig(), store)
+
+    const dashboard = await app.inject({ method: "GET", url: "/metrics" })
+    expect(dashboard.statusCode).toBe(200)
+    expect(dashboard.headers["cache-control"]).toBe("no-store")
+    expect(dashboard.body).toContain("Real Agent evidence")
+    expect(dashboard.body).toContain("Qualified Agents")
+    expect(dashboard.body).toContain("7-day retention")
+    expect(dashboard.body).toContain("Tool reliability")
+    expect(dashboard.body).not.toContain("X-404-Agent-ID")
+  })
+
   it("emits an OpenAPI document with only resolvable $refs", async () => {
     app = await buildApp(mockRegistry(), loadConfig())
 

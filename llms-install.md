@@ -139,3 +139,10 @@ Health and public adoption metrics:
 
 - https://404.directory/health
 - https://404.directory/v1/metrics/agents
+- https://404.directory/v1/metrics/activation
+- https://404.directory/v1/metrics/reliability?days=30
+
+The Agent metric includes 7/30-day retention only after a complete observation
+window. Reliability metrics include anonymous external calls but the strict
+Agent target never does. No raw Agent IDs, MCP session IDs, prompts, arguments,
+or result content are exposed by these endpoints.

@@ -283,6 +283,11 @@ export const invocations = pgTable(
     clientName: text("client_name"),
     attributionSource: text("attribution_source"),
     isExternal: boolean("is_external").notNull().default(false),
+    requestId: text("request_id"),
+    sessionKey: text("session_key"),
+    resultCount: integer("result_count"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -291,6 +296,7 @@ export const invocations = pgTable(
     index("invocations_tool_name_idx").on(table.toolName, table.createdAt),
     index("invocations_tool_id_idx").on(table.toolId, table.createdAt),
     index("invocations_agent_key_idx").on(table.agentKey, table.createdAt),
+    index("invocations_request_id_idx").on(table.requestId),
     index("invocations_external_idx").on(
       table.isExternal,
       table.success,

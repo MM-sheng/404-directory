@@ -134,6 +134,7 @@ describe("Agent Plugins package", () => {
       readJson<{
         name: string
         version: string
+        mcpName: string
         bin: Record<string, string>
         dependencies?: Record<string, string>
       }>("packages/404-directory-mcp/package.json"),
@@ -142,11 +143,52 @@ describe("Agent Plugins package", () => {
     expect(proxyManifest).toMatchObject({
       name: "@mmvv1638/404-directory-mcp",
       version: rootManifest.version,
+      mcpName: "io.github.MM-sheng/404-directory",
       bin: {
         "404-directory-mcp": "bin/404-directory-mcp.mjs",
       },
     })
     expect(proxyManifest.dependencies).toBeUndefined()
+  })
+
+  it("publishes the identity-preserving npm bridge in the official MCP manifest", async () => {
+    const [rootManifest, proxyManifest, serverManifest] = await Promise.all([
+      readJson<{ version: string }>("package.json"),
+      readJson<{ name: string; version: string; mcpName: string }>(
+        "packages/404-directory-mcp/package.json"
+      ),
+      readJson<{
+        name: string
+        version: string
+        packages: Array<{
+          registryType: string
+          identifier: string
+          version: string
+          transport: { type: string }
+          packageArguments: Array<{
+            type: string
+            name: string
+            value: string
+          }>
+        }>
+      }>("server.json"),
+    ])
+
+    expect(serverManifest.name).toBe(proxyManifest.mcpName)
+    expect(serverManifest.version).toBe(rootManifest.version)
+    expect(serverManifest.packages).toContainEqual({
+      registryType: "npm",
+      identifier: proxyManifest.name,
+      version: proxyManifest.version,
+      transport: { type: "stdio" },
+      packageArguments: [
+        {
+          type: "named",
+          name: "--source",
+          value: "official-registry",
+        },
+      ],
+    })
   })
 
   it("documents a valid first official-docs tool call", async () => {

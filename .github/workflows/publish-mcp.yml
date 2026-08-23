@@ -1,11 +1,43 @@
-name: Publish MCP Registry
+name: Publish npm and MCP Registry
 
 on:
   push:
     tags: ["v*"]
 
 jobs:
-  publish:
+  publish-npm:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+      - name: Install trusted-publishing compatible npm
+        run: npm install --global npm@latest
+      - name: Verify tag and package ownership metadata
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          test "$VERSION" = "$(jq -r .version server.json)"
+          test "$VERSION" = "$(jq -r .version packages/404-directory-mcp/package.json)"
+          test "$(jq -r .name server.json)" = "$(jq -r .mcpName packages/404-directory-mcp/package.json)"
+      - name: Publish identity-preserving bridge to npm
+        run: |
+          PACKAGE_NAME="$(jq -r .name packages/404-directory-mcp/package.json)"
+          VERSION="$(jq -r .version packages/404-directory-mcp/package.json)"
+          if npm view "$PACKAGE_NAME@$VERSION" version >/dev/null 2>&1; then
+            test "$(npm view "$PACKAGE_NAME@$VERSION" mcpName --json | jq -r .)" = "$(jq -r .name server.json)"
+            echo "$PACKAGE_NAME@$VERSION already exists with matching MCP ownership metadata."
+          else
+            npm publish --access public ./packages/404-directory-mcp
+          fi
+
+  publish-mcp:
+    needs: publish-npm
     runs-on: ubuntu-latest
     permissions:
       id-token: write

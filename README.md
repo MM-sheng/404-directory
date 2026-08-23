@@ -254,6 +254,15 @@ clicks plus de-duplicated external Agents that completed MCP `initialize`,
 only and never count toward the 1,000-Agent target. No raw Agent IDs, IPs,
 prompts, arguments, or results are stored in the funnel.
 
+`GET /v1/metrics/agents` also reports privacy-safe 7/30-day retention cohorts
+and qualified Agent counts by safe client label. An Agent becomes eligible only
+after a complete observation window and is retained only after another success
+on a later UTC day. `GET /v1/metrics/reliability?days=30` aggregates external
+execution evidence by tool, registered provider, client, and attribution source,
+including sample size, success rate, P50/P95 latency, result count, and a finite
+error taxonomy. Anonymous external executions can inform reliability but never
+count toward the 1,000 identified-Agent target.
+
 The official MCP Registry entry also declares `X-404-Agent-ID` as an install
 input and defaults `X-404-Source` to `official-registry`, so compatible clients
 can preserve a privacy-safe identity instead of silently creating anonymous

@@ -8,6 +8,7 @@ import type {
   TrustProfile,
   VerificationCheckRecord,
 } from "./types.js"
+import type { AgentRetentionSummary, ReliabilitySummary } from "./metrics.js"
 
 export type ToolStatus = z.infer<typeof ToolStatusSchema>
 
@@ -30,18 +31,21 @@ export type AgentUsageSummary = {
   successful_external_invocations: number
   anonymous_successful_invocations: number
   progress_ratio: number
+  retention: AgentRetentionSummary
   sources: Array<{
     source: string
+    identified_agents: number
+    successful_invocations: number
+  }>
+  clients: Array<{
+    client: string
     identified_agents: number
     successful_invocations: number
   }>
 }
 
 export type ActivationStage =
-  | "connect_view"
-  | "install_click"
-  | "mcp_initialize"
-  | "tools_list"
+  "connect_view" | "install_click" | "mcp_initialize" | "tools_list"
 
 export type ActivationEventInput = {
   stage: ActivationStage
@@ -72,6 +76,7 @@ export type ActivationFunnelSummary = {
     tools_listed_agents: number
     successful_invocations: number
     successful_agents: number
+    activation_rate: number | null
   }>
 }
 
@@ -141,6 +146,7 @@ export interface CatalogStore {
     sinceMs?: number
   ): Promise<{ invocations: number; successes: number }>
   agentUsageSummary(since?: Date): Promise<AgentUsageSummary>
+  reliabilitySummary(since?: Date): Promise<ReliabilitySummary>
   getProviderBySlug(slug: string): Promise<ProviderRecord | null>
   getProviderByApiKeyHash(apiKeyHash: string): Promise<ProviderRecord | null>
   setProviderVerified(

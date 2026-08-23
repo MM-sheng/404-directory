@@ -90,6 +90,16 @@ export function parseCliOptions(args = process.argv.slice(2)) {
   let source
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index]
+    if (argument.startsWith("--source=")) {
+      const value = argument.slice("--source=".length)
+      if (!SAFE_SOURCE.test(value)) {
+        throw new Error(
+          "--source must be a lowercase, non-personal label using a-z, 0-9, dot, underscore, or hyphen"
+        )
+      }
+      source = value
+      continue
+    }
     if (argument !== "--source") {
       throw new Error(`Unknown argument: ${argument}`)
     }
@@ -165,6 +175,9 @@ export async function runProxy({
   dataDirectory = defaultDataDirectory(),
   source = process.env.DIRECTORY_404_SOURCE ?? "npx-proxy",
   agentClass = process.env.DIRECTORY_404_AGENT_CLASS,
+  inputStream = process.stdin,
+  request = fetch,
+  write = writeMessage,
 } = {}) {
   const safeSource = SAFE_SOURCE.test(source) ? source : "npx-proxy"
   let agentId
@@ -173,7 +186,7 @@ export async function runProxy({
   let clientName
   let clientIdentityName
 
-  const headers = () => {
+  const headers = ({ includeProtocolVersion = true } = {}) => {
     const result = {
       Accept: "application/json, text/event-stream",
       "Content-Type": "application/json",
@@ -183,13 +196,13 @@ export async function runProxy({
     if (agentClass === "internal") result["X-404-Agent-Class"] = "internal"
     if (clientName) result["X-404-Client-Name"] = clientName
     if (sessionId) result["Mcp-Session-Id"] = sessionId
-    if (sessionId && protocolVersion) {
+    if (includeProtocolVersion && protocolVersion) {
       result["MCP-Protocol-Version"] = protocolVersion
     }
     return result
   }
 
-  const input = createInterface({ input: process.stdin, crlfDelay: Infinity })
+  const input = createInterface({ input: inputStream, crlfDelay: Infinity })
 
   for await (const line of input) {
     if (!line.trim()) continue
@@ -198,7 +211,7 @@ export async function runProxy({
     try {
       message = JSON.parse(line)
     } catch {
-      writeMessage({
+      write({
         jsonrpc: "2.0",
         id: null,
         error: { code: -32700, message: "Parse error" },
@@ -206,8 +219,10 @@ export async function runProxy({
       continue
     }
 
+    const initializeRequest = message?.method === "initialize"
+    let requestedProtocolVersion
     if (message?.method === "initialize") {
-      protocolVersion = message.params?.protocolVersion
+      requestedProtocolVersion = message.params?.protocolVersion
       const requestedName = message.params?.clientInfo?.name
       if (typeof requestedName === "string") {
         clientIdentityName = requestedName.replace(/[\r\n]/g, " ").slice(0, 96)
@@ -222,9 +237,9 @@ export async function runProxy({
     }
 
     try {
-      const response = await fetch(endpoint, {
+      const response = await request(endpoint, {
         method: "POST",
-        headers: headers(),
+        headers: headers({ includeProtocolVersion: !initializeRequest }),
         body: JSON.stringify(message),
       })
 
@@ -243,7 +258,17 @@ export async function runProxy({
       const messages = contentType.includes("text/event-stream")
         ? parseSseMessages(body)
         : [JSON.parse(body)]
-      for (const forwarded of messages) writeMessage(forwarded)
+      if (initializeRequest) {
+        const negotiatedProtocolVersion = messages.find(
+          (candidate) =>
+            candidate &&
+            typeof candidate === "object" &&
+            candidate.id === message.id &&
+            typeof candidate.result?.protocolVersion === "string"
+        )?.result?.protocolVersion
+        protocolVersion = negotiatedProtocolVersion ?? requestedProtocolVersion
+      }
+      for (const forwarded of messages) write(forwarded)
     } catch (error) {
       writeForwardingError(
         message,
@@ -253,7 +278,7 @@ export async function runProxy({
   }
 
   if (sessionId) {
-    await fetch(endpoint, { method: "DELETE", headers: headers() }).catch(
+    await request(endpoint, { method: "DELETE", headers: headers() }).catch(
       () => {}
     )
   }
