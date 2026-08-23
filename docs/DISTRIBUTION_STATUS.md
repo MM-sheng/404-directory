@@ -1,6 +1,6 @@
 # Distribution status
 
-Last audited: 2026-08-23 17:03 UTC
+Last audited: 2026-08-23 17:09 UTC
 
 This tracker separates a submission from a public listing and a public listing
 from a qualified external Agent. A channel is successful only after it produces
@@ -19,7 +19,7 @@ at least one de-duplicated external Agent with a successful tool execution.
 
 | Channel | Evidence checked | State | Next action |
 | --- | --- | --- | --- |
-| Cursor Marketplace | Signed-in publisher form inspected; only organization name/handle and account Owner currently persist | Not submitted; required listing fields are blank | Complete the listing, review Publisher Terms, and obtain action-time confirmation before submission |
+| Cursor Marketplace | Signed-in publisher form inspected; public fields prepared with the production icon and repository | Not submitted; Contact email is blank and Publisher Terms have not been accepted | Owner supplies/approves the contact email, reviews the Publisher Terms, and gives action-time confirmation before submission |
 | Claude Connectors Directory | Official process re-audited against current Anthropic documentation | Not submitted; the old remote form is deprecated and the open Google form is for local MCPB extensions | Use the Claude.ai organization portal as a remote MCP connector; requires Team/Enterprise plus Directory management access |
 | MCP.Directory | Submission page reported that the repository was already submitted | In review queue, not proof of public listing | Do not resubmit; check listing after the review window |
 | mcpservers.org | Public form inspected and valid public fields prepared | Not submitted | Owner supplies/approves contact email and confirms the representational submission |

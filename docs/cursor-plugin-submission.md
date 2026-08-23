@@ -32,6 +32,8 @@ useful non-error tool result before reporting success.
 
 **Homepage:** `https://404.directory/docs`
 
+**Logotype:** `https://404.directory/icon.svg`
+
 **Support:** `https://404.directory/support`
 
 **Privacy policy:** `https://404.directory/privacy`
