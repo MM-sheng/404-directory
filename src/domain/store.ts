@@ -37,6 +37,41 @@ export type AgentUsageSummary = {
   }>
 }
 
+export type ActivationStage =
+  | "connect_view"
+  | "install_click"
+  | "mcp_initialize"
+  | "tools_list"
+
+export type ActivationEventInput = {
+  stage: ActivationStage
+  source: string
+  client?: string | null
+  agent_key?: string | null
+  agent_identity_kind?: "explicit" | "anonymous" | "internal"
+  is_external?: boolean
+}
+
+export type ActivationFunnelSummary = {
+  window_start: string
+  generated_at: string
+  privacy: string
+  stages: Array<{
+    stage: ActivationStage | "successful_tool"
+    events: number
+    identified_agents: number
+    anonymous_external_events: number
+  }>
+  sources: Array<{
+    source: string
+    connect_views: number
+    install_clicks: number
+    initialized_agents: number
+    tools_listed_agents: number
+    successful_agents: number
+  }>
+}
+
 export type EnsureToolOptions = {
   status?: ToolStatus
   providerVerified?: boolean
@@ -95,6 +130,8 @@ export interface CatalogStore {
     limit?: number
   ): Promise<VerificationCheckRecord[]>
   upsertTrustProfile(toolId: string, profile: TrustProfile): Promise<void>
+  recordActivationEvent(event: ActivationEventInput): Promise<void>
+  activationFunnelSummary(since?: Date): Promise<ActivationFunnelSummary>
   recordInvocation(event: InvocationEvent): Promise<void>
   usageStats(
     toolId: string,

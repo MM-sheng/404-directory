@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, isNull, lte, or, sql } from "drizzle-orm"
 import type { Database } from "../db/client.js"
 import {
+  activationEvents,
   endpoints,
   invocations,
   providers,
@@ -11,8 +12,10 @@ import {
   verificationChecks,
 } from "../db/schema.js"
 import type {
-  CatalogStore,
+  ActivationEventInput,
+  ActivationFunnelSummary,
   AgentUsageSummary,
+  CatalogStore,
   EnsureToolOptions,
   ProviderRecord,
   ToolStatus,
@@ -651,6 +654,142 @@ export class PostgresCatalogStore implements CatalogStore {
           computedAt: values.computedAt,
         },
       })
+  }
+
+  async recordActivationEvent(event: ActivationEventInput): Promise<void> {
+    await this.db.insert(activationEvents).values({
+      stage: event.stage,
+      source: event.source,
+      client: event.client ?? null,
+      agentKey: event.agent_key ?? null,
+      agentIdentityKind: event.agent_identity_kind ?? "anonymous",
+      isExternal: event.is_external ?? false,
+    })
+  }
+
+  async activationFunnelSummary(
+    since = new Date("2026-01-01T00:00:00.000Z")
+  ): Promise<ActivationFunnelSummary> {
+    const stageRows = await this.db
+      .select({
+        stage: activationEvents.stage,
+        events: sql<number>`count(*)::int`,
+        identifiedAgents: sql<number>`count(distinct ${activationEvents.agentKey}) filter (where ${activationEvents.isExternal} = true and ${activationEvents.agentIdentityKind} = 'explicit')::int`,
+        anonymousExternalEvents: sql<number>`count(*) filter (where ${activationEvents.isExternal} = true and ${activationEvents.agentIdentityKind} = 'anonymous')::int`,
+      })
+      .from(activationEvents)
+      .where(gte(activationEvents.createdAt, since))
+      .groupBy(activationEvents.stage)
+
+    const [successRow] = await this.db
+      .select({
+        events: sql<number>`count(*) filter (where ${invocations.success} = true and ${invocations.isExternal} = true)::int`,
+        identifiedAgents: sql<number>`count(distinct ${invocations.agentKey}) filter (where ${invocations.success} = true and ${invocations.isExternal} = true and ${invocations.agentIdentityKind} = 'explicit')::int`,
+        anonymousExternalEvents: sql<number>`count(*) filter (where ${invocations.success} = true and ${invocations.isExternal} = true and (${invocations.agentIdentityKind} is null or ${invocations.agentIdentityKind} = 'anonymous'))::int`,
+      })
+      .from(invocations)
+      .where(gte(invocations.createdAt, since))
+
+    const activationSourceRows = await this.db
+      .select({
+        source: activationEvents.source,
+        connectViews: sql<number>`count(*) filter (where ${activationEvents.stage} = 'connect_view')::int`,
+        installClicks: sql<number>`count(*) filter (where ${activationEvents.stage} = 'install_click')::int`,
+        initializedAgents: sql<number>`count(distinct ${activationEvents.agentKey}) filter (where ${activationEvents.stage} = 'mcp_initialize' and ${activationEvents.isExternal} = true and ${activationEvents.agentIdentityKind} = 'explicit')::int`,
+        toolsListedAgents: sql<number>`count(distinct ${activationEvents.agentKey}) filter (where ${activationEvents.stage} = 'tools_list' and ${activationEvents.isExternal} = true and ${activationEvents.agentIdentityKind} = 'explicit')::int`,
+      })
+      .from(activationEvents)
+      .where(gte(activationEvents.createdAt, since))
+      .groupBy(activationEvents.source)
+
+    const successSourceRows = await this.db
+      .select({
+        source: invocations.attributionSource,
+        successfulAgents: sql<number>`count(distinct ${invocations.agentKey})::int`,
+      })
+      .from(invocations)
+      .where(
+        and(
+          gte(invocations.createdAt, since),
+          eq(invocations.success, true),
+          eq(invocations.isExternal, true),
+          eq(invocations.agentIdentityKind, "explicit")
+        )
+      )
+      .groupBy(invocations.attributionSource)
+
+    const sourceMap = new Map<
+      string,
+      ActivationFunnelSummary["sources"][number]
+    >()
+    const sourceEntry = (source: string | null) => {
+      const key = source ?? "direct"
+      const existing = sourceMap.get(key)
+      if (existing) return existing
+      const created = {
+        source: key,
+        connect_views: 0,
+        install_clicks: 0,
+        initialized_agents: 0,
+        tools_listed_agents: 0,
+        successful_agents: 0,
+      }
+      sourceMap.set(key, created)
+      return created
+    }
+    for (const row of activationSourceRows) {
+      const entry = sourceEntry(row.source)
+      entry.connect_views = Number(row.connectViews)
+      entry.install_clicks = Number(row.installClicks)
+      entry.initialized_agents = Number(row.initializedAgents)
+      entry.tools_listed_agents = Number(row.toolsListedAgents)
+    }
+    for (const row of successSourceRows) {
+      sourceEntry(row.source).successful_agents = Number(row.successfulAgents)
+    }
+
+    const stageOrder = [
+      "connect_view",
+      "install_click",
+      "mcp_initialize",
+      "tools_list",
+    ] as const
+    const byStage = new Map(stageRows.map((row) => [row.stage, row]))
+
+    return {
+      window_start: since.toISOString(),
+      generated_at: new Date().toISOString(),
+      privacy:
+        "Stores only funnel stage, source, client label, external classification, and an optional irreversible Agent ID HMAC. No raw IDs, IPs, prompts, arguments, or results.",
+      stages: [
+        ...stageOrder.map((stage) => {
+          const row = byStage.get(stage)
+          return {
+            stage,
+            events: Number(row?.events ?? 0),
+            identified_agents: Number(row?.identifiedAgents ?? 0),
+            anonymous_external_events: Number(
+              row?.anonymousExternalEvents ?? 0
+            ),
+          }
+        }),
+        {
+          stage: "successful_tool" as const,
+          events: Number(successRow?.events ?? 0),
+          identified_agents: Number(successRow?.identifiedAgents ?? 0),
+          anonymous_external_events: Number(
+            successRow?.anonymousExternalEvents ?? 0
+          ),
+        },
+      ],
+      sources: [...sourceMap.values()].sort(
+        (a, b) =>
+          b.successful_agents - a.successful_agents ||
+          b.initialized_agents - a.initialized_agents ||
+          b.install_clicks - a.install_clicks ||
+          b.connect_views - a.connect_views
+      ),
+    }
   }
 
   async recordInvocation(event: InvocationEvent): Promise<void> {

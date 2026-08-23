@@ -300,6 +300,35 @@ export const invocations = pgTable(
 )
 
 /**
+ * Privacy-safe activation funnel events. No IP address, raw Agent ID, prompt,
+ * request arguments, or tool result is stored here.
+ */
+export const activationEvents = pgTable(
+  "activation_events",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .$defaultFn(() => randomUUID()),
+    stage: text("stage").notNull(),
+    source: text("source").notNull(),
+    client: text("client"),
+    agentKey: text("agent_key"),
+    agentIdentityKind: text("agent_identity_kind")
+      .notNull()
+      .default("anonymous"),
+    isExternal: boolean("is_external").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("activation_events_stage_idx").on(table.stage, table.createdAt),
+    index("activation_events_source_idx").on(table.source, table.createdAt),
+    index("activation_events_agent_idx").on(table.agentKey, table.createdAt),
+  ]
+)
+
+/**
  * Append-only usage receipts: discovery → selection → outcome.
  * Never stores prompts or business payload content.
  */
@@ -334,4 +363,5 @@ export type EndpointRow = typeof endpoints.$inferSelect
 export type VerificationCheckRow = typeof verificationChecks.$inferSelect
 export type TrustScoreRow = typeof trustScores.$inferSelect
 export type InvocationRow = typeof invocations.$inferSelect
+export type ActivationEventRow = typeof activationEvents.$inferSelect
 export type UsageReceiptRow = typeof usageReceipts.$inferSelect

@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto"
 import type {
-  CatalogStore,
+  ActivationEventInput,
+  ActivationFunnelSummary,
   AgentUsageSummary,
+  CatalogStore,
   EnsureToolOptions,
   ProviderRecord,
   ToolStatus,
@@ -56,6 +58,9 @@ export class MemoryCatalogStore implements CatalogStore {
   private readonly checks: VerificationCheckRecord[] = []
   private readonly invocations: Array<
     InvocationEvent & { created_at: number }
+  > = []
+  private readonly activationEvents: Array<
+    ActivationEventInput & { created_at: number }
   > = []
   private readonly receipts: Array<UsageReceiptInput & { id: string }> = []
 
@@ -292,6 +297,145 @@ export class MemoryCatalogStore implements CatalogStore {
     if (!tool) return
     tool.trust = profile
     tool.updated_at = new Date().toISOString()
+  }
+
+  async recordActivationEvent(event: ActivationEventInput): Promise<void> {
+    this.activationEvents.push({ ...event, created_at: Date.now() })
+  }
+
+  async activationFunnelSummary(
+    since = new Date("2026-01-01T00:00:00.000Z")
+  ): Promise<ActivationFunnelSummary> {
+    const sinceMs = since.getTime()
+    const events = this.activationEvents.filter(
+      (event) => event.created_at >= sinceMs
+    )
+    const successful = this.invocations.filter(
+      (event) =>
+        event.created_at >= sinceMs &&
+        event.success &&
+        event.is_external === true
+    )
+    const stageOrder = [
+      "connect_view",
+      "install_click",
+      "mcp_initialize",
+      "tools_list",
+    ] as const
+    const stages: ActivationFunnelSummary["stages"] = stageOrder.map(
+      (stage) => {
+        const rows = events.filter((event) => event.stage === stage)
+        return {
+          stage,
+          events: rows.length,
+          identified_agents: new Set(
+            rows
+              .filter(
+                (event) =>
+                  event.is_external === true &&
+                  event.agent_identity_kind === "explicit" &&
+                  event.agent_key
+              )
+              .map((event) => event.agent_key!)
+          ).size,
+          anonymous_external_events: rows.filter(
+            (event) =>
+              event.is_external === true &&
+              event.agent_identity_kind === "anonymous"
+          ).length,
+        }
+      }
+    )
+    stages.push({
+      stage: "successful_tool",
+      events: successful.length,
+      identified_agents: new Set(
+        successful
+          .filter(
+            (event) =>
+              event.agent_identity_kind === "explicit" && event.agent_key
+          )
+          .map((event) => event.agent_key!)
+      ).size,
+      anonymous_external_events: successful.filter(
+        (event) =>
+          event.agent_identity_kind === undefined ||
+          event.agent_identity_kind === null ||
+          event.agent_identity_kind === "anonymous"
+      ).length,
+    })
+
+    const sourceMap = new Map<
+      string,
+      ActivationFunnelSummary["sources"][number]
+    >()
+    const sourceEntry = (source?: string | null) => {
+      const key = source ?? "direct"
+      const existing = sourceMap.get(key)
+      if (existing) return existing
+      const created = {
+        source: key,
+        connect_views: 0,
+        install_clicks: 0,
+        initialized_agents: 0,
+        tools_listed_agents: 0,
+        successful_agents: 0,
+      }
+      sourceMap.set(key, created)
+      return created
+    }
+    for (const event of events) {
+      const source = sourceEntry(event.source)
+      if (event.stage === "connect_view") source.connect_views += 1
+      if (event.stage === "install_click") source.install_clicks += 1
+    }
+    for (const stage of ["mcp_initialize", "tools_list"] as const) {
+      const bySource = new Map<string, Set<string>>()
+      for (const event of events) {
+        if (
+          event.stage !== stage ||
+          event.is_external !== true ||
+          event.agent_identity_kind !== "explicit" ||
+          !event.agent_key
+        ) {
+          continue
+        }
+        const agents = bySource.get(event.source) ?? new Set<string>()
+        agents.add(event.agent_key)
+        bySource.set(event.source, agents)
+      }
+      for (const [source, agents] of bySource) {
+        const entry = sourceEntry(source)
+        if (stage === "mcp_initialize") entry.initialized_agents = agents.size
+        else entry.tools_listed_agents = agents.size
+      }
+    }
+    const successBySource = new Map<string, Set<string>>()
+    for (const event of successful) {
+      if (event.agent_identity_kind !== "explicit" || !event.agent_key) continue
+      const source = event.attribution_source ?? "direct"
+      const agents = successBySource.get(source) ?? new Set<string>()
+      agents.add(event.agent_key)
+      successBySource.set(source, agents)
+    }
+    for (const [source, agents] of successBySource) {
+      sourceEntry(source).successful_agents = agents.size
+    }
+
+    return {
+      window_start: since.toISOString(),
+      generated_at: new Date().toISOString(),
+      privacy:
+        "Stores only funnel stage, source, client label, external classification, and an optional irreversible Agent ID HMAC. No raw IDs, IPs, prompts, arguments, or results.",
+      stages,
+      sources: [...sourceMap.values()].sort(
+        (a, b) =>
+          b.successful_agents - a.successful_agents ||
+          b.initialized_agents - a.initialized_agents ||
+          b.install_clicks - a.install_clicks ||
+          b.connect_views - a.connect_views
+      ),
+    }
   }
 
   async recordInvocation(event: InvocationEvent): Promise<void> {

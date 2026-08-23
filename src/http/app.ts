@@ -37,6 +37,8 @@ import {
 import type { ToolRegistry } from "../tools/registry.js"
 import type { ToolDefinition } from "../tools/types.js"
 import {
+  campaignSource,
+  createDirectClientInstallUrl,
   renderConnect,
   renderConnectHtml,
   renderDocs,
@@ -220,12 +222,13 @@ async function handleMcpRequest(
   gateway?: RemoteMcpGateway | null,
   agentAnalyticsSalt?: string
 ): Promise<void> {
+  const telemetry = mcpTelemetry(request.body, request.headers)
   request.log.info(
     {
       route: "/mcp",
       method: request.method,
       access: "public",
-      ...mcpTelemetry(request.body, request.headers),
+      ...telemetry,
     },
     "MCP request observed"
   )
@@ -249,6 +252,24 @@ async function handleMcpRequest(
     await withAgentAttribution(attribution, () =>
       transport.handleRequest(request.raw, reply.raw, request.body)
     )
+    const activationStage =
+      telemetry.mcp_method === "initialize"
+        ? "mcp_initialize"
+        : telemetry.mcp_method === "tools/list"
+          ? "tools_list"
+          : null
+    if (activationStage && catalog) {
+      await catalog
+        .recordActivationEvent({
+          stage: activationStage,
+          source: attribution.attribution_source ?? "direct",
+          client: telemetry.mcp_client ?? attribution.client_name,
+          agent_key: attribution.agent_key,
+          agent_identity_kind: attribution.agent_identity_kind,
+          is_external: attribution.is_external,
+        })
+        .catch(() => undefined)
+    }
   } catch (error) {
     request.log.error({ err: error }, "MCP request failed")
     if (!reply.raw.headersSent) {
@@ -503,29 +524,79 @@ export async function buildApp(
   app.get(
     "/connect",
     { schema: { hide: true } as FastifySchema },
-    async (request, reply) =>
-      reply
+    async (request, reply) => {
+      const source = campaignSource(
+        boundedString((request.query as { source?: unknown }).source, 48)
+      )
+      await catalog
+        ?.recordActivationEvent({
+          stage: "connect_view",
+          source: source ?? "direct",
+          client: "web",
+          agent_identity_kind: "anonymous",
+          is_external: false,
+        })
+        .catch(() => undefined)
+      return reply
         .type("text/html; charset=utf-8")
-        .send(
-          renderConnectHtml(
-            config.PUBLIC_BASE_URL,
-            boundedString((request.query as { source?: unknown }).source, 48)
-          )
-        )
+        .send(renderConnectHtml(config.PUBLIC_BASE_URL, source))
+    }
   )
 
   app.get(
     "/connect.md",
     { schema: { hide: true } as FastifySchema },
-    async (request, reply) =>
-      reply
+    async (request, reply) => {
+      const source = campaignSource(
+        boundedString((request.query as { source?: unknown }).source, 48)
+      )
+      await catalog
+        ?.recordActivationEvent({
+          stage: "connect_view",
+          source: source ?? "direct",
+          client: "agent-readable",
+          agent_identity_kind: "anonymous",
+          is_external: false,
+        })
+        .catch(() => undefined)
+      return reply
         .type("text/markdown; charset=utf-8")
-        .send(
-          renderConnect(
+        .send(renderConnect(config.PUBLIC_BASE_URL, source))
+    }
+  )
+
+  app.get(
+    "/connect/install/:client",
+    { schema: { hide: true } as FastifySchema },
+    async (request, reply) => {
+      const client = z
+        .enum(["cursor", "vscode"])
+        .parse((request.params as { client?: unknown }).client)
+      const campaign = campaignSource(
+        boundedString((request.query as { source?: unknown }).source, 48)
+      )
+      const source = campaign ? `${campaign}.${client}` : client
+      await catalog
+        ?.recordActivationEvent({
+          stage: "install_click",
+          source,
+          client,
+          agent_identity_kind: "anonymous",
+          is_external: false,
+        })
+        .catch(() => undefined)
+      return reply
+        .status(302)
+        .header(
+          "location",
+          createDirectClientInstallUrl(
             config.PUBLIC_BASE_URL,
-            boundedString((request.query as { source?: unknown }).source, 48)
+            client,
+            campaign
           )
         )
+        .send()
+    }
   )
 
   app.get(

@@ -8,6 +8,7 @@ import { JsonValueSchema } from "../src/schemas/agent-page-model.js"
 import { z } from "zod"
 import { createVerifyWebTool } from "../src/tools/definitions/verify-web.js"
 import { SERVICE_VERSION } from "../src/version.js"
+import { MemoryCatalogStore } from "../src/domain/memory-store.js"
 
 function collectRefs(node: unknown, refs: string[]): void {
   if (Array.isArray(node)) {
@@ -251,8 +252,12 @@ describe("HTTP API", () => {
     expect(connect.headers["content-type"]).toContain("text/html")
     expect(connect.body).toContain("Add to Cursor")
     expect(connect.body).toContain("Install in VS Code")
-    expect(connect.body).toContain("vscode:mcp/install?")
-    expect(connect.body).toContain("awesome-remote.vscode")
+    expect(connect.body).toContain(
+      "/connect/install/vscode?source=awesome-remote"
+    )
+    expect(connect.body).toContain(
+      "/connect/install/cursor?source=awesome-remote"
+    )
     expect(connect.body).toContain("awesome-remote.codex")
     expect(connect.body).toContain("awesome-remote.claude-code")
     expect(connect.body).toContain("Complete the first useful call")
@@ -266,6 +271,9 @@ describe("HTTP API", () => {
     expect(connectMarkdown.statusCode).toBe(200)
     expect(connectMarkdown.headers["content-type"]).toContain("text/markdown")
     expect(connectMarkdown.body).toContain("Add 404.directory to Cursor")
+    expect(connectMarkdown.body).toContain(
+      "/connect/install/cursor?source=agent-reader"
+    )
     expect(connectMarkdown.body).toContain("agent-reader.codex")
 
     const health = await app.inject({ method: "GET", url: "/health" })
@@ -485,6 +493,65 @@ describe("HTTP API", () => {
           "service-desc": [{ href: "https://404.directory/openapi.json" }],
         },
       ],
+    })
+  })
+
+  it("tracks installation intent without exposing the raw Agent ID in the tracking URL", async () => {
+    const store = new MemoryCatalogStore()
+    app = await buildApp(mockRegistry(), loadConfig(), store)
+
+    const connect = await app.inject({
+      method: "GET",
+      url: "/connect?source=cursor-marketplace",
+    })
+    expect(connect.statusCode).toBe(200)
+    expect(connect.body).toContain(
+      "https://404.directory/connect/install/cursor?source=cursor-marketplace"
+    )
+    expect(connect.body).not.toMatch(/connect\/install\/cursor[^\"]*agent:/)
+
+    const install = await app.inject({
+      method: "GET",
+      url: "/connect/install/cursor?source=cursor-marketplace",
+    })
+    expect(install.statusCode).toBe(302)
+    const location = install.headers.location
+    expect(location).toMatch(/^cursor:\/\//)
+    const configValue = new URL(location!).searchParams.get("config")
+    const config = JSON.parse(
+      Buffer.from(configValue!, "base64").toString("utf8")
+    ) as { url: string; headers: Record<string, string> }
+    expect(config).toMatchObject({
+      url: "https://404.directory/mcp",
+      headers: {
+        "X-404-Source": "cursor-marketplace.cursor",
+      },
+    })
+    expect(config.headers["X-404-Agent-ID"]).toMatch(
+      /^agent:[0-9a-f-]{36}$/
+    )
+
+    const funnel = await app.inject({
+      method: "GET",
+      url: "/v1/metrics/activation",
+    })
+    expect(funnel.statusCode).toBe(200)
+    expect(funnel.json()).toMatchObject({
+      metric: "privacy_safe_agent_activation_funnel",
+      stages: expect.arrayContaining([
+        expect.objectContaining({ stage: "connect_view", events: 1 }),
+        expect.objectContaining({ stage: "install_click", events: 1 }),
+      ]),
+      sources: expect.arrayContaining([
+        expect.objectContaining({
+          source: "cursor-marketplace",
+          connect_views: 1,
+        }),
+        expect.objectContaining({
+          source: "cursor-marketplace.cursor",
+          install_clicks: 1,
+        }),
+      ]),
     })
   })
 

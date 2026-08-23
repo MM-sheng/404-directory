@@ -154,4 +154,101 @@ describe("privacy-safe Agent attribution", () => {
     expect(metrics.identified_external_agents).toBe(0)
     expect(metrics.anonymous_successful_invocations).toBe(1)
   })
+
+  it("reports the activation funnel without counting diagnostic views as Agents", async () => {
+    const store = new MemoryCatalogStore()
+    const attribution = agentAttributionFromHeaders(
+      {
+        "x-404-agent-id": "agent:funnel-external-1234",
+        "x-404-source": "cursor-marketplace.cursor",
+        "x-404-client-name": "cursor",
+      },
+      salt
+    )
+
+    await store.recordActivationEvent({
+      stage: "connect_view",
+      source: "cursor-marketplace",
+      client: "web",
+    })
+    await store.recordActivationEvent({
+      stage: "install_click",
+      source: "cursor-marketplace.cursor",
+      client: "cursor",
+    })
+    for (const stage of ["mcp_initialize", "tools_list"] as const) {
+      await store.recordActivationEvent({
+        stage,
+        source: attribution.attribution_source!,
+        client: attribution.client_name,
+        agent_key: attribution.agent_key,
+        agent_identity_kind: attribution.agent_identity_kind,
+        is_external: attribution.is_external,
+      })
+      await store.recordActivationEvent({
+        stage,
+        source: attribution.attribution_source!,
+        client: attribution.client_name,
+        agent_key: attribution.agent_key,
+        agent_identity_kind: attribution.agent_identity_kind,
+        is_external: attribution.is_external,
+      })
+    }
+    await trackInvocation(store, {
+      tool_name: "search_official_docs",
+      source: "mcp",
+      success: true,
+      latency_ms: 3,
+      agent_key: attribution.agent_key,
+      agent_identity_kind: attribution.agent_identity_kind,
+      client_name: attribution.client_name,
+      attribution_source: attribution.attribution_source,
+      is_external: attribution.is_external,
+    })
+
+    const funnel = await store.activationFunnelSummary()
+    expect(funnel.stages).toEqual([
+      {
+        stage: "connect_view",
+        events: 1,
+        identified_agents: 0,
+        anonymous_external_events: 0,
+      },
+      {
+        stage: "install_click",
+        events: 1,
+        identified_agents: 0,
+        anonymous_external_events: 0,
+      },
+      {
+        stage: "mcp_initialize",
+        events: 2,
+        identified_agents: 1,
+        anonymous_external_events: 0,
+      },
+      {
+        stage: "tools_list",
+        events: 2,
+        identified_agents: 1,
+        anonymous_external_events: 0,
+      },
+      {
+        stage: "successful_tool",
+        events: 1,
+        identified_agents: 1,
+        anonymous_external_events: 0,
+      },
+    ])
+    expect(funnel.sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: "cursor-marketplace.cursor",
+          install_clicks: 1,
+          initialized_agents: 1,
+          tools_listed_agents: 1,
+          successful_agents: 1,
+        }),
+      ])
+    )
+  })
 })

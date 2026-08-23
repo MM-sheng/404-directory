@@ -242,6 +242,13 @@ optional lowercase attribution label. Public progress is available at
 `GET /v1/metrics/agents`; complete client examples are at
 `https://404.directory/connect`.
 
+The privacy-safe activation funnel is available at
+`GET /v1/metrics/activation`. It reports observed Connect views and installer
+clicks plus de-duplicated external Agents that completed MCP `initialize`,
+`tools/list`, and a successful tool execution. Views and clicks are diagnostic
+only and never count toward the 1,000-Agent target. No raw Agent IDs, IPs,
+prompts, arguments, or results are stored in the funnel.
+
 The official MCP Registry entry also declares `X-404-Agent-ID` as an install
 input and defaults `X-404-Source` to `official-registry`, so compatible clients
 can preserve a privacy-safe identity instead of silently creating anonymous

@@ -211,6 +211,16 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
     }
   })
 
+  app.get("/v1/metrics/activation", async () => {
+    const funnel = await store.activationFunnelSummary()
+    return {
+      metric: "privacy_safe_agent_activation_funnel",
+      definition:
+        "Observed connection and installation activity plus de-duplicated external Agents at MCP initialization, tools/list, and successful tool execution. Connect views and install clicks are diagnostic events only and never count toward the 1,000-Agent target.",
+      ...funnel,
+    }
+  })
+
   app.get("/v1/capabilities/:capability/tools", async (request, reply) => {
     const { capability } = request.params as { capability: string }
     const query = z

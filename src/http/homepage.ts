@@ -252,7 +252,7 @@ Effective: 2026-08-17
 
 - Submitted URLs and optional expected text are used only to perform the requested tool call.
 - The service does not require an account and does not use submitted data for advertising.
-- The application does not intentionally persist tool inputs or results in a database. For Agent usage measurement it may store tool name, success, latency, client label, attribution source, and an irreversible HMAC digest of an optional \`X-404-Agent-ID\`. Raw Agent IDs, prompts, arguments, results, and raw IP addresses are not stored in product analytics. Infrastructure logs may retain request metadata such as timestamp, route, status, duration, request ID, and client IP for security and reliability; request bodies are not logged by the application.
+- The application does not intentionally persist tool inputs or results in a database. For Agent usage measurement it may store activation stage, tool name, success, latency, client label, attribution source, external/internal classification, and an irreversible HMAC digest of an optional \`X-404-Agent-ID\`. Connect views and installer clicks are diagnostic only and do not count as Agent users. Raw Agent IDs, prompts, arguments, results, and raw IP addresses are not stored in product analytics. Infrastructure logs may retain request metadata such as timestamp, route, status, duration, request ID, and client IP for security and reliability; request bodies are not logged by the application.
 - Fetching a submitted URL sends a request from 404.directory infrastructure to that public destination. The destination may process that request under its own policy.
 - Do not submit private, internal, authenticated, personal, or sensitive URLs or content.
 
@@ -260,10 +260,44 @@ Security and privacy questions: use the project support channel associated with 
 `
 }
 
-function campaignSource(value?: string): string | undefined {
+export function campaignSource(value?: string): string | undefined {
   if (!value) return undefined
   const normalized = value.toLowerCase().trim()
   return /^[a-z0-9][a-z0-9._-]{0,47}$/.test(normalized) ? normalized : undefined
+}
+
+export function createDirectClientInstallUrl(
+  baseUrl: string,
+  client: "cursor" | "vscode",
+  campaign?: string
+): string {
+  const generatedAgentId = `agent:${randomUUID()}`
+  const source = campaignSource(campaign)
+  const attributionSource = source ? `${source}.${client}` : client
+  const endpoint = `${baseUrl}/mcp`
+  if (client === "cursor") {
+    const config = Buffer.from(
+      JSON.stringify({
+        url: endpoint,
+        headers: {
+          "X-404-Agent-ID": generatedAgentId,
+          "X-404-Source": attributionSource,
+        },
+      })
+    ).toString("base64")
+    return `cursor://anysphere.cursor-deeplink/mcp/install?name=404.directory&config=${encodeURIComponent(config)}`
+  }
+  return `vscode:mcp/install?${encodeURIComponent(
+    JSON.stringify({
+      name: "404-directory",
+      type: "http",
+      url: endpoint,
+      headers: {
+        "X-404-Agent-ID": generatedAgentId,
+        "X-404-Source": attributionSource,
+      },
+    })
+  )}`
 }
 
 type ConnectionArtifacts = {
@@ -285,27 +319,11 @@ function createConnectionArtifacts(
   const sourceFor = (client: string) =>
     source ? `${source}.${client}` : client
   const endpoint = `${baseUrl}/mcp`
-  const cursorConfig = Buffer.from(
-    JSON.stringify({
-      url: endpoint,
-      headers: {
-        "X-404-Agent-ID": generatedAgentId,
-        "X-404-Source": sourceFor("cursor"),
-      },
-    })
-  ).toString("base64")
-  const cursorInstallUrl = `cursor://anysphere.cursor-deeplink/mcp/install?name=404.directory&config=${encodeURIComponent(cursorConfig)}`
-  const vscodeInstallUrl = `vscode:mcp/install?${encodeURIComponent(
-    JSON.stringify({
-      name: "404-directory",
-      type: "http",
-      url: endpoint,
-      headers: {
-        "X-404-Agent-ID": generatedAgentId,
-        "X-404-Source": sourceFor("vscode"),
-      },
-    })
-  )}`
+  const trackingQuery = source
+    ? `?source=${encodeURIComponent(source)}`
+    : ""
+  const cursorInstallUrl = `${baseUrl}/connect/install/cursor${trackingQuery}`
+  const vscodeInstallUrl = `${baseUrl}/connect/install/vscode${trackingQuery}`
   const codexToml = `[mcp_servers.404_directory]
 url = "${endpoint}"
 http_headers = { "X-404-Agent-ID" = "${generatedAgentId}", "X-404-Source" = "${sourceFor("codex")}" }`
