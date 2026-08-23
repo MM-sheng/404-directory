@@ -158,6 +158,10 @@ optional Agent attribution, and no-account access.
 
 - Validate `.codex-plugin/plugin.json` with the official Plugin Creator
   validator.
+- When the portal generates the domain token, set
+  `OPENAI_APPS_CHALLENGE_TOKEN` on the production service and verify that
+  `https://404.directory/.well-known/openai-apps-challenge` returns only that
+  exact token. Remove the environment variable after verification is complete.
 - Connect `https://404.directory/mcp` in ChatGPT Developer Mode.
 - Run all five positive and three negative test cases.
 - Confirm the portal recognizes the verified publisher identity.

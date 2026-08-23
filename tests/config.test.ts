@@ -14,4 +14,14 @@ describe("security configuration", () => {
       loadConfig({ BROWSER_EGRESS_ALLOWED_PORTS: "80,70000" })
     ).toThrow(/comma-separated TCP ports/)
   })
+
+  it("accepts a single-line OpenAI Apps domain challenge token", () => {
+    expect(
+      loadConfig({ OPENAI_APPS_CHALLENGE_TOKEN: "openai-domain-token" })
+        .OPENAI_APPS_CHALLENGE_TOKEN
+    ).toBe("openai-domain-token")
+    expect(() =>
+      loadConfig({ OPENAI_APPS_CHALLENGE_TOKEN: "bad\ntoken" })
+    ).toThrow(/single line/)
+  })
 })

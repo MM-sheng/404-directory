@@ -108,6 +108,17 @@ const EnvironmentSchema = z.object({
     (value) => (value === "" || value === undefined ? undefined : value),
     z.string().min(16).optional()
   ),
+  OPENAI_APPS_CHALLENGE_TOKEN: z.preprocess(
+    (value) => (value === "" || value === undefined ? undefined : value),
+    z
+      .string()
+      .min(1)
+      .max(4_096)
+      .refine((value) => !/[\r\n]/.test(value), {
+        message: "OPENAI_APPS_CHALLENGE_TOKEN must be a single line",
+      })
+      .optional()
+  ),
   DATABASE_URL: z.preprocess(
     (value) => (value === "" || value === undefined ? undefined : value),
     z.string().min(1).optional()

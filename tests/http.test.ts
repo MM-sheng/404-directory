@@ -379,6 +379,12 @@ describe("HTTP API", () => {
     expect(terms.statusCode).toBe(200)
     expect(terms.body).toContain("public HTTP(S) resources")
 
+    const inactiveOpenAiChallenge = await app.inject({
+      method: "GET",
+      url: "/.well-known/openai-apps-challenge",
+    })
+    expect(inactiveOpenAiChallenge.statusCode).toBe(404)
+
     const llms = await app.inject({ method: "GET", url: "/llms.txt" })
     expect(llms.statusCode).toBe(200)
     expect(llms.headers["content-type"]).toContain("text/markdown")
@@ -500,6 +506,22 @@ describe("HTTP API", () => {
         },
       ],
     })
+  })
+
+  it("serves exactly the configured OpenAI Apps domain challenge token", async () => {
+    app = await buildApp(
+      mockRegistry(),
+      loadConfig({ OPENAI_APPS_CHALLENGE_TOKEN: "openai-domain-token" })
+    )
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/.well-known/openai-apps-challenge",
+    })
+    expect(response.statusCode).toBe(200)
+    expect(response.headers["content-type"]).toContain("text/plain")
+    expect(response.headers["cache-control"]).toBe("no-store")
+    expect(response.body).toBe("openai-domain-token")
   })
 
   it("tracks installation intent without exposing the raw Agent ID in the tracking URL", async () => {

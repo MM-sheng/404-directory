@@ -614,6 +614,24 @@ export async function buildApp(
   )
 
   app.get(
+    "/.well-known/openai-apps-challenge",
+    { schema: { hide: true } as FastifySchema },
+    async (_request, reply) => {
+      const token = config.OPENAI_APPS_CHALLENGE_TOKEN
+      if (!token) {
+        return reply.status(404).send({
+          error: "not_found",
+          message: "OpenAI Apps domain verification is not active",
+        })
+      }
+      return reply
+        .header("cache-control", "no-store")
+        .type("text/plain; charset=utf-8")
+        .send(token)
+    }
+  )
+
+  app.get(
     "/health",
     {
       schema: {
