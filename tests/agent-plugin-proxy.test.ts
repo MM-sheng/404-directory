@@ -7,6 +7,7 @@ import {
 } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
+import { Readable } from "node:stream"
 import { afterEach, describe, expect, it } from "vitest"
 import {
   loadAgentId,
@@ -19,6 +20,7 @@ import {
   invokedAsMain,
   loadAgentId as loadUniversalAgentId,
   parseCliOptions,
+  runProxy,
   safeClientLabel,
 } from "../packages/404-directory-mcp/bin/404-directory-mcp.mjs"
 
@@ -158,6 +160,77 @@ describe("Agent Plugin identity bridge", () => {
     expect(() => parseCliOptions(["--endpoint", "https://example.com"])).toThrow(
       "Unknown argument: --endpoint"
     )
+  })
+
+  it("forwards the negotiated protocol version after initialization without requiring a session", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "404-protocol-test-"))
+    temporaryDirectories.push(directory)
+    const requests: Array<{ method: string; headers: Record<string, string> }> = []
+    const responses = [
+      new Response(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          result: {
+            protocolVersion: "2025-11-25",
+            capabilities: {},
+            serverInfo: { name: "test", version: "1.0.0" },
+          },
+        }),
+        { headers: { "content-type": "application/json" } }
+      ),
+      new Response(null, { status: 202 }),
+      new Response(
+        JSON.stringify({ jsonrpc: "2.0", id: 2, result: { tools: [] } }),
+        { headers: { "content-type": "application/json" } }
+      ),
+    ]
+    const input = Readable.from([
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2025-06-18",
+          capabilities: {},
+          clientInfo: { name: "Cursor", version: "1.0.0" },
+        },
+      })}\n`,
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        method: "notifications/initialized",
+      })}\n`,
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/list",
+        params: {},
+      })}\n`,
+    ])
+    const output: unknown[] = []
+
+    await runProxy({
+      endpoint: "https://example.test/mcp",
+      dataDirectory: directory,
+      source: "test",
+      inputStream: input,
+      request: async (_url: string, init: RequestInit) => {
+        requests.push({
+          method: init.method ?? "GET",
+          headers: init.headers as Record<string, string>,
+        })
+        const response = responses.shift()
+        if (!response) throw new Error("Unexpected request")
+        return response
+      },
+      write: (message: unknown) => output.push(message),
+    })
+
+    expect(requests).toHaveLength(3)
+    expect(requests[0].headers["MCP-Protocol-Version"]).toBeUndefined()
+    expect(requests[1].headers["MCP-Protocol-Version"]).toBe("2025-11-25")
+    expect(requests[2].headers["MCP-Protocol-Version"]).toBe("2025-11-25")
+    expect(output).toHaveLength(2)
   })
 
   it("never forwards arbitrary client names into analytics headers", () => {
