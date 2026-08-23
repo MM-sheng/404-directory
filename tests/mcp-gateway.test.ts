@@ -106,6 +106,36 @@ describe("curated remote MCP gateway", () => {
 
     const usage = await store.usageStats(catalogServer!.id)
     expect(usage).toEqual({ invocations: 3, successes: 2 })
+    const gatewayInvocations = (
+      store as unknown as {
+        invocations: Array<{
+          tool_name: string
+          success: boolean
+          result_count?: number | null
+        }>
+      }
+    ).invocations.filter((event) =>
+      ["inspect_tool_server", "invoke_registered_tool"].includes(
+        event.tool_name
+      )
+    )
+    expect(gatewayInvocations).toEqual([
+      expect.objectContaining({
+        tool_name: "inspect_tool_server",
+        success: true,
+        result_count: 1,
+      }),
+      expect.objectContaining({
+        tool_name: "invoke_registered_tool",
+        success: true,
+        result_count: 1,
+      }),
+      expect.objectContaining({
+        tool_name: "invoke_registered_tool",
+        success: false,
+        result_count: 0,
+      }),
+    ])
   })
 
   it("does not execute pending curated servers", async () => {
@@ -221,6 +251,19 @@ describe("curated remote MCP gateway", () => {
       expect.objectContaining({ slug: "aws_knowledge_mcp" }),
       "aws___search_documentation",
       { search_phrase: "remote MCP support", limit: 3 }
+    )
+    expect(
+      (
+        store as unknown as {
+          invocations: Array<Record<string, unknown>>
+        }
+      ).invocations
+    ).toContainEqual(
+      expect.objectContaining({
+        tool_name: "search_official_docs",
+        success: true,
+        result_count: 1,
+      })
     )
   })
 })

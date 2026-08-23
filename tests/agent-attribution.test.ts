@@ -287,4 +287,49 @@ describe("privacy-safe Agent attribution", () => {
       ])
     )
   })
+
+  it("records request metadata while hashing the raw MCP session id", async () => {
+    const store = new MemoryCatalogStore()
+    const attribution = agentAttributionFromHeaders(
+      {
+        "x-404-agent-id": "agent:correlation-test-1234",
+        "x-404-source": "cursor",
+        "mcp-session-id": "raw-session-token-abc-123",
+      },
+      salt,
+      "Cursor",
+      {
+        request_id: "req-xyz-999",
+        session_id: "raw-session-token-abc-123",
+      }
+    )
+
+    expect(attribution.session_key).toMatch(/^s1_[a-f0-9]{40}$/)
+    expect(attribution.session_key).not.toContain("raw-session-token")
+
+    await withAgentAttribution(attribution, () =>
+      trackInvocation(store, {
+        tool_name: "search_tools",
+        source: "mcp",
+        success: true,
+        latency_ms: 12,
+        result_count: 3,
+      })
+    )
+
+    const recorded = (
+      store as unknown as { invocations: Array<Record<string, unknown>> }
+    ).invocations[0]
+    expect(recorded).toMatchObject({
+      request_id: "req-xyz-999",
+      session_key: attribution.session_key,
+      result_count: 3,
+      attribution_source: "cursor",
+      agent_identity_kind: "explicit",
+      is_external: true,
+    })
+    expect(JSON.stringify(recorded)).not.toContain("raw-session-token-abc-123")
+    expect(typeof recorded.started_at).toBe("string")
+    expect(typeof recorded.completed_at).toBe("string")
+  })
 })

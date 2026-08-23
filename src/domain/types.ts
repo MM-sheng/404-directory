@@ -198,4 +198,12 @@ export type InvocationEvent = {
   client_name?: string | null
   attribution_source?: string | null
   is_external?: boolean
+  /** Fastify / gateway request id for correlating service events. */
+  request_id?: string | null
+  /** Irreversible HMAC of an MCP session id, never the raw session token. */
+  session_key?: string | null
+  /** Structured result item count when one can be determined safely. */
+  result_count?: number | null
+  started_at?: string | null
+  completed_at?: string | null
 }

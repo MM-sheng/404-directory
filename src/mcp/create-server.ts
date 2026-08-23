@@ -1,7 +1,11 @@
 import { performance } from "node:perf_hooks"
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { CatalogStore } from "../domain/store.js"
-import { classifyErrorType, trackInvocation } from "../domain/telemetry.js"
+import {
+  classifyErrorType,
+  estimateResultCount,
+  trackInvocation,
+} from "../domain/telemetry.js"
 import type { ToolRegistry } from "../tools/registry.js"
 import { SERVICE_VERSION } from "../version.js"
 import { registerDiscoveryMcpTools } from "./discovery-tools.js"
@@ -89,6 +93,7 @@ export function createMcpServerFromRegistry(
             source: "mcp",
             success: true,
             latency_ms: performance.now() - started,
+            result_count: estimateResultCount(validated),
           })
           return {
             content: [{ type: "text", text: JSON.stringify(validated) }],
@@ -102,6 +107,7 @@ export function createMcpServerFromRegistry(
             success: false,
             latency_ms: performance.now() - started,
             error_type: classifyErrorType(error),
+            result_count: 0,
           })
           return {
             isError: true,

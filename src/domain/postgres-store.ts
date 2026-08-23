@@ -817,6 +817,11 @@ export class PostgresCatalogStore implements CatalogStore {
       clientName: event.client_name ?? null,
       attributionSource: event.attribution_source ?? "direct",
       isExternal: event.is_external ?? false,
+      requestId: event.request_id ?? null,
+      sessionKey: event.session_key ?? null,
+      resultCount: event.result_count ?? null,
+      startedAt: event.started_at ? new Date(event.started_at) : null,
+      completedAt: event.completed_at ? new Date(event.completed_at) : null,
     })
   }
 

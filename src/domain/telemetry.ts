@@ -4,7 +4,8 @@ import { currentAgentAttribution } from "./agent-attribution.js"
 
 /**
  * Privacy-safe invocation telemetry.
- * Records only: tool identity, version, latency, success, error type.
+ * Records tool identity, latency, success, error type, and privacy-safe
+ * request/session correlation. Never stores raw session ids.
  * Never stores request bodies, URLs, prompts, or user content.
  */
 export async function trackInvocation(
@@ -19,6 +20,10 @@ export async function trackInvocation(
       toolId = catalogTool?.id ?? null
     }
     const attribution = currentAgentAttribution()
+    const completedAt = event.completed_at ?? new Date().toISOString()
+    const startedAt =
+      event.started_at ??
+      new Date(Date.now() - Math.max(0, event.latency_ms)).toISOString()
     await store.recordInvocation({
       tool_id: toolId,
       tool_name: event.tool_name.slice(0, 128),
@@ -39,6 +44,21 @@ export async function trackInvocation(
         attribution?.attribution_source ??
         "direct",
       is_external: event.is_external ?? attribution?.is_external ?? false,
+      request_id:
+        event.request_id?.slice(0, 128) ??
+        attribution?.request_id?.slice(0, 128) ??
+        null,
+      session_key:
+        event.session_key?.slice(0, 64) ??
+        attribution?.session_key?.slice(0, 64) ??
+        null,
+      result_count:
+        typeof event.result_count === "number" &&
+        Number.isFinite(event.result_count)
+          ? Math.max(0, Math.round(event.result_count))
+          : null,
+      started_at: startedAt,
+      completed_at: completedAt,
     })
   } catch {
     // Telemetry must never break tool execution.
@@ -55,4 +75,29 @@ export function classifyErrorType(error: unknown): string {
     return "execution_failed"
   }
   return "unknown"
+}
+
+/** Best-effort count of result items without retaining result content. */
+export function estimateResultCount(value: unknown): number | null {
+  if (value == null) return null
+  if (Array.isArray(value)) return value.length
+  if (typeof value !== "object") return null
+  const record = value as Record<string, unknown>
+  for (const key of [
+    "count",
+    "result_count",
+    "tools",
+    "results",
+    "documents",
+    "hits",
+    "related",
+    "capabilities",
+  ]) {
+    const candidate = record[key]
+    if (typeof candidate === "number" && Number.isFinite(candidate)) {
+      return Math.max(0, Math.round(candidate))
+    }
+    if (Array.isArray(candidate)) return candidate.length
+  }
+  return null
 }

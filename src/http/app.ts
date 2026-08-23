@@ -15,7 +15,11 @@ import { z, ZodError } from "zod"
 import type { AppConfig } from "../config.js"
 import { registerV1Routes } from "../domain/http/v1-routes.js"
 import type { CatalogStore } from "../domain/store.js"
-import { classifyErrorType, trackInvocation } from "../domain/telemetry.js"
+import {
+  classifyErrorType,
+  estimateResultCount,
+  trackInvocation,
+} from "../domain/telemetry.js"
 import {
   agentAttributionFromHeaders,
   withAgentAttribution,
@@ -183,6 +187,7 @@ async function invokeTool(
       source: "rest",
       success: true,
       latency_ms: performance.now() - started,
+      result_count: estimateResultCount(validated),
     })
     return validated
   } catch (error) {
@@ -193,6 +198,7 @@ async function invokeTool(
       success: false,
       latency_ms: performance.now() - started,
       error_type: classifyErrorType(error),
+      result_count: 0,
     })
     if (error instanceof ZodError || error instanceof UnsafeUrlError) {
       return reply.status(400).send({
@@ -248,7 +254,14 @@ async function handleMcpRequest(
     const attribution = agentAttributionFromHeaders(
       request.headers,
       agentAnalyticsSalt ?? "development-only-agent-analytics",
-      telemetry.mcp_client
+      telemetry.mcp_client,
+      {
+        request_id: request.id,
+        session_id:
+          typeof request.headers["mcp-session-id"] === "string"
+            ? request.headers["mcp-session-id"]
+            : null,
+      }
     )
     await withAgentAttribution(attribution, () =>
       transport.handleRequest(request.raw, reply.raw, request.body)
@@ -1042,7 +1055,9 @@ ${urls}
           withAgentAttribution(
             agentAttributionFromHeaders(
               request.headers,
-              config.AGENT_ANALYTICS_SALT!
+              config.AGENT_ANALYTICS_SALT!,
+              undefined,
+              { request_id: request.id, session_id: null }
             ),
             () => invokeTool(tool, request.body, request, reply, catalog)
           )
@@ -1063,7 +1078,9 @@ ${urls}
           withAgentAttribution(
             agentAttributionFromHeaders(
               request.headers,
-              config.AGENT_ANALYTICS_SALT!
+              config.AGENT_ANALYTICS_SALT!,
+              undefined,
+              { request_id: request.id, session_id: null }
             ),
             () => invokeTool(tool, request.query, request, reply, catalog)
           )

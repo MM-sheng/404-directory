@@ -9,6 +9,9 @@ export type AgentAttribution = {
   client_name: string | null
   attribution_source: string | null
   is_external: boolean
+  request_id: string | null
+  /** Irreversible HMAC; the raw MCP session id never leaves this module. */
+  session_key: string | null
 }
 
 type HeaderValue = string | string[] | undefined
@@ -58,7 +61,8 @@ function clientSourceFamily(value: string | null): string | null {
 export function agentAttributionFromHeaders(
   headers: AgentHeaders,
   salt: string,
-  mcpClientHint?: string
+  mcpClientHint?: string,
+  requestMeta?: { request_id?: string | null; session_id?: string | null }
 ): AgentAttribution {
   const rawAgentId = firstHeader(headers, "x-404-agent-id")
   const explicit = Boolean(rawAgentId && SAFE_AGENT_ID.test(rawAgentId))
@@ -77,6 +81,8 @@ export function agentAttributionFromHeaders(
   const knownNonUserClient = Boolean(
     clientName && KNOWN_NON_USER_CLIENT.test(clientName)
   )
+  const rawSessionId =
+    requestMeta?.session_id ?? firstHeader(headers, "mcp-session-id") ?? null
 
   return {
     agent_key:
@@ -94,6 +100,13 @@ export function agentAttributionFromHeaders(
     client_name: clientName,
     attribution_source: attributionSource,
     is_external: !internal && !knownNonUserClient,
+    request_id: requestMeta?.request_id?.slice(0, 128) ?? null,
+    session_key: rawSessionId
+      ? `s1_${createHmac("sha256", salt)
+          .update(`mcp-session:${rawSessionId}`)
+          .digest("hex")
+          .slice(0, 40)}`
+      : null,
   }
 }
 
