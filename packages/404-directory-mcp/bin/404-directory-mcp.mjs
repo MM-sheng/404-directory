@@ -90,6 +90,16 @@ export function parseCliOptions(args = process.argv.slice(2)) {
   let source
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index]
+    if (argument.startsWith("--source=")) {
+      const value = argument.slice("--source=".length)
+      if (!SAFE_SOURCE.test(value)) {
+        throw new Error(
+          "--source must be a lowercase, non-personal label using a-z, 0-9, dot, underscore, or hyphen"
+        )
+      }
+      source = value
+      continue
+    }
     if (argument !== "--source") {
       throw new Error(`Unknown argument: ${argument}`)
     }

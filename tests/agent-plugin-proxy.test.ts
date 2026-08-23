@@ -148,6 +148,11 @@ describe("Agent Plugin identity bridge", () => {
     expect(parseCliOptions(["--source", "tensorblock"])).toEqual({
       source: "tensorblock",
     })
+    expect(parseCliOptions(["--source=official-registry"])).toEqual({
+      source: "official-registry",
+    })
+    expect(() => parseCliOptions(["--source=Personal Email@example.com"]))
+      .toThrow("--source must be a lowercase, non-personal label")
     expect(() => parseCliOptions(["--source", "Personal Email@example.com"]))
       .toThrow("--source must be a lowercase, non-personal label")
     expect(() => parseCliOptions(["--endpoint", "https://example.com"])).toThrow(

@@ -5,8 +5,8 @@ The submitter must be a Developer, Admin, or Owner of a Console organization.
 
 ## Source
 
-- GitHub plugin directory: `https://github.com/MM-sheng/404-directory/tree/v0.9.1/distribution/404-directory`
-- Review tag: `v0.9.1`
+- GitHub plugin directory: `https://github.com/MM-sheng/404-directory/tree/v0.9.2/distribution/404-directory`
+- Review tag: `v0.9.2`
 - Plugin manifest: `distribution/404-directory/.claude-plugin/plugin.json`
 - MCP configuration: `distribution/404-directory/.claude-plugin/mcp.json`
 - Agent Skill: `distribution/404-directory/skills/use-404-directory/SKILL.md`
@@ -50,6 +50,6 @@ evidence, and discover trusted read-only MCP tools.
 1. Search current official OpenAI documentation for remote MCP servers and cite
    the source.
 2. Verify that `https://404.directory/health` returns HTTP 200 and contains the
-   release string `0.9.1`.
+   release string `0.9.2`.
 3. Find a trusted read-only MCP tool for deployment verification and explain
    the trust dimensions used.

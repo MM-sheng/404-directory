@@ -7,7 +7,7 @@ Cursor Marketplace Publisher Terms.
 ## Source
 
 - GitHub repository: `https://github.com/MM-sheng/404-directory`
-- Review tag: `v0.9.1`
+- Review tag: `v0.9.2`
 - Format: Agent Plugins 1.0
 - Manifest: `plugin.json`
 - MCP configuration: `mcp.json`
@@ -58,7 +58,7 @@ useful non-error tool result before reporting success.
 - Agent Plugins 1.0 `plugin.json` and `mcp.json` pass the official schemas.
 - GitHub Copilot's external plugin intake passed spec compliance, Vally Skill
   lint, clean install smoke testing, version matching, and ref/SHA consistency.
-- The MCP Registry publishes `io.github.MM-sheng/404-directory` at `v0.9.1`.
+- The MCP Registry publishes `io.github.MM-sheng/404-directory` at `v0.9.2`.
 - The full project suite passes 85 tests with one intentionally skipped test.
 
 ## Suggested review prompts
@@ -66,6 +66,6 @@ useful non-error tool result before reporting success.
 1. Search current official OpenAI documentation for remote MCP servers and cite
    the source.
 2. Verify that `https://404.directory/health` returns HTTP 200 and contains the
-   release string `0.9.1`.
+   release string `0.9.2`.
 3. Find a trusted read-only MCP tool for deployment verification and explain
    the trust dimensions used.
