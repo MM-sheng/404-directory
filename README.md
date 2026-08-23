@@ -1,6 +1,6 @@
 # 404.directory
 
-**Agent Discovery + Trust Infrastructure.**
+**Agent Identity, Verifiable Execution, and Risk Infrastructure.**
 
 404.directory helps AI agents discover, verify, compare, trust, and safely call
 tools — including a curated read-only remote MCP gateway and a small set of
@@ -48,8 +48,11 @@ under review:
 | **Curated remote execution**  | Search and call approved read-only remote MCP tools  | MCP `search_official_docs` / `inspect_tool_server` / `invoke_registered_tool`  |
 | **Ecosystem catalog + trust** | Register / verify / trust / search third-party tools | `/v1/*`, MCP `search_tools` / `get_tool` / `compare_tools` / `get_trust_score` |
 
-The long-term moat is invocation telemetry + trust/verification data — not a
-marketing directory of tools.
+The directory and MCP gateway are the adoption edge. The intended core is
+cross-platform Agent identity, signed execution receipts, contextual risk
+decisions, and reputation derived only from verified evidence—not a marketing
+directory or a universal score. See
+[`ADR-0001`](./docs/adr/0001-identity-receipts-and-risk-as-the-core-platform.md).
 
 ## Current first-party tools
 
