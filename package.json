@@ -17,6 +17,7 @@
     "mcp:start": "node dist/mcp/server.js",
     "mcp:smoke": "tsx scripts/smoke-mcp.ts",
     "mcp:gateway:smoke": "tsx scripts/smoke-gateway.ts",
+    "mcp:openai:review": "tsx scripts/review-openai-plugin.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint",

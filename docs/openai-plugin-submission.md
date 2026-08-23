@@ -158,6 +158,10 @@ optional Agent attribution, and no-account access.
 
 - Validate `.codex-plugin/plugin.json` with the official Plugin Creator
   validator.
+- Run `npm run mcp:openai:review`. This connects to the production MCP endpoint,
+  checks all 12 safety annotations, runs the five positive and three negative
+  cases above, and marks every request as internal so it cannot count toward
+  external Agent adoption.
 - When the portal generates the domain token, set
   `OPENAI_APPS_CHALLENGE_TOKEN` on the production service and verify that
   `https://404.directory/.well-known/openai-apps-challenge` returns only that
