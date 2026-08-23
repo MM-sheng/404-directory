@@ -21,7 +21,7 @@ For an MCP client or directory that accepts only a stdio launch command, use:
   "mcpServers": {
     "404-directory": {
       "command": "npx",
-      "args": ["-y", "404-directory-mcp"]
+      "args": ["-y", "directory-404-mcp"]
     }
   }
 }

@@ -276,7 +276,7 @@ in the user's normal application-data directory and reuses it across restarts:
   "mcpServers": {
     "404-directory": {
       "command": "npx",
-      "args": ["-y", "404-directory-mcp"]
+      "args": ["-y", "directory-404-mcp"]
     }
   }
 }

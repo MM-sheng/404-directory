@@ -138,7 +138,7 @@ describe("Agent Plugin identity bridge", () => {
     const modulePath = path.resolve(
       "packages/404-directory-mcp/bin/404-directory-mcp.mjs"
     )
-    const binPath = path.join(directory, "404-directory-mcp")
+    const binPath = path.join(directory, "directory-404-mcp")
     await symlink(modulePath, binPath)
 
     await expect(invokedAsMain(binPath, modulePath)).resolves.toBe(true)
