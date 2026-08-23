@@ -227,17 +227,11 @@ IDs, and raw IP addresses are not stored in product analytics.
 - Human setup: \`GET /connect\`
 - Agent-readable setup: \`GET /connect.md\`
 
-Connect from Codex CLI:
+Do not install the hosted endpoint with a bare URL if you want the Agent to
+retain a privacy-safe identity. Use the generated configuration instead:
 
-\`\`\`bash
-codex mcp add 404-directory --url https://404.directory/mcp
-\`\`\`
-
-Connect from Claude Code:
-
-\`\`\`bash
-claude mcp add --transport http --scope user 404-directory https://404.directory/mcp
-\`\`\`
+- Human installation: \`GET /connect\`
+- Agent-readable installation: \`GET /connect.md\`
 
 ${sections}
 `
@@ -319,9 +313,7 @@ function createConnectionArtifacts(
   const sourceFor = (client: string) =>
     source ? `${source}.${client}` : client
   const endpoint = `${baseUrl}/mcp`
-  const trackingQuery = source
-    ? `?source=${encodeURIComponent(source)}`
-    : ""
+  const trackingQuery = source ? `?source=${encodeURIComponent(source)}` : ""
   const cursorInstallUrl = `${baseUrl}/connect/install/cursor${trackingQuery}`
   const vscodeInstallUrl = `${baseUrl}/connect/install/vscode${trackingQuery}`
   const codexToml = `[mcp_servers.404_directory]

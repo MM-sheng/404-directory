@@ -370,6 +370,13 @@ describe("HTTP API", () => {
     expect(docs.statusCode).toBe(200)
     expect(docs.headers["content-type"]).toContain("text/markdown")
     expect(docs.body).toContain("Do not use when")
+    expect(docs.body).toContain("GET /connect.md")
+    expect(docs.body).not.toContain(
+      "codex mcp add 404-directory --url https://404.directory/mcp"
+    )
+    expect(docs.body).not.toContain(
+      "claude mcp add --transport http --scope user 404-directory https://404.directory/mcp"
+    )
 
     const privacy = await app.inject({ method: "GET", url: "/privacy" })
     expect(privacy.statusCode).toBe(200)
@@ -555,9 +562,7 @@ describe("HTTP API", () => {
         "X-404-Source": "cursor-marketplace.cursor",
       },
     })
-    expect(config.headers["X-404-Agent-ID"]).toMatch(
-      /^agent:[0-9a-f-]{36}$/
-    )
+    expect(config.headers["X-404-Agent-ID"]).toMatch(/^agent:[0-9a-f-]{36}$/)
 
     const funnel = await app.inject({
       method: "GET",

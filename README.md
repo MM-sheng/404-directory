@@ -275,11 +275,9 @@ url = "https://404.directory/mcp"
 http_headers = { "X-404-Agent-ID" = "agent:REPLACE_WITH_A_STABLE_RANDOM_ID", "X-404-Source" = "codex" }
 ```
 
-```bash
-codex mcp add 404-directory --url https://404.directory/mcp
-# For a privacy-safe unique Agent ID and attribution headers, use:
-open https://404.directory/connect?source=github
-```
+Do not add only the bare MCP URL if you want the Agent installation to retain a
+privacy-safe identity. Use the generated Codex configuration at
+https://404.directory/connect?source=github.
 
 ### stdio
 
