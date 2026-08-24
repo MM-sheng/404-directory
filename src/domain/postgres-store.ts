@@ -686,11 +686,17 @@ export class PostgresCatalogStore implements CatalogStore {
       .where(gte(activationEvents.createdAt, since))
       .groupBy(activationEvents.stage)
 
-    const [successRow] = await this.db
+    const [invocationStageRow] = await this.db
       .select({
+        attemptEvents: sql<number>`count(*) filter (where ${invocations.isExternal} = true)::int`,
+        attemptedAgents: sql<number>`count(distinct ${invocations.agentKey}) filter (where ${invocations.isExternal} = true and ${invocations.agentIdentityKind} = 'explicit')::int`,
+        anonymousAttemptEvents: sql<number>`count(*) filter (where ${invocations.isExternal} = true and (${invocations.agentIdentityKind} is null or ${invocations.agentIdentityKind} = 'anonymous'))::int`,
         events: sql<number>`count(*) filter (where ${invocations.success} = true and ${invocations.isExternal} = true)::int`,
         identifiedAgents: sql<number>`count(distinct ${invocations.agentKey}) filter (where ${invocations.success} = true and ${invocations.isExternal} = true and ${invocations.agentIdentityKind} = 'explicit')::int`,
         anonymousExternalEvents: sql<number>`count(*) filter (where ${invocations.success} = true and ${invocations.isExternal} = true and (${invocations.agentIdentityKind} is null or ${invocations.agentIdentityKind} = 'anonymous'))::int`,
+        failedEvents: sql<number>`count(*) filter (where ${invocations.success} = false and ${invocations.isExternal} = true)::int`,
+        failedAgents: sql<number>`count(distinct ${invocations.agentKey}) filter (where ${invocations.success} = false and ${invocations.isExternal} = true and ${invocations.agentIdentityKind} = 'explicit')::int`,
+        anonymousFailedEvents: sql<number>`count(*) filter (where ${invocations.success} = false and ${invocations.isExternal} = true and (${invocations.agentIdentityKind} is null or ${invocations.agentIdentityKind} = 'anonymous'))::int`,
       })
       .from(invocations)
       .where(gte(invocations.createdAt, since))
@@ -709,19 +715,19 @@ export class PostgresCatalogStore implements CatalogStore {
       .where(gte(activationEvents.createdAt, since))
       .groupBy(activationEvents.source)
 
-    const successSourceRows = await this.db
+    const invocationSourceRows = await this.db
       .select({
         source: invocations.attributionSource,
-        successfulInvocations: sql<number>`count(*)::int`,
-        successfulAgents: sql<number>`count(distinct ${invocations.agentKey}) filter (where ${invocations.agentIdentityKind} = 'explicit')::int`,
+        toolCallEvents: sql<number>`count(*)::int`,
+        toolCallAgents: sql<number>`count(distinct ${invocations.agentKey}) filter (where ${invocations.agentIdentityKind} = 'explicit')::int`,
+        failedInvocations: sql<number>`count(*) filter (where ${invocations.success} = false)::int`,
+        failedAgents: sql<number>`count(distinct ${invocations.agentKey}) filter (where ${invocations.success} = false and ${invocations.agentIdentityKind} = 'explicit')::int`,
+        successfulInvocations: sql<number>`count(*) filter (where ${invocations.success} = true)::int`,
+        successfulAgents: sql<number>`count(distinct ${invocations.agentKey}) filter (where ${invocations.success} = true and ${invocations.agentIdentityKind} = 'explicit')::int`,
       })
       .from(invocations)
       .where(
-        and(
-          gte(invocations.createdAt, since),
-          eq(invocations.success, true),
-          eq(invocations.isExternal, true)
-        )
+        and(gte(invocations.createdAt, since), eq(invocations.isExternal, true))
       )
       .groupBy(invocations.attributionSource)
 
@@ -741,8 +747,14 @@ export class PostgresCatalogStore implements CatalogStore {
         initialized_agents: 0,
         tools_list_events: 0,
         tools_listed_agents: 0,
+        tool_call_events: 0,
+        tool_call_agents: 0,
+        failed_invocations: 0,
+        failed_agents: 0,
         successful_invocations: 0,
         successful_agents: 0,
+        tool_call_rate: null,
+        tool_success_rate: null,
         activation_rate: null,
       }
       sourceMap.set(key, created)
@@ -757,12 +769,28 @@ export class PostgresCatalogStore implements CatalogStore {
       entry.tools_list_events = Number(row.toolsListEvents)
       entry.tools_listed_agents = Number(row.toolsListedAgents)
     }
-    for (const row of successSourceRows) {
+    for (const row of invocationSourceRows) {
       const entry = sourceEntry(row.source)
+      entry.tool_call_events = Number(row.toolCallEvents)
+      entry.tool_call_agents = Number(row.toolCallAgents)
+      entry.failed_invocations = Number(row.failedInvocations)
+      entry.failed_agents = Number(row.failedAgents)
       entry.successful_invocations = Number(row.successfulInvocations)
       entry.successful_agents = Number(row.successfulAgents)
     }
     for (const source of sourceMap.values()) {
+      source.tool_call_rate =
+        source.initialized_agents > 0
+          ? Number(
+              (source.tool_call_agents / source.initialized_agents).toFixed(4)
+            )
+          : null
+      source.tool_success_rate =
+        source.tool_call_agents > 0
+          ? Number(
+              (source.successful_agents / source.tool_call_agents).toFixed(4)
+            )
+          : null
       source.activation_rate =
         source.initialized_agents > 0
           ? Number(
@@ -797,11 +825,27 @@ export class PostgresCatalogStore implements CatalogStore {
           }
         }),
         {
-          stage: "successful_tool" as const,
-          events: Number(successRow?.events ?? 0),
-          identified_agents: Number(successRow?.identifiedAgents ?? 0),
+          stage: "tool_attempt" as const,
+          events: Number(invocationStageRow?.attemptEvents ?? 0),
+          identified_agents: Number(invocationStageRow?.attemptedAgents ?? 0),
           anonymous_external_events: Number(
-            successRow?.anonymousExternalEvents ?? 0
+            invocationStageRow?.anonymousAttemptEvents ?? 0
+          ),
+        },
+        {
+          stage: "successful_tool" as const,
+          events: Number(invocationStageRow?.events ?? 0),
+          identified_agents: Number(invocationStageRow?.identifiedAgents ?? 0),
+          anonymous_external_events: Number(
+            invocationStageRow?.anonymousExternalEvents ?? 0
+          ),
+        },
+        {
+          stage: "failed_tool" as const,
+          events: Number(invocationStageRow?.failedEvents ?? 0),
+          identified_agents: Number(invocationStageRow?.failedAgents ?? 0),
+          anonymous_external_events: Number(
+            invocationStageRow?.anonymousFailedEvents ?? 0
           ),
         },
       ],
@@ -809,6 +853,8 @@ export class PostgresCatalogStore implements CatalogStore {
         (a, b) =>
           b.successful_agents - a.successful_agents ||
           b.successful_invocations - a.successful_invocations ||
+          b.tool_call_agents - a.tool_call_agents ||
+          b.tool_call_events - a.tool_call_events ||
           b.initialized_agents - a.initialized_agents ||
           b.initialize_events - a.initialize_events ||
           b.install_clicks - a.install_clicks ||

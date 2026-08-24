@@ -230,6 +230,14 @@ describe("privacy-safe Agent attribution", () => {
       },
       salt
     )
+    const failedAttribution = agentAttributionFromHeaders(
+      {
+        "x-404-agent-id": "agent:funnel-failed-5678",
+        "x-404-source": "cursor-marketplace.cursor",
+        "x-404-client-name": "cursor",
+      },
+      salt
+    )
 
     await store.recordActivationEvent({
       stage: "connect_view",
@@ -252,6 +260,14 @@ describe("privacy-safe Agent attribution", () => {
       })
       await store.recordActivationEvent({
         stage,
+        source: failedAttribution.attribution_source!,
+        client: failedAttribution.client_name,
+        agent_key: failedAttribution.agent_key,
+        agent_identity_kind: failedAttribution.agent_identity_kind,
+        is_external: failedAttribution.is_external,
+      })
+      await store.recordActivationEvent({
+        stage,
         source: attribution.attribution_source!,
         client: attribution.client_name,
         agent_key: attribution.agent_key,
@@ -270,6 +286,18 @@ describe("privacy-safe Agent attribution", () => {
       attribution_source: attribution.attribution_source,
       is_external: attribution.is_external,
     })
+    await trackInvocation(store, {
+      tool_name: "search_official_docs",
+      source: "mcp",
+      success: false,
+      latency_ms: 5,
+      error_type: "provider_timeout",
+      agent_key: failedAttribution.agent_key,
+      agent_identity_kind: failedAttribution.agent_identity_kind,
+      client_name: failedAttribution.client_name,
+      attribution_source: failedAttribution.attribution_source,
+      is_external: failedAttribution.is_external,
+    })
 
     const funnel = await store.activationFunnelSummary()
     expect(funnel.stages).toEqual([
@@ -287,18 +315,30 @@ describe("privacy-safe Agent attribution", () => {
       },
       {
         stage: "mcp_initialize",
-        events: 2,
-        identified_agents: 1,
+        events: 3,
+        identified_agents: 2,
         anonymous_external_events: 0,
       },
       {
         stage: "tools_list",
+        events: 3,
+        identified_agents: 2,
+        anonymous_external_events: 0,
+      },
+      {
+        stage: "tool_attempt",
         events: 2,
-        identified_agents: 1,
+        identified_agents: 2,
         anonymous_external_events: 0,
       },
       {
         stage: "successful_tool",
+        events: 1,
+        identified_agents: 1,
+        anonymous_external_events: 0,
+      },
+      {
+        stage: "failed_tool",
         events: 1,
         identified_agents: 1,
         anonymous_external_events: 0,
@@ -309,13 +349,19 @@ describe("privacy-safe Agent attribution", () => {
         expect.objectContaining({
           source: "cursor-marketplace.cursor",
           install_clicks: 1,
-          initialize_events: 2,
-          initialized_agents: 1,
-          tools_list_events: 2,
-          tools_listed_agents: 1,
+          initialize_events: 3,
+          initialized_agents: 2,
+          tools_list_events: 3,
+          tools_listed_agents: 2,
+          tool_call_events: 2,
+          tool_call_agents: 2,
+          failed_invocations: 1,
+          failed_agents: 1,
           successful_invocations: 1,
           successful_agents: 1,
-          activation_rate: 1,
+          tool_call_rate: 1,
+          tool_success_rate: 0.5,
+          activation_rate: 0.5,
         }),
       ])
     )

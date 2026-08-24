@@ -315,12 +315,11 @@ export class MemoryCatalogStore implements CatalogStore {
     const events = this.activationEvents.filter(
       (event) => event.created_at >= sinceMs
     )
-    const successful = this.invocations.filter(
-      (event) =>
-        event.created_at >= sinceMs &&
-        event.success &&
-        event.is_external === true
+    const attempted = this.invocations.filter(
+      (event) => event.created_at >= sinceMs && event.is_external === true
     )
+    const successful = attempted.filter((event) => event.success)
+    const failed = attempted.filter((event) => !event.success)
     const stageOrder = [
       "connect_view",
       "install_click",
@@ -351,24 +350,30 @@ export class MemoryCatalogStore implements CatalogStore {
         }
       }
     )
-    stages.push({
-      stage: "successful_tool",
-      events: successful.length,
+    const invocationStage = (
+      stage: "tool_attempt" | "successful_tool" | "failed_tool",
+      rows: typeof attempted
+    ): ActivationFunnelSummary["stages"][number] => ({
+      stage,
+      events: rows.length,
       identified_agents: new Set(
-        successful
+        rows
           .filter(
             (event) =>
               event.agent_identity_kind === "explicit" && event.agent_key
           )
           .map((event) => event.agent_key!)
       ).size,
-      anonymous_external_events: successful.filter(
+      anonymous_external_events: rows.filter(
         (event) =>
           event.agent_identity_kind === undefined ||
           event.agent_identity_kind === null ||
           event.agent_identity_kind === "anonymous"
       ).length,
     })
+    stages.push(invocationStage("tool_attempt", attempted))
+    stages.push(invocationStage("successful_tool", successful))
+    stages.push(invocationStage("failed_tool", failed))
 
     const sourceMap = new Map<
       string,
@@ -386,8 +391,14 @@ export class MemoryCatalogStore implements CatalogStore {
         initialized_agents: 0,
         tools_list_events: 0,
         tools_listed_agents: 0,
+        tool_call_events: 0,
+        tool_call_agents: 0,
+        failed_invocations: 0,
+        failed_agents: 0,
         successful_invocations: 0,
         successful_agents: 0,
+        tool_call_rate: null,
+        tool_success_rate: null,
         activation_rate: null,
       }
       sourceMap.set(key, created)
@@ -421,22 +432,42 @@ export class MemoryCatalogStore implements CatalogStore {
         else entry.tools_listed_agents = agents.size
       }
     }
-    const successBySource = new Map<string, Set<string>>()
-    for (const event of successful) {
-      if (event.agent_identity_kind !== "explicit" || !event.agent_key) continue
-      const source = event.attribution_source ?? "direct"
-      const agents = successBySource.get(source) ?? new Set<string>()
-      agents.add(event.agent_key)
-      successBySource.set(source, agents)
-    }
-    for (const [source, agents] of successBySource) {
-      sourceEntry(source).successful_agents = agents.size
-    }
-    for (const event of successful) {
-      sourceEntry(event.attribution_source).successful_invocations += 1
+    for (const rows of [attempted, successful, failed]) {
+      const agentsBySource = new Map<string, Set<string>>()
+      for (const event of rows) {
+        const source = event.attribution_source ?? "direct"
+        const entry = sourceEntry(source)
+        if (rows === attempted) entry.tool_call_events += 1
+        if (rows === successful) entry.successful_invocations += 1
+        if (rows === failed) entry.failed_invocations += 1
+        if (event.agent_identity_kind !== "explicit" || !event.agent_key) {
+          continue
+        }
+        const agents = agentsBySource.get(source) ?? new Set<string>()
+        agents.add(event.agent_key)
+        agentsBySource.set(source, agents)
+      }
+      for (const [source, agents] of agentsBySource) {
+        const entry = sourceEntry(source)
+        if (rows === attempted) entry.tool_call_agents = agents.size
+        if (rows === successful) entry.successful_agents = agents.size
+        if (rows === failed) entry.failed_agents = agents.size
+      }
     }
 
     for (const source of sourceMap.values()) {
+      source.tool_call_rate =
+        source.initialized_agents > 0
+          ? Number(
+              (source.tool_call_agents / source.initialized_agents).toFixed(4)
+            )
+          : null
+      source.tool_success_rate =
+        source.tool_call_agents > 0
+          ? Number(
+              (source.successful_agents / source.tool_call_agents).toFixed(4)
+            )
+          : null
       source.activation_rate =
         source.initialized_agents > 0
           ? Number(
@@ -455,6 +486,8 @@ export class MemoryCatalogStore implements CatalogStore {
         (a, b) =>
           b.successful_agents - a.successful_agents ||
           b.successful_invocations - a.successful_invocations ||
+          b.tool_call_agents - a.tool_call_agents ||
+          b.tool_call_events - a.tool_call_events ||
           b.initialized_agents - a.initialized_agents ||
           b.initialize_events - a.initialize_events ||
           b.install_clicks - a.install_clicks ||
