@@ -72,6 +72,29 @@ describe("postgres ensureTool idempotency", () => {
   )
 
   it.skipIf(!url)(
+    "has the contextual risk preflight table after migrations",
+    async () => {
+      const handle = openDatabase(url)
+      expect(handle).not.toBeNull()
+      const columns = await handle!.sql<Array<{ column_name: string }>>`
+        select column_name
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'risk_evaluations'
+          and column_name in ('policy_version', 'outcome_token_hash', 'outcome')
+        order by column_name
+      `
+
+      expect(columns).toEqual([
+        { column_name: "outcome" },
+        { column_name: "outcome_token_hash" },
+        { column_name: "policy_version" },
+      ])
+      await handle!.close()
+    }
+  )
+
+  it.skipIf(!url)(
     "aggregates qualified clients and provider reliability",
     async () => {
       const handle = openDatabase(url)

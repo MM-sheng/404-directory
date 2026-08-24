@@ -358,7 +358,70 @@ export const usageReceipts = pgTable(
   },
   (table) => [
     index("usage_receipts_created_idx").on(table.createdAt),
-    index("usage_receipts_selected_idx").on(table.selectedSlug, table.createdAt),
+    index("usage_receipts_selected_idx").on(
+      table.selectedSlug,
+      table.createdAt
+    ),
+  ]
+)
+
+/**
+ * Append-only contextual decisions made before an Agent installs or invokes a
+ * third-party tool. Context is bounded to enums; prompts and tool payloads are
+ * never stored. Outcome updates require a one-time token whose hash is stored.
+ */
+export const riskEvaluations = pgTable(
+  "risk_evaluations",
+  {
+    id: uuid("id").primaryKey(),
+    targetToolId: uuid("target_tool_id")
+      .notNull()
+      .references(() => tools.id, { onDelete: "restrict" }),
+    targetSnapshot: jsonb("target_snapshot")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    policyVersion: text("policy_version").notNull(),
+    context: jsonb("context").$type<Record<string, unknown>>().notNull(),
+    decision: text("decision").notNull(),
+    confidence: numeric("confidence", { precision: 5, scale: 4 }).notNull(),
+    evidenceCoverage: numeric("evidence_coverage", {
+      precision: 5,
+      scale: 4,
+    }).notNull(),
+    reasonCodes: text("reason_codes").array().notNull().default([]),
+    riskFactors: jsonb("risk_factors")
+      .$type<Array<Record<string, unknown>>>()
+      .notNull()
+      .default([]),
+    evidence: jsonb("evidence")
+      .$type<Array<Record<string, unknown>>>()
+      .notNull()
+      .default([]),
+    unknowns: text("unknowns").array().notNull().default([]),
+    nextAction: text("next_action").notNull(),
+    outcomeTokenHash: text("outcome_token_hash").notNull(),
+    agentKey: text("agent_key"),
+    agentIdentityKind: text("agent_identity_kind")
+      .notNull()
+      .default("anonymous"),
+    clientName: text("client_name"),
+    attributionSource: text("attribution_source"),
+    isExternal: boolean("is_external").notNull().default(false),
+    outcome: jsonb("outcome").$type<Record<string, unknown>>(),
+    outcomeReportedAt: timestamp("outcome_reported_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("risk_evaluations_outcome_token_uidx").on(
+      table.outcomeTokenHash
+    ),
+    index("risk_evaluations_target_idx").on(
+      table.targetToolId,
+      table.createdAt
+    ),
+    index("risk_evaluations_agent_idx").on(table.agentKey, table.createdAt),
+    index("risk_evaluations_decision_idx").on(table.decision, table.createdAt),
   ]
 )
 
@@ -371,3 +434,4 @@ export type TrustScoreRow = typeof trustScores.$inferSelect
 export type InvocationRow = typeof invocations.$inferSelect
 export type ActivationEventRow = typeof activationEvents.$inferSelect
 export type UsageReceiptRow = typeof usageReceipts.$inferSelect
+export type RiskEvaluationRow = typeof riskEvaluations.$inferSelect

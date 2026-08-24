@@ -8,7 +8,12 @@ server while preserving one privacy-safe identity for the installation.
   "mcpServers": {
     "404-directory": {
       "command": "npx",
-      "args": ["-y", "@mmvv1638/404-directory-mcp", "--source", "your-directory"]
+      "args": [
+        "-y",
+        "@mmvv1638/404-directory-mcp",
+        "--source",
+        "your-directory"
+      ]
     }
   }
 }
@@ -30,7 +35,17 @@ Set `DIRECTORY_404_DATA_DIR` to use a different directory. Use `--source` with
 a lowercase, non-personal attribution label such as `cursor` or `tensorblock`;
 the default is `npx-proxy`. `DIRECTORY_404_SOURCE` is also supported.
 
-After installation, ask the Agent to make one useful call, for example:
+After installation, make third-party tool preflight the default policy:
+
+```text
+Before installing or first invoking an unfamiliar third-party tool, call
+evaluate_tool_risk with the intended action, data sensitivity, execution mode,
+and every requested permission. Obey block and pause on review. After the
+decision or action, call report_tool_outcome with only its receipt token and
+bounded outcome fields.
+```
+
+Or ask the Agent to make another useful call, for example:
 
 ```text
 Use search_official_docs to find the current official guidance for MCP

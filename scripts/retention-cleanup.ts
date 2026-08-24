@@ -26,7 +26,12 @@ async function main(): Promise<void> {
   if (!handle) throw new Error("Unable to open database")
 
   try {
-    const [invocationCount, activationCount, receiptCount] = await Promise.all([
+    const [
+      invocationCount,
+      activationCount,
+      receiptCount,
+      riskEvaluationCount,
+    ] = await Promise.all([
       handle.sql<{ count: number }[]>`
         select count(*)::int as count from invocations where created_at < ${cutoffIso}::timestamptz
       `,
@@ -35,6 +40,9 @@ async function main(): Promise<void> {
       `,
       handle.sql<{ count: number }[]>`
         select count(*)::int as count from usage_receipts where created_at < ${cutoffIso}::timestamptz
+      `,
+      handle.sql<{ count: number }[]>`
+        select count(*)::int as count from risk_evaluations where created_at < ${cutoffIso}::timestamptz
       `,
     ])
     const report = {
@@ -45,6 +53,7 @@ async function main(): Promise<void> {
         invocations: invocationCount[0]?.count ?? 0,
         activation_events: activationCount[0]?.count ?? 0,
         usage_receipts: receiptCount[0]?.count ?? 0,
+        risk_evaluations: riskEvaluationCount[0]?.count ?? 0,
       },
     }
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
@@ -59,6 +68,7 @@ async function main(): Promise<void> {
     }
 
     await handle.sql.begin(async (transaction) => {
+      await transaction`delete from risk_evaluations where created_at < ${cutoffIso}::timestamptz`
       await transaction`delete from usage_receipts where created_at < ${cutoffIso}::timestamptz`
       await transaction`delete from activation_events where created_at < ${cutoffIso}::timestamptz`
       await transaction`delete from invocations where created_at < ${cutoffIso}::timestamptz`

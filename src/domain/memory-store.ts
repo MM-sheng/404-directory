@@ -6,6 +6,8 @@ import type {
   CatalogStore,
   EnsureToolOptions,
   ProviderRecord,
+  RiskEvaluationRecord,
+  RiskEvaluationOutcome,
   ToolStatus,
   UsageReceiptInput,
 } from "./store.js"
@@ -24,6 +26,7 @@ import {
 } from "./metrics.js"
 import { nextVerifyBackoffMs } from "./verification.js"
 import { isDiscoverableStatus } from "./lifecycle.js"
+import { buildRiskEvaluationSummary } from "./risk-metrics.js"
 
 function slugify(value: string): string {
   return value
@@ -68,6 +71,7 @@ export class MemoryCatalogStore implements CatalogStore {
     ActivationEventInput & { created_at: number }
   > = []
   private readonly receipts: Array<UsageReceiptInput & { id: string }> = []
+  private readonly riskEvaluations = new Map<string, RiskEvaluationRecord>()
 
   async registerTool(input: RegisterToolRequest): Promise<CatalogTool> {
     const slug = slugify(input.name)
@@ -254,6 +258,38 @@ export class MemoryCatalogStore implements CatalogStore {
     const id = randomUUID()
     this.receipts.push({ ...receipt, id })
     return id
+  }
+
+  async recordRiskEvaluation(evaluation: RiskEvaluationRecord): Promise<void> {
+    this.riskEvaluations.set(evaluation.id, structuredClone(evaluation))
+  }
+
+  async getRiskEvaluation(id: string): Promise<RiskEvaluationRecord | null> {
+    const evaluation = this.riskEvaluations.get(id)
+    return evaluation ? structuredClone(evaluation) : null
+  }
+
+  async recordRiskEvaluationOutcome(input: {
+    id: string
+    outcome_token_hash: string
+    outcome: RiskEvaluationOutcome
+    reported_at: string
+  }): Promise<"recorded" | "not_found" | "already_reported"> {
+    const evaluation = this.riskEvaluations.get(input.id)
+    if (
+      !evaluation ||
+      evaluation.outcome_token_hash !== input.outcome_token_hash
+    ) {
+      return "not_found"
+    }
+    if (evaluation.outcome) return "already_reported"
+    evaluation.outcome = structuredClone(input.outcome)
+    evaluation.outcome_reported_at = input.reported_at
+    return "recorded"
+  }
+
+  async riskEvaluationSummary(since?: Date) {
+    return buildRiskEvaluationSummary([...this.riskEvaluations.values()], since)
   }
 
   async getEndpointForTool(

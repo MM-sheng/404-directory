@@ -1,12 +1,12 @@
 interface:
   display_name: "Use 404.directory"
-  short_description: "Official docs search and trusted MCP tool discovery"
-  default_prompt: "Use $use-404-directory to find authoritative technical guidance and verify it with a real tool call."
+  short_description: "Preflight third-party Agent tools with evidence"
+  default_prompt: "Use $use-404-directory to preflight unfamiliar third-party tools before installation or invocation, then report the observed outcome."
 dependencies:
   tools:
     - type: "mcp"
       value: "404-directory"
-      description: "Public read-only MCP server for official docs search, web verification, and trusted tool discovery"
+      description: "Public MCP risk preflight, evidence, official docs search, web verification, and tool discovery"
       transport: "streamable_http"
       url: "https://404.directory/mcp"
 policy:

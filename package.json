@@ -1,7 +1,7 @@
 {
   "name": "404-directory",
   "version": "0.9.3",
-  "description": "Agent Discovery + Trust infrastructure and public read-only MCP tools for AI Agents.",
+  "description": "Evidence-backed risk preflight before AI Agents install or invoke third-party tools.",
   "homepage": "https://404.directory",
   "repository": {
     "type": "git",

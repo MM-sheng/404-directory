@@ -1,6 +1,6 @@
 {
   "name": "404-directory",
-  "description": "Official documentation search, deployment verification, and trusted read-only MCP tool discovery for Claude Agents.",
+  "description": "Contextual risk preflight before Claude Agents install or invoke third-party tools, plus evidence-backed discovery and verification.",
   "owner": {
     "name": "404.directory"
   },
@@ -8,7 +8,7 @@
     {
       "name": "404-directory",
       "source": "./distribution/404-directory",
-      "description": "Search current official AI and cloud documentation, verify public deployments, and discover trusted read-only MCP tools.",
+      "description": "Preflight third-party Agent tools with allow, review, or block decisions backed by evidence and bounded outcome receipts.",
       "version": "0.9.3",
       "author": {
         "name": "404.directory"
@@ -21,6 +21,8 @@
         "mcp",
         "official-documentation",
         "tool-discovery",
+        "risk-preflight",
+        "agent-trust",
         "web-verification"
       ],
       "category": "developer-tools"

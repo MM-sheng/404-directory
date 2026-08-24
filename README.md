@@ -1,10 +1,11 @@
 # 404.directory
 
-**Agent Discovery + Trust Infrastructure.**
+**Risk preflight for AI Agents using third-party tools.**
 
-404.directory helps AI agents discover, verify, compare, trust, and safely call
-tools — including a curated read-only remote MCP gateway and a small set of
-first-party executable tools (`verify_web`, `understand_webpage`).
+404.directory gives AI Agents an evidence-backed `allow`, `review`, or `block`
+decision before they install or invoke a third-party tool. Discovery, provider
+verification, live checks, privacy-safe usage evidence, and a curated read-only
+MCP gateway support that decision.
 
 Connect a real Agent in under a minute (Codex, Cursor, Claude Code, or MCP SDK):
 https://404.directory/connect?source=github
@@ -40,17 +41,19 @@ under review:
 /plugin install 404-directory@404-directory
 ```
 
-## Two layers
+## Product layers
 
 | Layer                         | Purpose                                              | Surface                                                                        |
 | ----------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------ |
 | **First-party execution**     | Run first-party tools in this process                | `GET /tools`, `POST /understand`, `POST /verify/web`, MCP tools                |
 | **Curated remote execution**  | Search and call approved read-only remote MCP tools  | MCP `search_official_docs` / `inspect_tool_server` / `invoke_registered_tool`  |
 | **Ecosystem catalog + trust** | Register / verify / trust / search third-party tools | `/v1/*`, MCP `search_tools` / `get_tool` / `compare_tools` / `get_trust_score` |
+| **Contextual risk preflight** | Decide whether an Agent should proceed now           | MCP `evaluate_tool_risk` / `report_tool_outcome`, REST `/v1/evaluations/*`     |
 
-The current product is intentionally narrow: useful read-only Agent tools,
-trust-aware discovery, and a curated remote MCP gateway. Future platform ideas
-remain hypotheses until real external Agent usage validates them.
+The current product is intentionally narrow: preflight registered third-party
+tools before installation or invocation, then capture a bounded outcome. Future
+identity, reputation, guarantee, and insurance layers remain hypotheses until
+real external Agent usage validates them.
 
 ## Current first-party tools
 
@@ -94,13 +97,26 @@ Trust Profile dimensions (v1 algorithm, extensible factors JSON):
 
 - Ownership / Availability / Compatibility / Security / Usage → `overall_score`
 
-`POST /v1/receipts` is **disabled** until authenticated Agent credentials and
-signed receipts exist — anonymous outcome submissions would poison Trust.
+Contextual preflight is available through `POST /v1/evaluations`; public
+receipts are readable at `GET /v1/evaluations/:id`. One bounded outcome can be
+attached through `POST /v1/evaluations/:id/outcome` using the one-time token
+returned at evaluation time. Only the token hash is stored, and self-reported
+outcomes never directly increase Trust. The older generic `POST /v1/receipts`
+remains disabled because unbound anonymous submissions would poison Trust.
+
+Copy-ready Agent trigger policy and examples:
+[`docs/AGENT_RISK_PREFLIGHT.md`](./docs/AGENT_RISK_PREFLIGHT.md)
+
+Privacy-safe product validation is public at
+`GET /v1/metrics/risk-evaluations`: evaluation volume, decision distribution,
+outcome-report rate, and behavior-change rate, without prompts or raw identity.
 
 ## MCP Discovery tools
 
 When the catalog is enabled, MCP also exposes:
 
+- `evaluate_tool_risk`
+- `report_tool_outcome`
 - `search_tools`
 - `get_tool`
 - `compare_tools`
@@ -131,8 +147,8 @@ points:
   `search_official_docs` call;
 - `verify-public-deployment` — turns a concrete public deployment claim into a
   `verify_web` call;
-- `evaluate-agent-tool` — searches and compares catalog trust evidence for a
-  real capability requirement.
+- `evaluate-agent-tool` — finds a catalog candidate, calls the contextual risk
+  preflight, and requires an `allow`, `review`, or `block` result.
 
 Rendering or opening a prompt never counts toward the 1,000-Agent target. Each
 template explicitly requires a non-error tool result that materially answers

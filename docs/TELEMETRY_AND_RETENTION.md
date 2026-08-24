@@ -7,6 +7,8 @@
 1. Did a real external Agent successfully use a tool?
 2. Where does installation or activation fail?
 3. How reliable are a tool, registered provider, client and source over time?
+4. Did a contextual risk decision change what the Agent did, and what bounded
+   result was later reported?
 
 The system does not record task content for analytics.
 
@@ -27,6 +29,14 @@ Invocation events may contain only:
 
 Activation events may contain only stage, source, safe client label, optional
 Agent HMAC, identity kind, external classification and time.
+
+Risk evaluation records may contain only the registered target snapshot,
+policy version, enumerated action, data-sensitivity class, execution mode,
+enumerated permissions, decision, stable reason codes, evidence summaries and
+freshness, optional Agent HMAC and safe attribution labels, and one bounded
+outcome. The one-time outcome token is never stored; only its SHA-256 hash is
+retained. Outcomes are labeled `self_reported` unless 404.directory directly
+observed the action. Self-reported outcomes never directly increase Trust.
 
 The activation stream can record `prompts_list` and `prompt_get` for MCP
 `prompts/list` and `prompts/get`. These events contain only the stage and the
@@ -102,6 +112,11 @@ count, anonymous invocation count, result-item count, P50/P95 latency and last
 observation time. It is evidence with a time window and sample size, not an
 absolute trust score.
 
+`GET /v1/metrics/risk-evaluations` reports only aggregate preflight volume,
+identified external Agent count, allow/review/block distribution, outcome
+reporting, behavior changes, bounded results, and policy versions. It never
+exposes individual receipts or Agent HMACs.
+
 ## Storage period
 
 The default analytics retention period is 400 days. This preserves enough
@@ -117,8 +132,10 @@ is never performed by autonomous maintenance.
 
 ## Integrity and change control
 
-- Invocation, activation and usage-receipt records are append-only during
-  normal product operation.
+- Invocation, activation, usage-receipt, and risk-decision records are
+  append-only during normal product operation. A risk decision accepts at most
+  one token-bound bounded outcome attachment; the original decision and
+  evidence snapshot are immutable.
 - Aggregates are derived and can be recomputed from retained events.
 - Internal and external classifications remain separate at write and query
   time.
