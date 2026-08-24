@@ -20,6 +20,9 @@ export type AgentHeaders = Record<string, HeaderValue>
 const attributionStorage = new AsyncLocalStorage<AgentAttribution>()
 const SAFE_AGENT_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:@/-]{7,127}$/
 const SAFE_SOURCE = /^[a-z0-9][a-z0-9._-]{0,63}$/
+const BEARER_AGENT_ID = /^Bearer\s+(agent:[a-zA-Z0-9._:@/-]{7,121})$/i
+const EMBEDDED_AGENT_SOURCE =
+  /^agent:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}@([a-z0-9][a-z0-9._-]{0,63})$/i
 const KNOWN_NON_USER_CLIENT =
   /404\.directory|gateway-smoke|sentineloracle|glimind-probe|mcpbeat|zevruna|aisec-registry|mcp-cloud-aboutbot|agent-stack-fingerprint|reliability-bureau|mcpharvest/i
 const CLIENT_SOURCE_FAMILIES: ReadonlyArray<readonly [RegExp, string]> = [
@@ -64,7 +67,9 @@ export function agentAttributionFromHeaders(
   mcpClientHint?: string,
   requestMeta?: { request_id?: string | null; session_id?: string | null }
 ): AgentAttribution {
-  const rawAgentId = firstHeader(headers, "x-404-agent-id")
+  const authorization = firstHeader(headers, "authorization")
+  const bearerAgentId = authorization?.match(BEARER_AGENT_ID)?.[1]
+  const rawAgentId = firstHeader(headers, "x-404-agent-id") ?? bearerAgentId
   const explicit = Boolean(rawAgentId && SAFE_AGENT_ID.test(rawAgentId))
   const requestedClass = firstHeader(headers, "x-404-agent-class")
   const internal = requestedClass?.toLowerCase() === "internal"
@@ -73,7 +78,11 @@ export function agentAttributionFromHeaders(
       mcpClientHint ??
       firstHeader(headers, "user-agent")
   )
-  const sourceValue = firstHeader(headers, "x-404-source")?.toLowerCase()
+  const embeddedSource = rawAgentId
+    ?.match(EMBEDDED_AGENT_SOURCE)?.[1]
+    ?.toLowerCase()
+  const sourceValue =
+    firstHeader(headers, "x-404-source")?.toLowerCase() ?? embeddedSource
   const attributionSource =
     sourceValue && SAFE_SOURCE.test(sourceValue)
       ? sourceValue

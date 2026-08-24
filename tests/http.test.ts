@@ -263,6 +263,7 @@ describe("HTTP API", () => {
     })
     expect(connect.statusCode).toBe(200)
     expect(connect.headers["content-type"]).toContain("text/html")
+    expect(connect.headers["cache-control"]).toBe("no-store")
     expect(connect.body).toContain("Add to Cursor")
     expect(connect.body).toContain("Install in VS Code")
     expect(connect.body).toContain(
@@ -277,6 +278,10 @@ describe("HTTP API", () => {
     expect(connect.body).toContain("awesome-remote.npx")
     expect(connect.body).toContain("Complete the first useful call")
     expect(connect.body).toContain("research-official-docs")
+    expect(connect.body).toContain("OpenAI Responses API")
+    expect(connect.body).toContain("search_official_docs")
+    expect(connect.body).toContain("awesome-remote.openai-responses")
+    expect(connect.body).toContain("authorization")
     expect(connect.body).toContain("/connect.md?source=awesome-remote")
     expect(connect.body).toContain(
       "https://github.com/MM-sheng/404-directory/issues/1"
@@ -289,6 +294,7 @@ describe("HTTP API", () => {
     })
     expect(connectMarkdown.statusCode).toBe(200)
     expect(connectMarkdown.headers["content-type"]).toContain("text/markdown")
+    expect(connectMarkdown.headers["cache-control"]).toBe("no-store")
     expect(connectMarkdown.body).toContain("Add 404.directory to Cursor")
     expect(connectMarkdown.body).toContain(
       "/connect/install/cursor?source=agent-reader"
@@ -300,6 +306,34 @@ describe("HTTP API", () => {
       "Complete one task the user already needs"
     )
     expect(connectMarkdown.body).toContain("verify-public-deployment")
+    expect(connectMarkdown.body).toContain("## OpenAI Responses API")
+    expect(connectMarkdown.body).toContain('"server_label": "directory_404"')
+    expect(connectMarkdown.body).toContain('"name": "search_official_docs"')
+    expect(connectMarkdown.body).toContain('"authorization": "agent:')
+    expect(connectMarkdown.body).toContain("agent-reader.openai-responses")
+    const openAiPayloadMatch = connectMarkdown.body.match(
+      /## OpenAI Responses API[\s\S]*?```json\n([\s\S]*?)\n```/
+    )
+    expect(openAiPayloadMatch?.[1]).toBeTruthy()
+    const openAiPayload = JSON.parse(openAiPayloadMatch![1]!) as {
+      tools: Array<Record<string, unknown>>
+      tool_choice: Record<string, unknown>
+    }
+    expect(openAiPayload.tools[0]).toMatchObject({
+      type: "mcp",
+      server_url: "https://404.directory/mcp",
+      allowed_tools: ["search_official_docs"],
+      require_approval: "never",
+    })
+    expect(openAiPayload.tools[0]).not.toHaveProperty("headers")
+    expect(openAiPayload.tools[0]?.authorization).toMatch(
+      /^agent:[0-9a-f-]{36}@agent-reader\.openai-responses$/
+    )
+    expect(openAiPayload.tool_choice).toEqual({
+      type: "mcp",
+      server_label: "directory_404",
+      name: "search_official_docs",
+    })
     expect(connectMarkdown.body).toContain("call `verify_web`")
     expect(connectMarkdown.body).toContain("call `search_tools`")
     expect(connectMarkdown.body).toContain(

@@ -80,6 +80,35 @@ describe("privacy-safe Agent attribution", () => {
     ).toBe(false)
   })
 
+  it("accepts an OpenAI MCP bearer installation token but not arbitrary OAuth tokens", () => {
+    const attribution = agentAttributionFromHeaders(
+      {
+        authorization:
+          "Bearer agent:0194c8a7-6c46-4a25-9d03-2f1ecb34cdb0@launch.openai-responses",
+        "user-agent": "OpenAI Responses API",
+      },
+      salt
+    )
+
+    expect(attribution).toMatchObject({
+      agent_identity_kind: "explicit",
+      attribution_source: "launch.openai-responses",
+      client_name: "OpenAI Responses API",
+      is_external: true,
+    })
+    expect(attribution.agent_key).toMatch(/^a1_[a-f0-9]{40}$/)
+
+    expect(
+      agentAttributionFromHeaders(
+        { authorization: "Bearer oauth-secret-that-must-not-be-attributed" },
+        salt
+      )
+    ).toMatchObject({
+      agent_key: null,
+      agent_identity_kind: "anonymous",
+    })
+  })
+
   it("attributes standard MCP client hints to safe channel families", () => {
     expect(
       agentAttributionFromHeaders(

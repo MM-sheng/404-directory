@@ -310,6 +310,7 @@ type ConnectionArtifacts = {
   vscodeInstallUrl: string
   codexToml: string
   claudeCommand: string
+  openAiResponsesPayload: string
   universalConfig: string
   sourceFor: (client: string) => string
 }
@@ -321,7 +322,7 @@ function createConnectionArtifacts(
   const generatedAgentId = `agent:${randomUUID()}`
   const source = campaignSource(campaign)
   const sourceFor = (client: string) =>
-    source ? `${source}.${client}` : client
+    source ? `${source.slice(0, 63 - client.length)}.${client}` : client
   const endpoint = `${baseUrl}/mcp`
   const trackingQuery = source ? `?source=${encodeURIComponent(source)}` : ""
   const cursorInstallUrl = `${baseUrl}/connect/install/cursor${trackingQuery}`
@@ -332,6 +333,33 @@ http_headers = { "X-404-Agent-ID" = "${generatedAgentId}", "X-404-Source" = "${s
   const claudeCommand = `claude mcp add --transport http --scope user 404-directory ${endpoint} \\
   --header "X-404-Agent-ID: ${generatedAgentId}" \\
   --header "X-404-Source: ${sourceFor("claude-code")}"`
+  const openAiAgentToken = `${generatedAgentId}@${sourceFor("openai-responses")}`
+  const openAiResponsesPayload = JSON.stringify(
+    {
+      model: "gpt-5.6",
+      input:
+        "Use current official sources to answer this real technical question: REPLACE_WITH_YOUR_QUESTION",
+      tools: [
+        {
+          type: "mcp",
+          server_label: "directory_404",
+          server_description:
+            "Search current official OpenAI, Microsoft Learn, AWS, and Cloudflare documentation.",
+          server_url: endpoint,
+          authorization: openAiAgentToken,
+          allowed_tools: ["search_official_docs"],
+          require_approval: "never",
+        },
+      ],
+      tool_choice: {
+        type: "mcp",
+        server_label: "directory_404",
+        name: "search_official_docs",
+      },
+    },
+    null,
+    2
+  )
   const universalConfig = JSON.stringify(
     {
       mcpServers: {
@@ -357,6 +385,7 @@ http_headers = { "X-404-Agent-ID" = "${generatedAgentId}", "X-404-Source" = "${s
     vscodeInstallUrl,
     codexToml,
     claudeCommand,
+    openAiResponsesPayload,
     universalConfig,
     sourceFor,
   }
@@ -453,6 +482,11 @@ export function renderConnectHtml(baseUrl: string, campaign?: string): string {
       <p class="privacy">Add this configuration to <code>~/.codex/config.toml</code>.</p>
       <pre><code>${escapeHtml(connection.codexToml)}</code></pre>
     </section>
+    <section>
+      <h2>OpenAI Responses API</h2>
+      <p class="privacy">Use this request body with your normal OpenAI API authentication. Replace the question before sending. The MCP <code>authorization</code> value is a random, non-personal installation token used only for privacy-safe attribution; it does not grant access. The request limits the MCP surface and forces one real <code>search_official_docs</code> call. OpenAI model usage may incur charges, while 404.directory itself currently requires no account or API key.</p>
+      <pre><code>${escapeHtml(connection.openAiResponsesPayload)}</code></pre>
+    </section>
     <section class="first-call">
       <h2>Complete the first useful call</h2>
       <p>If your client exposes MCP Prompts, open <code>research-official-docs</code>, <code>verify-public-deployment</code>, or <code>evaluate-agent-tool</code> and provide a real task.</p>
@@ -528,6 +562,20 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     "    },",
     "  }",
     ")",
+    "```",
+    "",
+    "## OpenAI Responses API",
+    "",
+    "Use this JSON as the request body for `POST https://api.openai.com/v1/responses`",
+    "with your normal OpenAI API authentication. Replace the question before",
+    "sending. The MCP `authorization` value is a random, non-personal",
+    "installation token used only for privacy-safe attribution; it does not",
+    "grant access. The request limits the MCP surface and forces one real",
+    "`search_official_docs` call. OpenAI model usage may incur charges;",
+    "404.directory itself currently requires no account or API key.",
+    "",
+    "```json",
+    connection.openAiResponsesPayload,
     "```",
     "",
     "## Verify the connection",

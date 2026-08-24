@@ -573,6 +573,7 @@ export async function buildApp(
         })
         .catch(() => undefined)
       return reply
+        .header("cache-control", "no-store")
         .type("text/html; charset=utf-8")
         .send(renderConnectHtml(config.PUBLIC_BASE_URL, source))
     }
@@ -595,6 +596,7 @@ export async function buildApp(
         })
         .catch(() => undefined)
       return reply
+        .header("cache-control", "no-store")
         .type("text/markdown; charset=utf-8")
         .send(renderConnect(config.PUBLIC_BASE_URL, source))
     }
