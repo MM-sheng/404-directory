@@ -245,6 +245,16 @@ describe("HTTP API", () => {
     expect(home.body).toContain("Microsoft Learn")
     expect(home.body).toContain("AWS")
     expect(home.body).toContain("Cloudflare")
+    expect(home.body).toContain(
+      '<meta name="description" content="A public MCP server for AI Agents'
+    )
+    expect(home.body).toContain('<link rel="canonical" href="https://404.directory/"')
+    expect(home.body).toContain('type="application/ld+json"')
+    expect(home.body).toContain('"@type": "SoftwareApplication"')
+    expect(home.body).toContain('"@type": "FAQPage"')
+    expect(home.body).toContain(
+      "Only a de-duplicated external Agent with a privacy-safe installation identity"
+    )
 
     const favicon = await app.inject({ method: "GET", url: "/favicon.ico" })
     expect(favicon.statusCode).toBe(200)
@@ -464,6 +474,10 @@ describe("HTTP API", () => {
     expect(robots.statusCode).toBe(200)
     expect(robots.body).toContain("User-agent: OAI-SearchBot\nAllow: /")
     expect(robots.body).toContain("User-agent: Claude-SearchBot\nAllow: /")
+    expect(robots.body).toContain("User-agent: GPTBot\nAllow: /")
+    expect(robots.body).toContain("User-agent: PerplexityBot\nAllow: /")
+    expect(robots.body).toContain("User-agent: Google-Extended\nAllow: /")
+    expect(robots.body).toContain("User-agent: Bingbot\nAllow: /")
     expect(robots.body).toContain("Sitemap: https://404.directory/sitemap.xml")
 
     const sitemap = await app.inject({ method: "GET", url: "/sitemap.xml" })
