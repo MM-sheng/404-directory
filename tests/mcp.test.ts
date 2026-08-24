@@ -45,8 +45,8 @@ describe("registry MCP adapter", () => {
 
     expect(client.getServerVersion()).toMatchObject({
       name: "404.directory",
-      title: "404.directory — Agent Discovery + Trust",
-      description: expect.stringContaining("AI Agent tools"),
+      title: "404.directory — Agent Tool Risk Preflight",
+      description: expect.stringContaining("allow, review, or block"),
       websiteUrl: "https://404.directory",
     })
 
@@ -131,7 +131,8 @@ describe("registry MCP adapter", () => {
       arguments: { capability: "official documentation search" },
     })
     expect(JSON.stringify(evaluation.messages)).toContain("search_tools")
-    expect(JSON.stringify(evaluation.messages)).toContain("get_trust_score")
+    expect(JSON.stringify(evaluation.messages)).toContain("evaluate_tool_risk")
+    expect(JSON.stringify(evaluation.messages)).toContain("report_tool_outcome")
     expect((await catalog.agentUsageSummary()).identified_external_agents).toBe(
       0
     )

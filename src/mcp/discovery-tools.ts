@@ -14,6 +14,14 @@ import {
 import type { CatalogStore } from "../domain/store.js"
 import { estimateResultCount, trackInvocation } from "../domain/telemetry.js"
 import { currentAgentAttribution } from "../domain/agent-attribution.js"
+import {
+  EvaluateToolRiskRequestSchema,
+  EvaluationOutcomeRequestSchema,
+  InvalidRiskReceiptError,
+  UnknownRiskTargetError,
+  evaluateToolRisk,
+  reportRiskEvaluationOutcome,
+} from "../domain/risk-evaluation.js"
 import { refreshTrustForTool } from "../domain/trust.js"
 import { ToolProtocolSchema, type CatalogTool } from "../domain/types.js"
 import { SERVICE_VERSION } from "../version.js"
@@ -63,6 +71,119 @@ export function registerDiscoveryMcpTools(
   store: CatalogStore,
   gateway?: RemoteMcpGateway | null
 ): void {
+  server.registerTool(
+    "evaluate_tool_risk",
+    {
+      title: "Preflight a third-party tool",
+      description:
+        "Make a contextual allow, review, or block decision before an AI Agent installs or invokes a third-party tool registered in 404.directory. Use this immediately before installation or first use, and again when permissions, data sensitivity, execution mode, or evidence changes. The decision cites ownership, lifecycle, verification history and freshness, compatibility, security, and observed-usage evidence; missing evidence never counts as safe. Stores a bounded receipt without prompts or payloads and returns a one-time outcome token so the Agent can later report whether it proceeded, changed tools, requested review, or aborted. Does not execute or freshly probe the target and is not a security guarantee.",
+      inputSchema: EvaluateToolRiskRequestSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (args) => {
+      try {
+        const payload = await withDiscoveryTelemetry(
+          store,
+          "evaluate_tool_risk",
+          () => evaluateToolRisk(store, args)
+        )
+        return {
+          content: [{ type: "text", text: JSON.stringify(payload) }],
+          structuredContent: payload as unknown as Record<string, unknown>,
+        }
+      } catch (error) {
+        if (error instanceof UnknownRiskTargetError) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  error: true,
+                  error_type: "unknown_target",
+                  message: error.message,
+                  recovery:
+                    "Call search_tools first and pass an exact catalog slug to evaluate_tool_risk.",
+                }),
+              },
+            ],
+          }
+        }
+        throw error
+      }
+    }
+  )
+
+  server.registerTool(
+    "report_tool_outcome",
+    {
+      title: "Report a preflight outcome",
+      description:
+        "Close the feedback loop for one prior evaluate_tool_risk receipt. Call after the Agent proceeds, changes tools, requests review, or aborts. Submit only the bounded action/result fields and one-time outcome token returned by the evaluation; never include prompts, arguments, outputs, secrets, or personal data. The outcome is labeled self-reported and cannot directly increase a Trust score.",
+      inputSchema: EvaluationOutcomeRequestSchema.extend({
+        receipt_id: z
+          .string()
+          .uuid()
+          .describe("Receipt UUID returned by evaluate_tool_risk."),
+      }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ receipt_id, ...outcome }) => {
+      let status: "recorded" | "already_reported"
+      try {
+        status = await withDiscoveryTelemetry(
+          store,
+          "report_tool_outcome",
+          async () => {
+            const reported = await reportRiskEvaluationOutcome(
+              store,
+              receipt_id,
+              outcome
+            )
+            if (reported === "not_found") throw new InvalidRiskReceiptError()
+            return reported
+          }
+        )
+      } catch (error) {
+        if (!(error instanceof InvalidRiskReceiptError)) throw error
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                error: true,
+                error_type: "invalid_receipt",
+                message: "Receipt or outcome token was not found.",
+              }),
+            },
+          ],
+        }
+      }
+      const payload = {
+        receipt_id,
+        status,
+        evidence_level: "self_reported",
+        trust_effect:
+          "This report is behavioral evidence and does not directly increase the target Trust score.",
+      }
+      return {
+        content: [{ type: "text", text: JSON.stringify(payload) }],
+        structuredContent: payload,
+      }
+    }
+  )
+
   server.registerTool(
     "search_tools",
     {
@@ -519,7 +640,8 @@ function registerGatewayMcpTools(
       const started = performance.now()
       const requestedSources: OfficialDocSource[] = [
         ...new Set(
-          args.sources ?? (["openai", "microsoft", "aws", "cloudflare"] as const)
+          args.sources ??
+            (["openai", "microsoft", "aws", "cloudflare"] as const)
         ),
       ]
       const outcomes = await Promise.all(

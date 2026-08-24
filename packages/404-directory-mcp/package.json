@@ -2,7 +2,7 @@
   "name": "@mmvv1638/404-directory-mcp",
   "version": "0.9.3",
   "mcpName": "io.github.MM-sheng/404-directory",
-  "description": "Identity-preserving stdio bridge for the public 404.directory MCP server.",
+  "description": "Identity-preserving bridge to 404.directory Agent tool risk preflight.",
   "type": "module",
   "bin": {
     "404-directory-mcp": "bin/404-directory-mcp.mjs"
@@ -19,6 +19,8 @@
     "mcp",
     "model-context-protocol",
     "ai-agent",
+    "risk-preflight",
+    "agent-trust",
     "official-documentation",
     "tool-discovery"
   ],

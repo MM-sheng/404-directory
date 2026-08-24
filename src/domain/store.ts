@@ -23,6 +23,115 @@ export type UsageReceiptInput = {
   metadata?: Record<string, unknown>
 }
 
+export type RiskEvaluationContext = {
+  action: "inspect" | "install" | "invoke"
+  data_sensitivity: "public" | "internal" | "confidential" | "restricted"
+  execution_mode: "supervised" | "unattended"
+  permissions: Array<
+    | "public_network"
+    | "local_files_read"
+    | "local_files_write"
+    | "credentials"
+    | "personal_data"
+    | "code_execution"
+    | "payments"
+    | "destructive_actions"
+  >
+}
+
+export type RiskEvaluationInput = {
+  context: RiskEvaluationContext
+}
+
+export type RiskEvaluationOutcome = {
+  action_taken: "proceeded" | "changed_tool" | "requested_review" | "aborted"
+  result: "success" | "failure" | "not_executed" | "unknown"
+  error_type:
+    | "unavailable"
+    | "authentication"
+    | "timeout"
+    | "validation"
+    | "permission_denied"
+    | "unsafe"
+    | "wrong_tool"
+    | "other"
+    | null
+  evidence_level: "self_reported" | "observed"
+}
+
+export type RiskEvaluationRecord = {
+  id: string
+  target_tool_id: string
+  target: {
+    id: string
+    slug: string
+    name: string
+    protocol: "mcp" | "api" | "a2a"
+    status: "pending" | "active" | "degraded" | "deprecated" | "suspended"
+    provider: { slug: string; verified: boolean }
+  }
+  policy_version: string
+  context: RiskEvaluationContext
+  decision: "allow" | "review" | "block"
+  confidence: number
+  evidence_coverage: number
+  reason_codes: string[]
+  risk_factors: Array<{
+    code: string
+    severity: "low" | "medium" | "high" | "critical"
+    explanation: string
+  }>
+  evidence: Array<{
+    id: string
+    kind: string
+    status: "pass" | "warn" | "fail" | "unknown"
+    source: string
+    summary: string
+    observed_at: string | null
+  }>
+  unknowns: string[]
+  next_action: string
+  outcome_token_hash: string
+  agent_key: string | null
+  agent_identity_kind: "explicit" | "anonymous" | "internal"
+  client_name: string | null
+  attribution_source: string | null
+  is_external: boolean
+  created_at: string
+  expires_at: string
+  outcome: RiskEvaluationOutcome | null
+  outcome_reported_at: string | null
+}
+
+export type RiskEvaluationSummary = {
+  metric: "privacy_safe_agent_tool_risk_preflight"
+  definition: string
+  window_start: string
+  generated_at: string
+  evaluations: number
+  external_evaluations: number
+  identified_external_agents: number
+  decisions: { allow: number; review: number; block: number }
+  reported_outcomes: number
+  outcome_report_rate: number | null
+  actions: {
+    proceeded: number
+    changed_tool: number
+    requested_review: number
+    aborted: number
+  }
+  results: {
+    success: number
+    failure: number
+    not_executed: number
+    unknown: number
+  }
+  behavior_changes: number
+  behavior_change_rate: number | null
+  policies: Array<{ policy_version: string; evaluations: number }>
+  evidence_notice: string
+}
+
 export type AgentUsageSummary = {
   window_start: string
   generated_at: string
@@ -142,6 +251,15 @@ export interface CatalogStore {
     outcome: { success: boolean }
   ): Promise<{ failCount: number; successStreak: number }>
   recordUsageReceipt?(receipt: UsageReceiptInput): Promise<string>
+  recordRiskEvaluation(evaluation: RiskEvaluationRecord): Promise<void>
+  getRiskEvaluation(id: string): Promise<RiskEvaluationRecord | null>
+  recordRiskEvaluationOutcome(input: {
+    id: string
+    outcome_token_hash: string
+    outcome: RiskEvaluationOutcome
+    reported_at: string
+  }): Promise<"recorded" | "not_found" | "already_reported">
+  riskEvaluationSummary(since?: Date): Promise<RiskEvaluationSummary>
   getEndpointForTool(
     toolId: string
   ): Promise<{ id: string; url: string; transport: string } | null>

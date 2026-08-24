@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto"
 import type {
   ActivationFunnelSummary,
   AgentUsageSummary,
+  RiskEvaluationSummary,
 } from "../domain/store.js"
 import type { ReliabilitySummary } from "../domain/metrics.js"
 import type { ToolCatalogEntry, ToolDiscoveryEntry } from "../tools/types.js"
@@ -20,13 +21,13 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>404.directory — MCP tools for AI Agents</title>
-  <meta name="description" content="A public MCP server for AI Agents to search current official AI and cloud documentation, verify public deployments, and discover trusted read-only tools." />
+  <title>404.directory — Risk preflight for AI Agent tools</title>
+  <meta name="description" content="Evidence-backed allow, review, or block decisions before an AI Agent installs or invokes a third-party MCP server, API, Skill, or tool." />
   <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
   <link rel="canonical" href="https://404.directory/" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="404.directory — MCP tools for AI Agents" />
-  <meta property="og:description" content="Search current official documentation, verify public deployments, and discover trusted read-only Agent tools through one MCP connection." />
+  <meta property="og:title" content="404.directory — Risk preflight for AI Agent tools" />
+  <meta property="og:description" content="Preflight third-party Agent tools with evidence-backed allow, review, or block decisions and bounded outcome receipts." />
   <meta property="og:url" content="https://404.directory/" />
   <meta property="og:image" content="https://404.directory/icon.svg" />
   <meta name="twitter:card" content="summary" />
@@ -38,7 +39,7 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
         "@type": "WebSite",
         "name": "404.directory",
         "url": "https://404.directory/",
-        "description": "Agent Discovery and Trust infrastructure for public read-only MCP tools."
+        "description": "Contextual risk preflight before AI Agents install or invoke third-party tools."
       },
       {
         "@type": "SoftwareApplication",
@@ -51,7 +52,7 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
         "downloadUrl": "https://404.directory/connect",
         "codeRepository": "https://github.com/MM-sheng/404-directory",
         "license": "https://opensource.org/license/mit",
-        "description": "A public MCP server for AI Agents to search current official AI and cloud documentation, verify public deployments, and discover trusted read-only tools.",
+        "description": "Evidence-backed allow, review, or block decisions before AI Agents install or invoke third-party MCP servers, APIs, Skills, or tools.",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       },
       {
@@ -60,7 +61,7 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
           {
             "@type": "Question",
             "name": "What can an AI Agent do with 404.directory?",
-            "acceptedAnswer": { "@type": "Answer", "text": "An Agent can search current first-party OpenAI, Microsoft Learn, AWS, and Cloudflare documentation, verify public deployments, and discover trusted read-only MCP tools." }
+            "acceptedAnswer": { "@type": "Answer", "text": "An Agent can preflight a registered third-party tool before installation or invocation, receive an evidence-backed allow, review, or block decision, and later report a bounded outcome." }
           },
           {
             "@type": "Question",
@@ -217,8 +218,8 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
 <body>
   <main>
     <h1>404.directory</h1>
-    <p class="tagline">One MCP connection for official docs and trusted read-only Agent tools.</p>
-    <p class="definition"><strong>404.directory is a public MCP server for AI Agents.</strong> It searches current first-party AI and cloud documentation, verifies public deployments, and discovers trusted read-only tools. It requires no account or API key and publishes privacy-safe adoption and reliability evidence.</p>
+    <p class="tagline">Risk preflight before an Agent trusts a third-party tool.</p>
+    <p class="definition"><strong>404.directory returns an evidence-backed allow, review, or block decision.</strong> An Agent calls it before installing or invoking a registered MCP server, API, Skill, or tool, then reports one bounded outcome. No account or API key is required.</p>
     <a class="cta" href="/connect?source=homepage">Connect your Agent →</a>
     <section class="skill-install">
       <h2>Install as an Agent Skill</h2>
@@ -226,13 +227,14 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
       <pre><code>npx skills add MM-sheng/404-directory --skill use-404-directory -g -y</code></pre>
     </section>
     <section class="first-call">
-      <h2>Get value on the first call</h2>
-      <code>search_official_docs</code>
-      <p>Search four first-party developer documentation sources in parallel, with source provenance and graceful partial results.</p>
+      <h2>Enter the decision path</h2>
+      <code>evaluate_tool_risk</code>
+      <p>Declare the intended action, data sensitivity, execution mode, and permissions before installing or invoking a third-party tool.</p>
       <div class="providers">
-        <span>OpenAI</span><span>Microsoft Learn</span><span>AWS</span><span>Cloudflare</span>
+        <span>allow</span><span>review</span><span>block</span><span>receipt</span>
       </div>
     </section>
+    <p class="definition">Supporting workflows include <code>search_official_docs</code> for current first-party OpenAI, Microsoft Learn, AWS, and Cloudflare documentation, plus structured public deployment and webpage verification.</p>
     <h2>Built-in web tools</h2>
     <ul>
 ${toolLines}
@@ -240,9 +242,9 @@ ${toolLines}
     <section class="faq">
       <h2>Questions Agents and operators ask</h2>
       <h3>What can an AI Agent do with 404.directory?</h3>
-      <p>Search current first-party documentation, verify a public deployment, or discover and compare trusted read-only MCP tools.</p>
+      <p>Preflight a registered third-party tool before installation or invocation, inspect the evidence and unknowns, and attach one bounded outcome to the receipt.</p>
       <h3>Does it require credentials?</h3>
-      <p>No account or API key is currently required for the public read-only tools.</p>
+      <p>No account or API key is currently required. Risk evaluation does not execute the target; outcome reporting writes only bounded enums through a one-time token.</p>
       <h3>What counts as a real external Agent user?</h3>
       <p>Only a de-duplicated external Agent with a privacy-safe installation identity and at least one successful tool execution. Views, installs, probes, initialization, tool listing, and internal tests do not count.</p>
     </section>
@@ -315,6 +317,7 @@ IDs, and raw IP addresses are not stored in product analytics.
 - Public progress: \`GET /v1/metrics/agents\`
 - Activation and retention: \`GET /v1/metrics/activation\` and \`GET /v1/metrics/agents\`
 - Tool/provider reliability: \`GET /v1/metrics/reliability?days=30\`
+- Risk preflight funnel: \`GET /v1/metrics/risk-evaluations\`
 - Human setup: \`GET /connect\`
 - Agent-readable setup: \`GET /connect.md\`
 
@@ -333,11 +336,12 @@ export function renderPrivacy(): string {
 
 Effective: 2026-08-17
 
-404.directory provides read-only tools that fetch public HTTP(S) URLs supplied by a caller.
+404.directory provides contextual risk preflight for registered third-party tools plus public web inspection and verification.
 
 - Submitted URLs and optional expected text are used only to perform the requested tool call.
 - The service does not require an account and does not use submitted data for advertising.
-- The application does not intentionally persist tool inputs or results in a database. For Agent usage measurement it may store activation stage, tool/provider name and version, success, finite error category, latency, result count, timestamps, safe client label, attribution source, external/internal classification, request ID, and irreversible HMAC digests of optional Agent and MCP session identifiers. Connect views and installer clicks are diagnostic only and do not count as Agent users. Raw Agent IDs, raw MCP session IDs, prompts, arguments, results, and raw IP addresses are not stored in product analytics. Infrastructure logs may retain request metadata such as timestamp, route, status, duration, request ID, and client IP for security and reliability; request bodies are not logged by the application.
+- The application does not intentionally persist tool inputs or results in a database. A risk preflight stores only the registered target snapshot, policy version, enumerated action, data-sensitivity class, execution mode, enumerated permissions, decision, evidence summaries, timestamps, and optional privacy-safe Agent attribution. It returns a one-time outcome token but stores only the token hash. A later outcome contains only bounded action/result enums and is labeled self-reported; it does not directly increase Trust.
+- For Agent usage measurement the application may store activation stage, tool/provider name and version, success, finite error category, latency, result count, timestamps, safe client label, attribution source, external/internal classification, request ID, and irreversible HMAC digests of optional Agent and MCP session identifiers. Connect views and installer clicks are diagnostic only and do not count as Agent users. Raw Agent IDs, raw MCP session IDs, prompts, arguments, results, and raw IP addresses are not stored in product analytics. Infrastructure logs may retain request metadata such as timestamp, route, status, duration, request ID, and client IP for security and reliability; request bodies are not logged by the application.
 - Fetching a submitted URL sends a request from 404.directory infrastructure to that public destination. The destination may process that request under its own policy.
 - Do not submit private, internal, authenticated, personal, or sensitive URLs or content.
 
@@ -531,8 +535,8 @@ export function renderConnectHtml(baseUrl: string, campaign?: string): string {
   <main>
     <a class="back" href="/">← 404.directory</a>
     <h1>Connect an Agent</h1>
-    <p class="lead">One read-only MCP connection for current official documentation, deployment verification, and trusted tool discovery. No account or API key.</p>
-    <div class="badges"><span class="badge">12 tools</span><span class="badge">read-only defaults</span><span class="badge">privacy-safe identity</span></div>
+    <p class="lead">One MCP connection for contextual risk preflight before an Agent installs or invokes a third-party tool. No account or API key.</p>
+    <div class="badges"><span class="badge">14 tools</span><span class="badge">allow / review / block</span><span class="badge">privacy-safe identity</span></div>
     <div class="grid">
       <article class="card">
         <h2>Cursor</h2>
@@ -570,14 +574,14 @@ export function renderConnectHtml(baseUrl: string, campaign?: string): string {
       <pre><code>${escapeHtml(connection.openAiResponsesPayload)}</code></pre>
     </section>
     <section class="first-call">
-      <h2>Complete the first useful call</h2>
+      <h2>Make preflight automatic</h2>
       <p>If your client exposes MCP Prompts, open <code>research-official-docs</code>, <code>verify-public-deployment</code>, or <code>evaluate-agent-tool</code> and provide a real task.</p>
-      <strong>Ask your Agent:</strong>
-      <pre><code>Use search_official_docs to find the current official guidance for MCP Streamable HTTP. Cite the first-party sources and distinguish facts from inference.</code></pre>
+      <strong>Add this Agent policy:</strong>
+      <pre><code>Before installing or first invoking an unfamiliar third-party tool, call evaluate_tool_risk with the intended action, highest data sensitivity, execution mode, and every requested permission. Obey block and pause for human approval on review. Report the later bounded outcome with report_tool_outcome.</code></pre>
       <p>Installation counts only after a non-error tool result. Connection checks, probes, and repeated calls do not count.</p>
     </section>
     <p class="privacy">For the direct configurations above, this page generated <code>${escapeHtml(connection.generatedAgentId)}</code> randomly; keep it stable for that installation. The npm bridge and Claude marketplace plugin create and preserve their own local random IDs. 404.directory stores only an HMAC digest after a successful tool call—never the raw ID, prompt, arguments, or result.</p>
-    <nav class="links"><a href="/connect.md${source ? `?source=${escapeHtml(source)}` : ""}">Agent-readable setup</a><a href="https://github.com/MM-sheng/404-directory/issues/1">External Agent pilot</a><a href="/v1/metrics/agents">Live adoption metric</a><a href="/v1/metrics/reliability">Reliability evidence</a><a href="/privacy">Privacy</a><a href="https://github.com/MM-sheng/404-directory">Source</a></nav>
+    <nav class="links"><a href="/connect.md${source ? `?source=${escapeHtml(source)}` : ""}">Agent-readable setup</a><a href="https://github.com/MM-sheng/404-directory/issues/1">External Agent pilot</a><a href="/v1/metrics/agents">Live adoption metric</a><a href="/v1/metrics/risk-evaluations">Risk preflight evidence</a><a href="/v1/metrics/reliability">Reliability evidence</a><a href="/privacy">Privacy</a><a href="https://github.com/MM-sheng/404-directory">Source</a></nav>
   </main>
 </body>
 </html>`
@@ -674,13 +678,16 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     "  user's actual technical question and cite the returned first-party URLs.",
     "- A deployment claim: call `verify_web` with the public URL plus an expected",
     "  status or release-specific text.",
-    "- Tool selection: call `search_tools`, then inspect the best candidate with",
-    "  `get_tool` and `get_trust_score` before recommending it.",
+    "- Third-party tool installation or first use: call `search_tools` if the",
+    "  exact slug is unknown, then call `evaluate_tool_risk` with the intended",
+    "  action, data sensitivity, execution mode, and every permission. Obey",
+    "  block; pause for human review on review; report the later bounded outcome.",
     "",
     "The connection is activated only after one non-error tool result. One Agent",
     "counts once toward the public target regardless of later calls.",
     "",
     `Progress: ${baseUrl}/v1/metrics/agents`,
+    `Risk preflight: ${baseUrl}/v1/metrics/risk-evaluations`,
     `Reliability: ${baseUrl}/v1/metrics/reliability?days=30`,
     "External Agent pilot: https://github.com/MM-sheng/404-directory/issues/1",
     `Privacy: ${baseUrl}/privacy`,
@@ -693,11 +700,12 @@ export function renderTerms(): string {
 
 Effective: 2026-08-17
 
-404.directory is a public, read-only web inspection and verification service provided as-is.
+404.directory is a public Agent tool risk-preflight, discovery, web inspection, and verification service provided as-is.
 
 - Use it only for public HTTP(S) resources you are authorized to inspect.
 - Do not use it to target private networks, bypass access controls, overload services, or violate applicable law or third-party rights.
 - Results are evidence for agent decisions, not a guarantee of correctness, availability, security, or fitness for a particular purpose.
+- A preflight may store bounded decision context and accept one token-bound, self-reported outcome as described in the privacy policy. It does not independently prove the outcome.
 - Access may be rate-limited, changed, or suspended to protect service stability and safety.
 - Current tools are free and require no authentication. Material pricing or access changes will be disclosed before they apply.
 `
@@ -710,7 +718,8 @@ function percent(value: number | null): string {
 export function renderMetricsDashboard(
   agents: AgentUsageSummary,
   activation: ActivationFunnelSummary,
-  reliability: ReliabilitySummary
+  reliability: ReliabilitySummary,
+  risk: RiskEvaluationSummary
 ): string {
   const sourceRows = activation.sources
     .slice(0, 12)
@@ -780,6 +789,7 @@ export function renderMetricsDashboard(
     <article class="card"><div class="muted">30-day retention</div><div class="value">${percent(agents.retention.day_30.retention_rate)}</div><div class="muted">${agents.retention.day_30.retained_agents}/${agents.retention.day_30.eligible_agents} eligible</div></article>
     <article class="card"><div class="muted">30-day external success rate</div><div class="value">${percent(reliability.overall.success_rate)}</div><div class="muted">${reliability.overall.invocations} observations</div></article>
   </div>
+  <section><h2>Risk preflight</h2><table><thead><tr><th>Evaluations</th><th>External Agents</th><th>Allow</th><th>Review</th><th>Block</th><th>Outcome reports</th><th>Behavior changes</th></tr></thead><tbody><tr><td>${risk.evaluations}</td><td>${risk.identified_external_agents}</td><td>${risk.decisions.allow}</td><td>${risk.decisions.review}</td><td>${risk.decisions.block}</td><td>${risk.reported_outcomes} (${percent(risk.outcome_report_rate)})</td><td>${risk.behavior_changes} (${percent(risk.behavior_change_rate)})</td></tr></tbody></table><p class="muted">${escapeHtml(risk.evidence_notice)}</p></section>
   <section><h2>Activation by source</h2><table><thead><tr><th>Source</th><th>Views</th><th>Installs</th><th>Initialized Agents</th><th>Prompt-opened Agents</th><th>Calling Agents</th><th>Successful Agents</th><th>Failed Agents</th><th>Call rate</th><th>Call success</th><th>Prompt→success</th><th>Activation</th></tr></thead><tbody>${sourceRows || '<tr><td colspan="12">No evidence yet</td></tr>'}</tbody></table></section>
   <section><h2>Tool reliability — last 30 days</h2><table><thead><tr><th>Tool</th><th>Calls</th><th>Agents</th><th>Success</th><th>P95 ms</th><th>Last observed</th></tr></thead><tbody>${toolRows || '<tr><td colspan="6">No external executions yet</td></tr>'}</tbody></table></section>
   <section><h2>Canonical errors — last 30 days</h2><table><thead><tr><th>Error</th><th>Events</th></tr></thead><tbody>${errorRows || '<tr><td colspan="2">No external failures observed</td></tr>'}</tbody></table></section>

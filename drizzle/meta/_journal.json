@@ -50,6 +50,13 @@
       "when": 1787496303000,
       "tag": "0006_session_key_privacy",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787562000000,
+      "tag": "0007_risk_preflight",
+      "breakpoints": true
     }
   ]
 }

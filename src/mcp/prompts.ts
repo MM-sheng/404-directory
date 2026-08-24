@@ -135,9 +135,9 @@ export function registerActivationPrompts(
     server.registerPrompt(
       "evaluate-agent-tool",
       {
-        title: "Find and evaluate an Agent tool",
+        title: "Find and preflight an Agent tool",
         description:
-          "Find trusted MCP tools for a real capability requirement and compare verifiable trust evidence before selection.",
+          "Find an MCP tool for a real requirement, then make a contextual allow, review, or block decision before installation or invocation.",
         argsSchema: {
           capability: z
             .string()
@@ -153,17 +153,55 @@ export function registerActivationPrompts(
             .describe(
               "Optional non-sensitive constraints from the user's task. Never include credentials, private code, or personal data."
             ),
+          action: z
+            .enum(["inspect", "install", "invoke"])
+            .default("install")
+            .describe("The next action the Agent is considering."),
+          data_sensitivity: z
+            .enum(["public", "internal", "confidential", "restricted"])
+            .default("public")
+            .describe("Highest sensitivity of data the tool may receive."),
+          execution_mode: z
+            .enum(["supervised", "unattended"])
+            .default("supervised")
+            .describe("Whether a human supervises this action."),
+          permissions: z
+            .array(
+              z.enum([
+                "public_network",
+                "local_files_read",
+                "local_files_write",
+                "credentials",
+                "personal_data",
+                "code_execution",
+                "payments",
+                "destructive_actions",
+              ])
+            )
+            .max(8)
+            .default([])
+            .describe(
+              "Every permission or side effect required by the action."
+            ),
         },
       },
-      ({ capability, task_context }) =>
+      ({
+        capability,
+        task_context,
+        action,
+        data_sensitivity,
+        execution_mode,
+        permissions,
+      }) =>
         taskMessage(
           [
-            "Evaluate tools for the user's real task using 404.directory's discovery and trust evidence.",
+            "Find and preflight a third-party tool for the user's real task using 404.directory.",
             `First call \`list_capabilities\`. Match this user requirement to the closest returned capability: ${JSON.stringify({ capability_need: capability, ...(task_context ? { task_context } : {}) })}. Do not invent a capability that was not returned.`,
-            "Then call `search_tools` with the selected exact capability, `trust_threshold: 0.7`, and `limit: 5`. If no capability is close, call search_tools with a short keyword query derived from the requirement instead.",
-            "For up to the three most relevant returned candidates, call get_tool and get_trust_score. Compare ownership, availability, compatibility, security, and observed usage; do not collapse missing evidence into a positive score.",
-            "Recommend the smallest suitable read-only tool and state the evidence and remaining uncertainty. Do not invoke a third-party tool unless the user separately requested execution and the catalog entry is active, provider-verified, and allowlisted.",
-            "A rendered prompt, connection, initialize response, or tools/list response is not task completion; require at least one non-error discovery tool result.",
+            "Then call `search_tools` with the selected exact capability and `limit: 5`. If no capability is close, call search_tools with a short keyword query derived from the requirement instead.",
+            `For the best matching candidate, call \`evaluate_tool_risk\` with the exact catalog slug and this context: ${JSON.stringify({ action, data_sensitivity, execution_mode, permissions })}. Do not infer omitted permissions as safe.`,
+            "Obey `block`. On `review`, pause and present the risks and unknowns for human approval or choose another candidate. On `allow`, use only the requested minimum permissions. Do not invoke a third-party tool unless the user separately requested execution.",
+            "After the user or Agent decides or executes, call `report_tool_outcome` with the receipt token and bounded outcome fields. Never send prompts, arguments, outputs, secrets, or personal data in outcome reporting.",
+            "A rendered prompt, connection, initialize response, or tools/list response is not task completion; require a non-error evaluate_tool_risk result.",
           ].join("\n\n")
         )
     )

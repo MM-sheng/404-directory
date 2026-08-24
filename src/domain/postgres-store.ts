@@ -5,6 +5,7 @@ import {
   endpoints,
   invocations,
   providers,
+  riskEvaluations,
   tools,
   toolVersions,
   trustScores,
@@ -18,6 +19,8 @@ import type {
   CatalogStore,
   EnsureToolOptions,
   ProviderRecord,
+  RiskEvaluationRecord,
+  RiskEvaluationOutcome,
   ToolStatus,
   UsageReceiptInput,
 } from "./store.js"
@@ -35,6 +38,7 @@ import {
   type ReliabilitySummary,
 } from "./metrics.js"
 import { nextVerifyBackoffMs } from "./verification.js"
+import { buildRiskEvaluationSummary } from "./risk-metrics.js"
 
 function toolMetadata(input: RegisterToolRequest): Record<string, unknown> {
   return {
@@ -548,6 +552,107 @@ export class PostgresCatalogStore implements CatalogStore {
       })
       .returning({ id: usageReceipts.id })
     return row!.id
+  }
+
+  async recordRiskEvaluation(evaluation: RiskEvaluationRecord): Promise<void> {
+    await this.db.insert(riskEvaluations).values({
+      id: evaluation.id,
+      targetToolId: evaluation.target_tool_id,
+      targetSnapshot: evaluation.target,
+      policyVersion: evaluation.policy_version,
+      context: evaluation.context,
+      decision: evaluation.decision,
+      confidence: String(evaluation.confidence),
+      evidenceCoverage: String(evaluation.evidence_coverage),
+      reasonCodes: evaluation.reason_codes,
+      riskFactors: evaluation.risk_factors,
+      evidence: evaluation.evidence,
+      unknowns: evaluation.unknowns,
+      nextAction: evaluation.next_action,
+      outcomeTokenHash: evaluation.outcome_token_hash,
+      agentKey: evaluation.agent_key,
+      agentIdentityKind: evaluation.agent_identity_kind,
+      clientName: evaluation.client_name,
+      attributionSource: evaluation.attribution_source,
+      isExternal: evaluation.is_external,
+      createdAt: new Date(evaluation.created_at),
+      expiresAt: new Date(evaluation.expires_at),
+    })
+  }
+
+  async getRiskEvaluation(id: string): Promise<RiskEvaluationRecord | null> {
+    const row = await this.db
+      .select()
+      .from(riskEvaluations)
+      .where(eq(riskEvaluations.id, id))
+      .limit(1)
+      .then((rows) => rows[0])
+    if (!row) return null
+    return {
+      id: row.id,
+      target_tool_id: row.targetToolId,
+      target: row.targetSnapshot as RiskEvaluationRecord["target"],
+      policy_version: row.policyVersion,
+      context: row.context as RiskEvaluationRecord["context"],
+      decision: row.decision as RiskEvaluationRecord["decision"],
+      confidence: num(row.confidence),
+      evidence_coverage: num(row.evidenceCoverage),
+      reason_codes: row.reasonCodes,
+      risk_factors: row.riskFactors as RiskEvaluationRecord["risk_factors"],
+      evidence: row.evidence as RiskEvaluationRecord["evidence"],
+      unknowns: row.unknowns,
+      next_action: row.nextAction,
+      outcome_token_hash: row.outcomeTokenHash,
+      agent_key: row.agentKey,
+      agent_identity_kind:
+        row.agentIdentityKind as RiskEvaluationRecord["agent_identity_kind"],
+      client_name: row.clientName,
+      attribution_source: row.attributionSource,
+      is_external: row.isExternal,
+      created_at: row.createdAt.toISOString(),
+      expires_at: row.expiresAt.toISOString(),
+      outcome: row.outcome as RiskEvaluationOutcome | null,
+      outcome_reported_at: row.outcomeReportedAt?.toISOString() ?? null,
+    }
+  }
+
+  async recordRiskEvaluationOutcome(input: {
+    id: string
+    outcome_token_hash: string
+    outcome: RiskEvaluationOutcome
+    reported_at: string
+  }): Promise<"recorded" | "not_found" | "already_reported"> {
+    const updated = await this.db
+      .update(riskEvaluations)
+      .set({
+        outcome: input.outcome,
+        outcomeReportedAt: new Date(input.reported_at),
+      })
+      .where(
+        and(
+          eq(riskEvaluations.id, input.id),
+          eq(riskEvaluations.outcomeTokenHash, input.outcome_token_hash),
+          isNull(riskEvaluations.outcome)
+        )
+      )
+      .returning({ id: riskEvaluations.id })
+    if (updated[0]) return "recorded"
+    const existing = await this.getRiskEvaluation(input.id)
+    if (!existing || existing.outcome_token_hash !== input.outcome_token_hash) {
+      return "not_found"
+    }
+    return "already_reported"
+  }
+
+  async riskEvaluationSummary(since = new Date("2026-01-01T00:00:00.000Z")) {
+    const ids = await this.db
+      .select({ id: riskEvaluations.id })
+      .from(riskEvaluations)
+      .where(gte(riskEvaluations.createdAt, since))
+    const records = (
+      await Promise.all(ids.map((row) => this.getRiskEvaluation(row.id)))
+    ).filter((record): record is RiskEvaluationRecord => Boolean(record))
+    return buildRiskEvaluationSummary(records, since)
   }
 
   async getEndpointForTool(

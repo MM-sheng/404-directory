@@ -1,4 +1,10 @@
-import type { FastifyInstance, FastifyPluginAsync } from "fastify"
+import { performance } from "node:perf_hooks"
+import type {
+  FastifyInstance,
+  FastifyPluginAsync,
+  FastifyRequest,
+  FastifySchema,
+} from "fastify"
 import { ZodError, z } from "zod"
 import type { AppConfig } from "../../config.js"
 import {
@@ -13,6 +19,10 @@ import {
   resolveRegistryAuth,
 } from "../auth.js"
 import { isDiscoverableStatus } from "../lifecycle.js"
+import {
+  agentAttributionFromHeaders,
+  withAgentAttribution,
+} from "../agent-attribution.js"
 import {
   buildCapabilityGraph,
   listCapabilities,
@@ -29,9 +39,19 @@ import {
   verifyOwnershipChallenge,
 } from "../ownership.js"
 import type { CatalogStore } from "../store.js"
+import {
+  EvaluateToolRiskRequestSchema,
+  EvaluationOutcomeRequestSchema,
+  UnknownRiskTargetError,
+  evaluateToolRisk,
+  getRiskEvaluationReceipt,
+  reportRiskEvaluationOutcome,
+} from "../risk-evaluation.js"
+import { trackInvocation } from "../telemetry.js"
 import { refreshTrustForTool } from "../trust.js"
 import { RegisterToolRequestSchema, ToolSearchQuerySchema } from "../types.js"
 import { verifyTool } from "../verification.js"
+import { zodToJsonSchema } from "../../tools/json-schema.js"
 
 function invalidRequest(error: unknown): { error: string; message: string } {
   return {
@@ -66,6 +86,14 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
   options
 ) => {
   const { store, config } = options
+
+  const riskAttribution = (request: FastifyRequest) =>
+    agentAttributionFromHeaders(
+      request.headers,
+      config.AGENT_ANALYTICS_SALT!,
+      undefined,
+      { request_id: request.id }
+    )
 
   app.addHook("onRoute", (routeOptions) => {
     if (routeOptions.url?.startsWith("/v1")) {
@@ -147,6 +175,138 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
             message: error.message,
           })
         }
+        return reply.status(400).send(invalidRequest(error))
+      }
+    }
+  )
+
+  app.post(
+    "/v1/evaluations",
+    {
+      schema: {
+        summary: "Preflight a third-party Agent tool",
+        description:
+          "Return a contextual allow, review, or block decision before installing or invoking a registered tool. Stores only bounded context and evidence; never prompts or payloads.",
+        body: zodToJsonSchema(EvaluateToolRiskRequestSchema),
+      } as FastifySchema,
+    },
+    async (request, reply) => {
+      const started = performance.now()
+      const attribution = riskAttribution(request)
+      try {
+        const input = EvaluateToolRiskRequestSchema.parse(request.body)
+        const evaluation = await withAgentAttribution(attribution, () =>
+          evaluateToolRisk(store, input, config.PUBLIC_BASE_URL)
+        )
+        await withAgentAttribution(attribution, () =>
+          trackInvocation(store, {
+            tool_id: evaluation.target.id,
+            tool_name: "evaluate_tool_risk",
+            source: "http:risk-preflight",
+            success: true,
+            latency_ms: performance.now() - started,
+            result_count: 1,
+          })
+        )
+        return reply
+          .header("cache-control", "no-store")
+          .status(201)
+          .send(evaluation)
+      } catch (error) {
+        await withAgentAttribution(attribution, () =>
+          trackInvocation(store, {
+            tool_name: "evaluate_tool_risk",
+            source: "http:risk-preflight",
+            success: false,
+            latency_ms: performance.now() - started,
+            error_type:
+              error instanceof UnknownRiskTargetError
+                ? "unknown_target"
+                : "invalid_request",
+            result_count: 0,
+          })
+        ).catch(() => undefined)
+        if (error instanceof UnknownRiskTargetError) {
+          return reply.status(404).send({
+            error: "not_found",
+            message: error.message,
+          })
+        }
+        return reply.status(400).send(invalidRequest(error))
+      }
+    }
+  )
+
+  app.get(
+    "/v1/evaluations/:id",
+    {
+      schema: {
+        summary: "Read a public risk decision receipt",
+        description:
+          "Returns the versioned decision, bounded context, evidence, unknowns, and optional bounded outcome. Never returns the outcome token or its hash.",
+      } as FastifySchema,
+    },
+    async (request, reply) => {
+      try {
+        const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
+        const receipt = await getRiskEvaluationReceipt(store, id)
+        if (!receipt) {
+          return reply.status(404).send({
+            error: "not_found",
+            message: `Unknown evaluation receipt: ${id}`,
+          })
+        }
+        return reply.header("cache-control", "no-store").send(receipt)
+      } catch (error) {
+        return reply.status(400).send(invalidRequest(error))
+      }
+    }
+  )
+
+  app.get(
+    "/v1/metrics/risk-evaluations",
+    {
+      schema: {
+        summary: "Get privacy-safe risk preflight metrics",
+        description:
+          "Aggregate evaluation volume, identified external Agents, decision distribution, outcomes, behavior changes, and policy versions.",
+      } as FastifySchema,
+    },
+    async (_request, reply) => {
+      const summary = await store.riskEvaluationSummary()
+      return reply.header("cache-control", "no-store").send(summary)
+    }
+  )
+
+  app.post(
+    "/v1/evaluations/:id/outcome",
+    {
+      schema: {
+        summary: "Attach one bounded outcome to a risk decision",
+        description:
+          "Requires the one-time token returned by the evaluation. Self-reported outcomes do not directly increase Trust.",
+        body: zodToJsonSchema(EvaluationOutcomeRequestSchema),
+      } as FastifySchema,
+    },
+    async (request, reply) => {
+      try {
+        const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
+        const outcome = EvaluationOutcomeRequestSchema.parse(request.body)
+        const status = await reportRiskEvaluationOutcome(store, id, outcome)
+        if (status === "not_found") {
+          return reply.status(404).send({
+            error: "not_found",
+            message: "Receipt or outcome token was not found.",
+          })
+        }
+        return reply.header("cache-control", "no-store").send({
+          receipt_id: id,
+          status,
+          evidence_level: "self_reported",
+          trust_effect:
+            "This report is behavioral evidence and does not directly increase the target Trust score.",
+        })
+      } catch (error) {
         return reply.status(400).send(invalidRequest(error))
       }
     }

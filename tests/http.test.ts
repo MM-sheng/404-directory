@@ -246,9 +246,11 @@ describe("HTTP API", () => {
     expect(home.body).toContain("AWS")
     expect(home.body).toContain("Cloudflare")
     expect(home.body).toContain(
-      '<meta name="description" content="A public MCP server for AI Agents'
+      '<meta name="description" content="Evidence-backed allow, review, or block decisions'
     )
-    expect(home.body).toContain('<link rel="canonical" href="https://404.directory/"')
+    expect(home.body).toContain(
+      '<link rel="canonical" href="https://404.directory/"'
+    )
     expect(home.body).toContain('type="application/ld+json"')
     expect(home.body).toContain('"@type": "SoftwareApplication"')
     expect(home.body).toContain('"@type": "FAQPage"')
@@ -286,7 +288,7 @@ describe("HTTP API", () => {
     expect(connect.body).toContain("awesome-remote.claude-code")
     expect(connect.body).toContain("@mmvv1638/404-directory-mcp")
     expect(connect.body).toContain("awesome-remote.npx")
-    expect(connect.body).toContain("Complete the first useful call")
+    expect(connect.body).toContain("Make preflight automatic")
     expect(connect.body).toContain("research-official-docs")
     expect(connect.body).toContain("OpenAI Responses API")
     expect(connect.body).toContain("search_official_docs")
@@ -507,7 +509,7 @@ describe("HTTP API", () => {
       registry_name: "io.github.MM-sheng/404-directory",
       repository: "https://github.com/MM-sheng/404-directory",
       requires_auth: false,
-      positioning: "agent-discovery-trust-execution",
+      positioning: "agent-tool-risk-preflight",
       tools: ["understand_webpage", "verify_web"],
       prompts: ["verify-public-deployment"],
       discovery_api: null,
@@ -671,6 +673,7 @@ describe("HTTP API", () => {
     expect(dashboard.body).toContain("Real Agent evidence")
     expect(dashboard.body).toContain("Qualified Agents")
     expect(dashboard.body).toContain("7-day retention")
+    expect(dashboard.body).toContain("Risk preflight")
     expect(dashboard.body).toContain("Tool reliability")
     expect(dashboard.body).not.toContain("X-404-Agent-ID")
   })
