@@ -65,21 +65,21 @@ trust-aware discovery of approved read-only MCP tools.
 - Adoption telemetry stores only source/client labels and an optional HMAC of a
   random installation ID after successful external use. It stores no raw Agent
   IDs, prompts, arguments, results, IP addresses, emails, or usernames.
-- The production server and public npm bridge are both version `0.9.2`.
+- The production server and public npm bridge are both version `0.9.3`.
 
 ## Suggested review prompts
 
 1. Search current official OpenAI documentation for remote MCP servers and cite
    the source.
 2. Verify that `https://404.directory/health` returns HTTP 200 and contains the
-   release string `0.9.2`.
+   release string `0.9.3`.
 3. Find a trusted read-only MCP tool for deployment verification and explain
    the trust dimensions used.
 
 ## Separate Claude Code plugin distribution
 
 The source at
-`https://github.com/MM-sheng/404-directory/tree/v0.9.2/distribution/404-directory`
+`https://github.com/MM-sheng/404-directory/tree/v0.9.3/distribution/404-directory`
 remains valid for direct Claude Code plugin installation and validation. It is
 not a substitute for the Claude Connectors Directory submission, and it should
 not be uploaded to the MCPB desktop-extension form.
