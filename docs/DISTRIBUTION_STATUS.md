@@ -1,6 +1,6 @@
 # Distribution status
 
-Last audited: 2026-08-24 11:16 UTC
+Last audited: 2026-08-24 11:41 UTC
 
 This tracker separates a submission from a public listing and a public listing
 from a qualified external Agent. A channel is successful only after it produces
@@ -10,10 +10,10 @@ at least one de-duplicated external Agent with a successful tool execution.
 
 | Surface | Current public state | Prepared state | Next action | Blocker |
 | --- | --- | --- | --- | --- |
-| GitHub | v0.9.2 release tag exists; activation PRs #12-#14 and v0.9.3 preparation PR #15 are merged | v0.9.3 manifests and release code are on `main` at `0bd82e7` | Create the v0.9.3 tag only with action-time release authorization | Tag triggers npm and Official Registry publication |
-| npm | v0.9.2 public | v0.9.3 package manifest and dry-run pack pass | Publish through the trusted workflow only after action-time tag authorization | v0.9.3 tag not created |
-| Official MCP Registry | v0.9.2 public | v0.9.3 `server.json` matches the npm package version | Publish after npm through the tag workflow | v0.9.3 tag not created |
-| Production | Cloud Run v0.9.2, 12 MCP tools | v0.9.3 service tests, typecheck, lint and build pass | Back up, deploy a canary, smoke test, then shift traffic only with production authorization | Production deployment not authorized |
+| GitHub | v0.9.3 tag points to `main` at `2396798`; release workflow passed | Activation and tool-only client paths are released | Keep the tag immutable and monitor downstream propagation | None |
+| npm | `@mmvv1638/404-directory-mcp@0.9.3` public and `latest` | Identity-preserving bridge and ownership metadata verified | Measure qualified calls attributed to npm distribution sources | None |
+| Official MCP Registry | `io.github.MM-sheng/404-directory` v0.9.3 public | Remote HTTP and npm package entries both published | Measure qualified calls from `official-registry` | None |
+| Production | Cloud Run revision `directory-404-v093-2396798` serves 100% of traffic; v0.9.3 exposes 12 MCP tools and 3 prompts | Database backup, migration check, canary smoke and production smoke passed | Monitor errors, activation stages and qualified external usage | None |
 
 ## Marketplace and directory surfaces
 
@@ -23,7 +23,7 @@ at least one de-duplicated external Agent with a successful tool execution.
 | Claude Connectors Directory | Official process re-audited against current Anthropic documentation | Not submitted; the old remote form is deprecated and the open Google form is for local MCPB extensions | Use the Claude.ai organization portal as a remote MCP connector; requires Team/Enterprise plus Directory management access |
 | MCP.Directory | Submission page reported that the repository was already submitted | In review queue, not proof of public listing | Do not resubmit; check listing after the review window |
 | mcpservers.org | Public form inspected and valid public fields prepared | Not submitted | Owner supplies/approves contact email and confirms the representational submission |
-| GitHub MCP Registry | Not found in public discovery during this audit | Nomination not sent | After v0.9.2, Owner approves the official nomination email; measure Copilot/CLI attribution |
+| GitHub MCP Registry | Not found in public discovery during this audit | Nomination not sent | Owner approves the official nomination email; measure Copilot/CLI attribution against v0.9.3 |
 | Glama | Public connector is Healthy but still exposes the old two-tool snapshot | Listed with stale metadata; production exposes 12 tools | Claiming requires publishing a maintainer email that matches a Glama account; obtain owner approval before exposing it, then request/rescan the listing |
 
 ## Open upstream pull requests
@@ -47,15 +47,16 @@ at least one de-duplicated external Agent with a successful tool execution.
 
 ## Additional directory actions
 
-- A v0.9.2 GitHub Release now exists at
-  `https://github.com/MM-sheng/404-directory/releases/tag/v0.9.2`.
+- The v0.9.3 release tag is public at
+  `https://github.com/MM-sheng/404-directory/tree/v0.9.3`; npm and the
+  Official MCP Registry publish workflow passed for the same commit.
 - A source-labelled submission was added to the canonical mcp.so intake issue.
 - GitHub's public MCP Registry does not yet show 404.directory. A nomination
   email is prepared as an unsent draft and still requires owner review and
   explicit send authorization.
 - MCPCentral already lists `io.github.MM-sheng/404-directory` at v0.9.0 and
   documents automatic synchronization from the Official MCP Registry; avoid a
-  duplicate manual submission while v0.9.2 propagates.
+  duplicate manual submission while v0.9.3 propagates.
 - PulseMCP has paused new submissions. Smithery requires account
   authentication. The appcypher upstream repository is archived, so it cannot
   accept a new pull request.
