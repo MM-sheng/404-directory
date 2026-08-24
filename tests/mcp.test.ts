@@ -2,7 +2,9 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { afterEach, describe, expect, it } from "vitest"
 import { z } from "zod"
+import { MemoryCatalogStore } from "../src/domain/memory-store.js"
 import { createMcpServerFromRegistry } from "../src/mcp/create-server.js"
+import type { RemoteMcpGateway } from "../src/mcp/remote-gateway.js"
 import { createVerifyWebTool } from "../src/tools/definitions/verify-web.js"
 import { ToolRegistry } from "../src/tools/registry.js"
 import type { ToolDefinition } from "../src/tools/types.js"
@@ -13,8 +15,12 @@ afterEach(async () => {
   await Promise.all(clients.splice(0).map((client) => client.close()))
 })
 
-async function connect(registry: ToolRegistry): Promise<Client> {
-  const server = createMcpServerFromRegistry(registry)
+async function connect(
+  registry: ToolRegistry,
+  catalog?: MemoryCatalogStore,
+  gateway?: RemoteMcpGateway
+): Promise<Client> {
+  const server = createMcpServerFromRegistry(registry, catalog, gateway)
   const client = new Client({ name: "test-client", version: "1.0.0" })
   const [clientTransport, serverTransport] =
     InMemoryTransport.createLinkedPair()
@@ -51,6 +57,83 @@ describe("registry MCP adapter", () => {
     const verify = tools.tools.find((tool) => tool.name === "verify_web")
     expect(verify?.description).toContain(
       "Do not call this merely before or alongside understand_webpage"
+    )
+    expect(
+      (await client.listPrompts()).prompts.map((prompt) => prompt.name)
+    ).toEqual(["verify-public-deployment"])
+  })
+
+  it("exposes task-oriented prompts that require real tool execution", async () => {
+    const registry = new ToolRegistry().register(
+      createVerifyWebTool({
+        timeoutMs: 2_000,
+        maxBodyBytes: 1_024,
+        maxRedirects: 2,
+      })
+    )
+    const gateway: RemoteMcpGateway = {
+      inspect: async () => [],
+      invoke: async () => ({
+        is_error: false,
+        content: [],
+        truncated: false,
+      }),
+    }
+    const catalog = new MemoryCatalogStore()
+    const client = await connect(registry, catalog, gateway)
+
+    const prompts = await client.listPrompts()
+    expect(prompts.prompts.map((prompt) => prompt.name)).toEqual([
+      "research-official-docs",
+      "verify-public-deployment",
+      "evaluate-agent-tool",
+    ])
+    expect((await client.listTools()).tools.map((tool) => tool.name)).toEqual(
+      expect.arrayContaining([
+        "verify_web",
+        "search_official_docs",
+        "search_tools",
+        "get_tool",
+        "get_trust_score",
+      ])
+    )
+
+    const research = await client.getPrompt({
+      name: "research-official-docs",
+      arguments: {
+        question: "How do remote MCP tools work?",
+        provider: "openai",
+      },
+    })
+    const researchText =
+      research.messages[0]?.content.type === "text"
+        ? research.messages[0].content.text
+        : ""
+    expect(researchText).toContain("search_official_docs")
+    expect(researchText).toContain('"sources":["openai"]')
+    expect(researchText).toContain("not task completion")
+
+    const verification = await client.getPrompt({
+      name: "verify-public-deployment",
+      arguments: {
+        url: "https://example.com/release",
+        expected_status: "200",
+        expected_text: "release-2026-08-24",
+      },
+    })
+    expect(JSON.stringify(verification.messages)).toContain("verify_web")
+    expect(JSON.stringify(verification.messages)).toContain(
+      "release-2026-08-24"
+    )
+
+    const evaluation = await client.getPrompt({
+      name: "evaluate-agent-tool",
+      arguments: { capability: "official documentation search" },
+    })
+    expect(JSON.stringify(evaluation.messages)).toContain("search_tools")
+    expect(JSON.stringify(evaluation.messages)).toContain("get_trust_score")
+    expect((await catalog.agentUsageSummary()).identified_external_agents).toBe(
+      0
     )
   })
 

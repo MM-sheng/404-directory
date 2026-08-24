@@ -28,6 +28,12 @@ Invocation events may contain only:
 Activation events may contain only stage, source, safe client label, optional
 Agent HMAC, identity kind, external classification and time.
 
+The activation stream can record `prompts_list` and `prompt_get` for MCP
+`prompts/list` and `prompts/get`. These events contain only the stage and the
+same safe attribution fields; prompt name, prompt arguments and rendered text
+are never persisted. They measure whether task-oriented prompts are exposed and
+selected, but never count as qualified usage.
+
 The activation summary derives `tool_attempt`, `successful_tool`, and
 `failed_tool` stages from the same invocation records. It does not create a
 second copy of tool-call data. Per source it reports:
@@ -36,6 +42,8 @@ second copy of tool-call data. Per source it reports:
   Agents;
 - tool success rate: identified Agents with a success / identified Agents with
   any attempt;
+- prompt activation rate: identified Agents that both selected an MCP prompt
+  and later succeeded / identified Agents that selected an MCP prompt;
 - activation rate: identified Agents with a success / identified initialized
   Agents.
 

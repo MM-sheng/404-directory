@@ -9,6 +9,7 @@ import {
 import type { ToolRegistry } from "../tools/registry.js"
 import { SERVICE_VERSION } from "../version.js"
 import { registerDiscoveryMcpTools } from "./discovery-tools.js"
+import { registerActivationPrompts } from "./prompts.js"
 import type { RemoteMcpGateway } from "./remote-gateway.js"
 
 /** Machine-discoverable catalog and trust tools. */
@@ -126,6 +127,12 @@ export function createMcpServerFromRegistry(
   if (catalog) {
     registerDiscoveryMcpTools(server, catalog, gateway)
   }
+
+  registerActivationPrompts(server, {
+    hasCatalog: Boolean(catalog),
+    hasGateway: Boolean(catalog && gateway),
+    activeToolNames: new Set(registry.listActive().map((tool) => tool.name)),
+  })
 
   return server
 }

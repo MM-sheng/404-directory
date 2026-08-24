@@ -216,7 +216,7 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
     return {
       metric: "privacy_safe_agent_activation_funnel",
       definition:
-        "Observed connection and installation activity plus de-duplicated external Agents at MCP initialization, tools/list, tool-call attempt, failure, and successful execution. Connect views, install clicks, initialization, listing, attempts, and failures are diagnostic only; only a successful tool execution counts toward the 1,000-Agent target.",
+        "Observed connection and installation activity plus de-duplicated external Agents at MCP initialization, tools/list, prompts/list, prompts/get, tool-call attempt, failure, and successful execution. Connect views, install clicks, initialization, listing, prompt activity, attempts, and failures are diagnostic only; only a successful tool execution counts toward the 1,000-Agent target.",
       ...funnel,
     }
   })

@@ -119,6 +119,14 @@ describe("postgres ensureTool idempotency", () => {
         agent_identity_kind: "explicit",
         is_external: true,
       })
+      await store.recordActivationEvent({
+        stage: "prompt_get",
+        source: metricSource,
+        client: "postgres-test-client",
+        agent_key: `a1_postgres_${suffix}`,
+        agent_identity_kind: "explicit",
+        is_external: true,
+      })
 
       const agents = await store.agentUsageSummary(
         new Date(Date.now() - 60_000)
@@ -142,12 +150,16 @@ describe("postgres ensureTool idempotency", () => {
         expect.objectContaining({
           source: metricSource,
           initialized_agents: 1,
+          prompt_get_events: 1,
+          prompt_get_agents: 1,
+          prompt_activated_agents: 1,
           tool_call_events: 1,
           tool_call_agents: 1,
           failed_invocations: 0,
           successful_invocations: 1,
           tool_call_rate: 1,
           tool_success_rate: 1,
+          prompt_activation_rate: 1,
           activation_rate: 1,
         })
       )
