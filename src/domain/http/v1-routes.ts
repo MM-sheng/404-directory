@@ -206,7 +206,7 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
     return {
       metric: "identified_external_agents_with_successful_tool_execution",
       definition:
-        "Unique privacy-safe X-404-Agent-ID digests from external clients with at least one successful tool execution since 2026-01-01. Probes, internal tests, anonymous calls, prompts, arguments, and raw identifiers are excluded.",
+        "Unique privacy-safe Agent ID digests from external clients with at least one successful tool execution since 2026-01-01. IDs may arrive through X-404-Agent-ID or a dedicated MCP bearer installation token. Probes, internal tests, anonymous calls, prompts, arguments, and raw identifiers are excluded.",
       ...metrics,
     }
   })

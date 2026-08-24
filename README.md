@@ -253,7 +253,7 @@ client-IP header (or the socket IP locally).
 Point MCP clients at `https://404.directory/mcp` (or local `http://127.0.0.1:4040/mcp`).
 
 The hosted endpoint can also be used directly as an OpenAI Responses API
-remote MCP tool. A copy-ready payload with privacy-safe attribution headers is
+remote MCP tool. A copy-ready payload with a privacy-safe installation token is
 available in [`llms-install.md`](./llms-install.md#openai-responses-api); see the
 [official OpenAI MCP guide](https://developers.openai.com/api/docs/guides/tools-connectors-mcp).
 
@@ -263,6 +263,12 @@ digest, never the raw ID, prompts, arguments, or results. `X-404-Source` is an
 optional lowercase attribution label. Public progress is available at
 `GET /v1/metrics/agents`; complete client examples are at
 `https://404.directory/connect`.
+
+OpenAI Responses does not document arbitrary remote MCP request headers. Its
+example instead uses the supported MCP `authorization` field with a generated
+`agent:<uuid>@<source>` installation token. 404.directory accepts only that
+strict non-personal shape as an Agent identity; unrelated OAuth bearer tokens
+remain anonymous and are never treated as Agent IDs.
 
 The privacy-safe activation funnel is available at
 `GET /v1/metrics/activation`. It reports observed Connect views and installer

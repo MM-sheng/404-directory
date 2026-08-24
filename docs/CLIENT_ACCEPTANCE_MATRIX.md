@@ -30,6 +30,27 @@ Every supported path must complete:
 | OpenAI Responses API | remote MCP tool configuration | Submission/review payload validation | One external application performs a useful call with its stable deployment ID | `openai-responses` |
 | Generic Streamable HTTP | `https://404.directory/mcp` with headers | Release smoke covers initialize/list/call and protocol headers | One independent MCP SDK/client repeats the flow | supplied safe label or `direct` |
 
+## MCP capability compatibility
+
+The activation path must follow capabilities the client documents, rather than
+assuming every MCP surface is universal:
+
+| Client/API               | Documented MCP surface                                                                            | First useful-call strategy                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Cursor                   | Tools, prompts, resources, roots and elicitation are documented as supported                      | Offer the three task prompts, while still requiring a successful tool result |
+| Claude API MCP connector | Tool calls only are currently documented                                                          | Give a task-specific tool instruction; do not depend on `prompts/list`       |
+| OpenAI Responses API     | Remote MCP tool discovery and calls, tool filtering, approval policy and forced MCP `tool_choice` | Limit the first request to `search_official_docs` and force that tool once   |
+
+Official references:
+
+- Cursor: https://docs.cursor.com/context/model-context-protocol
+- Claude API: https://platform.claude.com/docs/en/agents-and-tools/mcp-connector
+- OpenAI Responses API: https://developers.openai.com/api/docs/guides/tools-connectors-mcp
+
+Until a client's official documentation establishes MCP Prompt support, treat
+that path as tool-only. A prompt selection never counts toward activation by
+itself.
+
 ## Evidence record template
 
 Record one row per real validation. Never paste prompts, arguments, results,

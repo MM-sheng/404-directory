@@ -81,20 +81,30 @@ this application or deployment instead of generating a new value per request:
       "server_label": "directory_404",
       "server_description": "Search current official AI and cloud documentation, verify public deployments, and discover trusted read-only Agent tools.",
       "server_url": "https://404.directory/mcp",
-      "headers": {
-        "X-404-Agent-ID": "agent:REPLACE_WITH_THE_GENERATED_UUID",
-        "X-404-Source": "openai-responses"
-      },
+      "authorization": "agent:REPLACE_WITH_THE_GENERATED_UUID@openai-responses",
+      "allowed_tools": ["search_official_docs"],
       "require_approval": "never"
     }
   ],
+  "tool_choice": {
+    "type": "mcp",
+    "server_label": "directory_404",
+    "name": "search_official_docs"
+  },
   "input": "Use search_official_docs to find the current OpenAI guidance for remote MCP servers and cite the official sources."
 }
 ```
 
 Send this payload to `POST https://api.openai.com/v1/responses` with the normal
-OpenAI API authorization header. The `X-404-*` headers go inside the MCP tool
-configuration; do not send them to the OpenAI API itself.
+OpenAI API authorization header. The MCP tool's `authorization` value is a
+separate, random, non-personal installation token used only for privacy-safe
+404.directory attribution; it does not grant access. Persist it for this Agent
+deployment and never replace it with an email address, user name, or API key.
+
+`tool_choice` forces the named remote MCP tool for this first real task instead
+of relying on automatic selection. Remove it after activation when the
+application should decide among multiple tools. OpenAI API usage may incur
+charges; 404.directory itself currently requires no account or API key.
 
 Official OpenAI reference:
 https://developers.openai.com/api/docs/guides/tools-connectors-mcp
