@@ -1,6 +1,6 @@
 # Distribution status
 
-Last audited: 2026-08-24 11:41 UTC
+Last audited: 2026-08-24 12:07 UTC
 
 This tracker separates a submission from a public listing and a public listing
 from a qualified external Agent. A channel is successful only after it produces
@@ -13,15 +13,16 @@ at least one de-duplicated external Agent with a successful tool execution.
 | GitHub | v0.9.3 tag points to `main` at `2396798`; release workflow passed | Activation and tool-only client paths are released | Keep the tag immutable and monitor downstream propagation | None |
 | npm | `@mmvv1638/404-directory-mcp@0.9.3` public and `latest` | Identity-preserving bridge and ownership metadata verified | Measure qualified calls attributed to npm distribution sources | None |
 | Official MCP Registry | `io.github.MM-sheng/404-directory` v0.9.3 public | Remote HTTP and npm package entries both published | Measure qualified calls from `official-registry` | None |
-| Production | Cloud Run revision `directory-404-v093-2396798` serves 100% of traffic; v0.9.3 exposes 12 MCP tools and 3 prompts | Database backup, migration check, canary smoke and production smoke passed | Monitor errors, activation stages and qualified external usage | None |
+| Production | Cloud Run revision `directory-404-aidisc-cbda6a7` serves 100% of traffic; v0.9.3 exposes 12 MCP tools, 3 prompts, AI-readable metadata and explicit crawler access | Database backup, migration check, canary smoke, production smoke and discovery metadata validation passed | Monitor errors, activation stages, qualified external usage and citation discovery | None |
 
 ## Marketplace and directory surfaces
 
 | Channel | Evidence checked | State | Next action |
 | --- | --- | --- | --- |
-| Cursor Marketplace | Signed-in publisher form inspected; public fields prepared with the production icon and repository | Not submitted; Contact email is blank and Publisher Terms have not been accepted | Owner supplies/approves the contact email, reviews the Publisher Terms, and gives action-time confirmation before submission |
+| Cursor Marketplace | Signed-in publisher form accepted the public project fields, owner-approved contact address and Publisher Terms | Submitted on 2026-08-24; Cursor displayed “Thanks for applying” | Wait for review email; after listing, run one external Cursor task and measure the Cursor source label |
 | Claude Connectors Directory | Official process re-audited against current Anthropic documentation | Not submitted; the old remote form is deprecated and the open Google form is for local MCPB extensions | Use the Claude.ai organization portal as a remote MCP connector; requires Team/Enterprise plus Directory management access |
 | MCP.Directory | Submission page reported that the repository was already submitted | In review queue, not proof of public listing | Do not resubmit; check listing after the review window |
+| IndexMCP | Free no-login form and documented submit API were tried without optional email | Not submitted; both the form and `.co` API return a provider-side schema-cache error because the `submissions.category` column is missing; documented `.com` endpoint returns 404 | Recheck only after IndexMCP fixes its backend; do not claim a submission or keep retrying the broken endpoint |
 | mcpservers.org | Public form inspected and valid public fields prepared | Not submitted | Owner supplies/approves contact email and confirms the representational submission |
 | GitHub MCP Registry | Not found in public discovery during this audit | Nomination not sent | Owner approves the official nomination email; measure Copilot/CLI attribution against v0.9.3 |
 | Glama | Public connector is Healthy but still exposes the old two-tool snapshot | Listed with stale metadata; production exposes 12 tools | Claiming requires publishing a maintainer email that matches a Glama account; obtain owner approval before exposing it, then request/rescan the listing |
