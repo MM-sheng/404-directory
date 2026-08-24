@@ -455,6 +455,7 @@ export function renderConnectHtml(baseUrl: string, campaign?: string): string {
     </section>
     <section class="first-call">
       <h2>Complete the first useful call</h2>
+      <p>If your client exposes MCP Prompts, open <code>research-official-docs</code>, <code>verify-public-deployment</code>, or <code>evaluate-agent-tool</code> and provide a real task.</p>
       <strong>Ask your Agent:</strong>
       <pre><code>Use search_official_docs to find the current official guidance for MCP Streamable HTTP. Cite the first-party sources and distinguish facts from inference.</code></pre>
       <p>Installation counts only after a non-error tool result. Connection checks, probes, and repeated calls do not count.</p>
@@ -531,6 +532,11 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     "",
     "## Verify the connection",
     "",
+    "If the client exposes MCP Prompts, open `research-official-docs`,",
+    "`verify-public-deployment`, or `evaluate-agent-tool` and provide one real",
+    "task. Opening a prompt is diagnostic only; it must lead to a successful",
+    "tool call.",
+    "",
     "Complete one task the user already needs; never call a tool only to create",
     "traffic. Choose the smallest relevant first call:",
     "",
@@ -582,10 +588,11 @@ export function renderMetricsDashboard(
       (source) => `<tr>
         <td><code>${escapeHtml(source.source)}</code></td>
         <td>${source.connect_views}</td><td>${source.install_clicks}</td>
-        <td>${source.initialized_agents}</td><td>${source.tool_call_agents}</td>
+        <td>${source.initialized_agents}</td><td>${source.prompt_get_agents}</td><td>${source.tool_call_agents}</td>
         <td>${source.successful_agents}</td><td>${source.failed_agents}</td>
         <td>${percent(source.tool_call_rate)}</td>
         <td>${percent(source.tool_success_rate)}</td>
+        <td>${percent(source.prompt_activation_rate)}</td>
         <td>${percent(source.activation_rate)}</td>
       </tr>`
     )
@@ -643,7 +650,7 @@ export function renderMetricsDashboard(
     <article class="card"><div class="muted">30-day retention</div><div class="value">${percent(agents.retention.day_30.retention_rate)}</div><div class="muted">${agents.retention.day_30.retained_agents}/${agents.retention.day_30.eligible_agents} eligible</div></article>
     <article class="card"><div class="muted">30-day external success rate</div><div class="value">${percent(reliability.overall.success_rate)}</div><div class="muted">${reliability.overall.invocations} observations</div></article>
   </div>
-  <section><h2>Activation by source</h2><table><thead><tr><th>Source</th><th>Views</th><th>Installs</th><th>Initialized Agents</th><th>Calling Agents</th><th>Successful Agents</th><th>Failed Agents</th><th>Call rate</th><th>Call success</th><th>Activation</th></tr></thead><tbody>${sourceRows || '<tr><td colspan="10">No evidence yet</td></tr>'}</tbody></table></section>
+  <section><h2>Activation by source</h2><table><thead><tr><th>Source</th><th>Views</th><th>Installs</th><th>Initialized Agents</th><th>Prompt-opened Agents</th><th>Calling Agents</th><th>Successful Agents</th><th>Failed Agents</th><th>Call rate</th><th>Call success</th><th>Prompt→success</th><th>Activation</th></tr></thead><tbody>${sourceRows || '<tr><td colspan="12">No evidence yet</td></tr>'}</tbody></table></section>
   <section><h2>Tool reliability — last 30 days</h2><table><thead><tr><th>Tool</th><th>Calls</th><th>Agents</th><th>Success</th><th>P95 ms</th><th>Last observed</th></tr></thead><tbody>${toolRows || '<tr><td colspan="6">No external executions yet</td></tr>'}</tbody></table></section>
   <section><h2>Canonical errors — last 30 days</h2><table><thead><tr><th>Error</th><th>Events</th></tr></thead><tbody>${errorRows || '<tr><td colspan="2">No external failures observed</td></tr>'}</tbody></table></section>
   <p class="muted">Generated ${escapeHtml(agents.generated_at)}. Raw Agent IDs, session IDs, prompts, arguments and results are never shown.</p>

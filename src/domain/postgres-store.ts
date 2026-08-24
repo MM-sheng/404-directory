@@ -710,6 +710,10 @@ export class PostgresCatalogStore implements CatalogStore {
         initializedAgents: sql<number>`count(distinct ${activationEvents.agentKey}) filter (where ${activationEvents.stage} = 'mcp_initialize' and ${activationEvents.isExternal} = true and ${activationEvents.agentIdentityKind} = 'explicit')::int`,
         toolsListEvents: sql<number>`count(*) filter (where ${activationEvents.stage} = 'tools_list')::int`,
         toolsListedAgents: sql<number>`count(distinct ${activationEvents.agentKey}) filter (where ${activationEvents.stage} = 'tools_list' and ${activationEvents.isExternal} = true and ${activationEvents.agentIdentityKind} = 'explicit')::int`,
+        promptsListEvents: sql<number>`count(*) filter (where ${activationEvents.stage} = 'prompts_list')::int`,
+        promptsListedAgents: sql<number>`count(distinct ${activationEvents.agentKey}) filter (where ${activationEvents.stage} = 'prompts_list' and ${activationEvents.isExternal} = true and ${activationEvents.agentIdentityKind} = 'explicit')::int`,
+        promptGetEvents: sql<number>`count(*) filter (where ${activationEvents.stage} = 'prompt_get')::int`,
+        promptGetAgents: sql<number>`count(distinct ${activationEvents.agentKey}) filter (where ${activationEvents.stage} = 'prompt_get' and ${activationEvents.isExternal} = true and ${activationEvents.agentIdentityKind} = 'explicit')::int`,
       })
       .from(activationEvents)
       .where(gte(activationEvents.createdAt, since))
@@ -731,6 +735,33 @@ export class PostgresCatalogStore implements CatalogStore {
       )
       .groupBy(invocations.attributionSource)
 
+    const promptActivationRows = await this.db
+      .select({
+        source: activationEvents.source,
+        promptActivatedAgents: sql<number>`count(distinct ${activationEvents.agentKey})::int`,
+      })
+      .from(activationEvents)
+      .innerJoin(
+        invocations,
+        and(
+          eq(invocations.attributionSource, activationEvents.source),
+          eq(invocations.agentKey, activationEvents.agentKey),
+          eq(invocations.success, true),
+          eq(invocations.isExternal, true),
+          eq(invocations.agentIdentityKind, "explicit"),
+          gte(invocations.createdAt, since)
+        )
+      )
+      .where(
+        and(
+          gte(activationEvents.createdAt, since),
+          eq(activationEvents.stage, "prompt_get"),
+          eq(activationEvents.isExternal, true),
+          eq(activationEvents.agentIdentityKind, "explicit")
+        )
+      )
+      .groupBy(activationEvents.source)
+
     const sourceMap = new Map<
       string,
       ActivationFunnelSummary["sources"][number]
@@ -747,6 +778,11 @@ export class PostgresCatalogStore implements CatalogStore {
         initialized_agents: 0,
         tools_list_events: 0,
         tools_listed_agents: 0,
+        prompts_list_events: 0,
+        prompts_listed_agents: 0,
+        prompt_get_events: 0,
+        prompt_get_agents: 0,
+        prompt_activated_agents: 0,
         tool_call_events: 0,
         tool_call_agents: 0,
         failed_invocations: 0,
@@ -755,6 +791,7 @@ export class PostgresCatalogStore implements CatalogStore {
         successful_agents: 0,
         tool_call_rate: null,
         tool_success_rate: null,
+        prompt_activation_rate: null,
         activation_rate: null,
       }
       sourceMap.set(key, created)
@@ -768,6 +805,10 @@ export class PostgresCatalogStore implements CatalogStore {
       entry.initialized_agents = Number(row.initializedAgents)
       entry.tools_list_events = Number(row.toolsListEvents)
       entry.tools_listed_agents = Number(row.toolsListedAgents)
+      entry.prompts_list_events = Number(row.promptsListEvents)
+      entry.prompts_listed_agents = Number(row.promptsListedAgents)
+      entry.prompt_get_events = Number(row.promptGetEvents)
+      entry.prompt_get_agents = Number(row.promptGetAgents)
     }
     for (const row of invocationSourceRows) {
       const entry = sourceEntry(row.source)
@@ -777,6 +818,11 @@ export class PostgresCatalogStore implements CatalogStore {
       entry.failed_agents = Number(row.failedAgents)
       entry.successful_invocations = Number(row.successfulInvocations)
       entry.successful_agents = Number(row.successfulAgents)
+    }
+    for (const row of promptActivationRows) {
+      sourceEntry(row.source).prompt_activated_agents = Number(
+        row.promptActivatedAgents
+      )
     }
     for (const source of sourceMap.values()) {
       source.tool_call_rate =
@@ -789,6 +835,14 @@ export class PostgresCatalogStore implements CatalogStore {
         source.tool_call_agents > 0
           ? Number(
               (source.successful_agents / source.tool_call_agents).toFixed(4)
+            )
+          : null
+      source.prompt_activation_rate =
+        source.prompt_get_agents > 0
+          ? Number(
+              (
+                source.prompt_activated_agents / source.prompt_get_agents
+              ).toFixed(4)
             )
           : null
       source.activation_rate =
@@ -804,6 +858,8 @@ export class PostgresCatalogStore implements CatalogStore {
       "install_click",
       "mcp_initialize",
       "tools_list",
+      "prompts_list",
+      "prompt_get",
     ] as const
     const byStage = new Map(stageRows.map((row) => [row.stage, row]))
 
@@ -855,6 +911,8 @@ export class PostgresCatalogStore implements CatalogStore {
           b.successful_invocations - a.successful_invocations ||
           b.tool_call_agents - a.tool_call_agents ||
           b.tool_call_events - a.tool_call_events ||
+          b.prompt_get_agents - a.prompt_get_agents ||
+          b.prompt_get_events - a.prompt_get_events ||
           b.initialized_agents - a.initialized_agents ||
           b.initialize_events - a.initialize_events ||
           b.install_clicks - a.install_clicks ||

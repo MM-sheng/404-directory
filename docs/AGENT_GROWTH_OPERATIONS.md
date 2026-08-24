@@ -22,6 +22,10 @@ Record:
 - cumulative and new qualified Agents;
 - remaining Agents and required daily/weekly pace;
 - call rate from identified initialization to any identified tool attempt;
+- prompt exposure and selection from identified `prompts/list` and
+  `prompts/get` events;
+- prompt-to-success rate from an identified prompt selection to an identified
+  successful tool call;
 - tool success rate from identified attempt to identified success;
 - first-success rate from identified initialization to identified success;
 - 7/30-day retention when the cohort is eligible;
@@ -66,7 +70,8 @@ One channel and one major variable per seven-day window:
 1. Give the channel a unique safe source label.
 2. Freeze the page, install path and first task except for the selected variable.
 3. Capture views, install clicks, identified initialization, identified tool
-   attempt, identified failure/success and eligible retention.
+   prompt exposure/selection, identified tool attempt, identified
+   failure/success and eligible retention.
 4. Compare qualified-Agent activation, not raw traffic.
 5. Stop after two windows with zero qualified Agents.
 6. Scale when a channel brings at least five qualified Agents and exceeds the
@@ -76,6 +81,9 @@ One channel and one major variable per seven-day window:
 
 - Monday: freeze the metric snapshot and select the largest bottleneck.
 - Tuesday: fix only that install, activation or reliability bottleneck.
+- When the bottleneck is `tools/list → tools/call`, test a protocol-native task
+  prompt before adding another tool. A prompt experiment succeeds only when it
+  increases qualified successful Agents.
 - Wednesday: onboard real external pilot users.
 - Thursday: advance one high-value marketplace/client/tool-author channel.
 - Friday: close the experiment and choose stop, change or scale.

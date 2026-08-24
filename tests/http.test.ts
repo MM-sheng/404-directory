@@ -213,6 +213,19 @@ describe("HTTP API", () => {
       mcp_protocol_version: "2025-06-18",
       mcp_session_present: false,
     })
+
+    expect(
+      mcpTelemetry({
+        method: "prompts/get",
+        params: {
+          name: "research-official-docs",
+          arguments: { question: "private prompt content must not be logged" },
+        },
+      })
+    ).toEqual({
+      mcp_method: "prompts/get",
+      mcp_session_present: false,
+    })
   })
 
   it("serves homepage, health, tools, and OpenAPI", async () => {
@@ -263,6 +276,7 @@ describe("HTTP API", () => {
     expect(connect.body).toContain("@mmvv1638/404-directory-mcp")
     expect(connect.body).toContain("awesome-remote.npx")
     expect(connect.body).toContain("Complete the first useful call")
+    expect(connect.body).toContain("research-official-docs")
     expect(connect.body).toContain("/connect.md?source=awesome-remote")
     expect(connect.body).toContain(
       "https://github.com/MM-sheng/404-directory/issues/1"
@@ -285,6 +299,7 @@ describe("HTTP API", () => {
     expect(connectMarkdown.body).toContain(
       "Complete one task the user already needs"
     )
+    expect(connectMarkdown.body).toContain("verify-public-deployment")
     expect(connectMarkdown.body).toContain("call `verify_web`")
     expect(connectMarkdown.body).toContain("call `search_tools`")
     expect(connectMarkdown.body).toContain(
@@ -446,6 +461,7 @@ describe("HTTP API", () => {
       requires_auth: false,
       positioning: "agent-discovery-trust-execution",
       tools: ["understand_webpage", "verify_web"],
+      prompts: ["verify-public-deployment"],
       discovery_api: null,
     })
 
@@ -460,7 +476,7 @@ describe("HTTP API", () => {
       url: "https://404.directory/mcp",
       serverInfo: { name: "404.directory", version: SERVICE_VERSION },
       transport: { type: "streamable-http", endpoint: "/mcp" },
-      capabilities: { tools: {} },
+      capabilities: { tools: {}, prompts: {} },
       authentication: { required: false, schemes: [] },
       tools: [
         {
@@ -475,7 +491,7 @@ describe("HTTP API", () => {
         },
       ],
       resources: [],
-      prompts: [],
+      prompts: [expect.objectContaining({ name: "verify-public-deployment" })],
     })
     expect(serverCard.headers["access-control-allow-origin"]).toBe("*")
 
@@ -609,6 +625,81 @@ describe("HTTP API", () => {
     expect(dashboard.body).toContain("7-day retention")
     expect(dashboard.body).toContain("Tool reliability")
     expect(dashboard.body).not.toContain("X-404-Agent-ID")
+  })
+
+  it("serves MCP prompts over HTTP and records only prompt activation stages", async () => {
+    const store = new MemoryCatalogStore()
+    app = await buildApp(mockRegistry(), loadConfig(), store)
+    const headers = {
+      accept: "application/json, text/event-stream",
+      "content-type": "application/json",
+      "mcp-protocol-version": "2025-11-25",
+      "x-404-agent-id": "agent:http-prompt-user-1234",
+      "x-404-source": "prompt-http-test",
+      "user-agent": "external-prompt-client/1.0",
+    }
+
+    const listed = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      headers,
+      payload: {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "prompts/list",
+        params: {},
+      },
+    })
+    expect(listed.statusCode).toBe(200)
+    expect(listed.body).toContain("verify-public-deployment")
+
+    const opened = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      headers,
+      payload: {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "prompts/get",
+        params: {
+          name: "verify-public-deployment",
+          arguments: {
+            url: "https://example.com/release",
+            expected_status: "200",
+          },
+        },
+      },
+    })
+    expect(opened.statusCode).toBe(200)
+    expect(opened.body).toContain("verify_web")
+
+    const activation = await store.activationFunnelSummary()
+    expect(activation.stages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          stage: "prompts_list",
+          events: 1,
+          identified_agents: 1,
+        }),
+        expect.objectContaining({
+          stage: "prompt_get",
+          events: 1,
+          identified_agents: 1,
+        }),
+      ])
+    )
+    expect(activation.sources).toContainEqual(
+      expect.objectContaining({
+        source: "prompt-http-test",
+        prompts_list_events: 1,
+        prompts_listed_agents: 1,
+        prompt_get_events: 1,
+        prompt_get_agents: 1,
+        prompt_activated_agents: 0,
+        successful_agents: 0,
+        prompt_activation_rate: 0,
+      })
+    )
   })
 
   it("emits an OpenAPI document with only resolvable $refs", async () => {

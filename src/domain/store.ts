@@ -45,7 +45,12 @@ export type AgentUsageSummary = {
 }
 
 export type ActivationStage =
-  "connect_view" | "install_click" | "mcp_initialize" | "tools_list"
+  | "connect_view"
+  | "install_click"
+  | "mcp_initialize"
+  | "tools_list"
+  | "prompts_list"
+  | "prompt_get"
 
 export type ActivationEventInput = {
   stage: ActivationStage
@@ -74,6 +79,11 @@ export type ActivationFunnelSummary = {
     initialized_agents: number
     tools_list_events: number
     tools_listed_agents: number
+    prompts_list_events: number
+    prompts_listed_agents: number
+    prompt_get_events: number
+    prompt_get_agents: number
+    prompt_activated_agents: number
     tool_call_events: number
     tool_call_agents: number
     failed_invocations: number
@@ -82,6 +92,7 @@ export type ActivationFunnelSummary = {
     successful_agents: number
     tool_call_rate: number | null
     tool_success_rate: number | null
+    prompt_activation_rate: number | null
     activation_rate: number | null
   }>
 }

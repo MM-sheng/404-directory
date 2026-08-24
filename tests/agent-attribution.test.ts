@@ -275,6 +275,16 @@ describe("privacy-safe Agent attribution", () => {
         is_external: attribution.is_external,
       })
     }
+    for (const stage of ["prompts_list", "prompt_get"] as const) {
+      await store.recordActivationEvent({
+        stage,
+        source: attribution.attribution_source!,
+        client: attribution.client_name,
+        agent_key: attribution.agent_key,
+        agent_identity_kind: attribution.agent_identity_kind,
+        is_external: attribution.is_external,
+      })
+    }
     await trackInvocation(store, {
       tool_name: "search_official_docs",
       source: "mcp",
@@ -326,6 +336,18 @@ describe("privacy-safe Agent attribution", () => {
         anonymous_external_events: 0,
       },
       {
+        stage: "prompts_list",
+        events: 1,
+        identified_agents: 1,
+        anonymous_external_events: 0,
+      },
+      {
+        stage: "prompt_get",
+        events: 1,
+        identified_agents: 1,
+        anonymous_external_events: 0,
+      },
+      {
         stage: "tool_attempt",
         events: 2,
         identified_agents: 2,
@@ -353,6 +375,11 @@ describe("privacy-safe Agent attribution", () => {
           initialized_agents: 2,
           tools_list_events: 3,
           tools_listed_agents: 2,
+          prompts_list_events: 1,
+          prompts_listed_agents: 1,
+          prompt_get_events: 1,
+          prompt_get_agents: 1,
+          prompt_activated_agents: 1,
           tool_call_events: 2,
           tool_call_agents: 2,
           failed_invocations: 1,
@@ -361,6 +388,7 @@ describe("privacy-safe Agent attribution", () => {
           successful_agents: 1,
           tool_call_rate: 1,
           tool_success_rate: 0.5,
+          prompt_activation_rate: 1,
           activation_rate: 0.5,
         }),
       ])

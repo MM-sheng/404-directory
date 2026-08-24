@@ -122,6 +122,23 @@ then invoke one approved tool. Arbitrary URLs, authenticated servers, non-active
 entries, unverified providers, and destructive tools are rejected. Remote
 results are bounded and explicitly marked as untrusted external data.
 
+## MCP task prompts
+
+Clients that expose MCP Prompts also receive three task-oriented starting
+points:
+
+- `research-official-docs` — turns a real technical question into a
+  `search_official_docs` call;
+- `verify-public-deployment` — turns a concrete public deployment claim into a
+  `verify_web` call;
+- `evaluate-agent-tool` — searches and compares catalog trust evidence for a
+  real capability requirement.
+
+Rendering or opening a prompt never counts toward the 1,000-Agent target. Each
+template explicitly requires a non-error tool result that materially answers
+the user's task. The server records only aggregate `prompts/list` and
+`prompts/get` activation stages, never prompt arguments or task text.
+
 ## Capability Graph
 
 Agents can explore shared-capability edges and get related-tool recommendations:
@@ -250,11 +267,13 @@ optional lowercase attribution label. Public progress is available at
 The privacy-safe activation funnel is available at
 `GET /v1/metrics/activation`. It reports observed Connect views and installer
 clicks plus de-duplicated external Agents that completed MCP `initialize`,
-`tools/list`, attempted a tool call, failed a tool call, or completed a
-successful tool execution. The per-source output separates call rate, call
-success rate, and end-to-end activation rate. Every stage except successful
-execution is diagnostic only and never counts toward the 1,000-Agent target.
-No raw Agent IDs, IPs, prompts, arguments, or results are stored in the funnel.
+`tools/list`, `prompts/list`, `prompts/get`, attempted a tool call, failed a tool
+call, or completed a successful tool execution. The per-source output separates
+call rate, call success rate, prompt-to-success rate, and end-to-end activation
+rate. Every stage except successful execution is diagnostic only and never
+counts toward the 1,000-Agent target. Prompt names and arguments are not stored
+in activation events. No raw Agent IDs, IPs, prompts, arguments, or results are
+stored in the funnel.
 
 `GET /v1/metrics/agents` also reports privacy-safe 7/30-day retention cohorts
 and qualified Agent counts by safe client label. An Agent becomes eligible only

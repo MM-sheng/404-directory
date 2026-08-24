@@ -325,6 +325,8 @@ export class MemoryCatalogStore implements CatalogStore {
       "install_click",
       "mcp_initialize",
       "tools_list",
+      "prompts_list",
+      "prompt_get",
     ] as const
     const stages: ActivationFunnelSummary["stages"] = stageOrder.map(
       (stage) => {
@@ -391,6 +393,11 @@ export class MemoryCatalogStore implements CatalogStore {
         initialized_agents: 0,
         tools_list_events: 0,
         tools_listed_agents: 0,
+        prompts_list_events: 0,
+        prompts_listed_agents: 0,
+        prompt_get_events: 0,
+        prompt_get_agents: 0,
+        prompt_activated_agents: 0,
         tool_call_events: 0,
         tool_call_agents: 0,
         failed_invocations: 0,
@@ -399,6 +406,7 @@ export class MemoryCatalogStore implements CatalogStore {
         successful_agents: 0,
         tool_call_rate: null,
         tool_success_rate: null,
+        prompt_activation_rate: null,
         activation_rate: null,
       }
       sourceMap.set(key, created)
@@ -410,8 +418,15 @@ export class MemoryCatalogStore implements CatalogStore {
       if (event.stage === "install_click") source.install_clicks += 1
       if (event.stage === "mcp_initialize") source.initialize_events += 1
       if (event.stage === "tools_list") source.tools_list_events += 1
+      if (event.stage === "prompts_list") source.prompts_list_events += 1
+      if (event.stage === "prompt_get") source.prompt_get_events += 1
     }
-    for (const stage of ["mcp_initialize", "tools_list"] as const) {
+    for (const stage of [
+      "mcp_initialize",
+      "tools_list",
+      "prompts_list",
+      "prompt_get",
+    ] as const) {
       const bySource = new Map<string, Set<string>>()
       for (const event of events) {
         if (
@@ -429,7 +444,9 @@ export class MemoryCatalogStore implements CatalogStore {
       for (const [source, agents] of bySource) {
         const entry = sourceEntry(source)
         if (stage === "mcp_initialize") entry.initialized_agents = agents.size
-        else entry.tools_listed_agents = agents.size
+        if (stage === "tools_list") entry.tools_listed_agents = agents.size
+        if (stage === "prompts_list") entry.prompts_listed_agents = agents.size
+        if (stage === "prompt_get") entry.prompt_get_agents = agents.size
       }
     }
     for (const rows of [attempted, successful, failed]) {
@@ -455,6 +472,29 @@ export class MemoryCatalogStore implements CatalogStore {
       }
     }
 
+    const promptAgentsBySource = new Map<string, Set<string>>()
+    for (const event of events) {
+      if (
+        event.stage !== "prompt_get" ||
+        event.is_external !== true ||
+        event.agent_identity_kind !== "explicit" ||
+        !event.agent_key
+      ) {
+        continue
+      }
+      const agents = promptAgentsBySource.get(event.source) ?? new Set<string>()
+      agents.add(event.agent_key)
+      promptAgentsBySource.set(event.source, agents)
+    }
+    const successfulAgentsBySource = new Map<string, Set<string>>()
+    for (const event of successful) {
+      if (event.agent_identity_kind !== "explicit" || !event.agent_key) continue
+      const source = event.attribution_source ?? "direct"
+      const agents = successfulAgentsBySource.get(source) ?? new Set<string>()
+      agents.add(event.agent_key)
+      successfulAgentsBySource.set(source, agents)
+    }
+
     for (const source of sourceMap.values()) {
       source.tool_call_rate =
         source.initialized_agents > 0
@@ -467,6 +507,25 @@ export class MemoryCatalogStore implements CatalogStore {
           ? Number(
               (source.successful_agents / source.tool_call_agents).toFixed(4)
             )
+          : null
+      source.prompt_activation_rate =
+        source.prompt_get_agents > 0
+          ? (() => {
+              const promptAgents = promptAgentsBySource.get(source.source)
+              const successfulAgents = successfulAgentsBySource.get(
+                source.source
+              )
+              source.prompt_activated_agents = promptAgents
+                ? [...promptAgents].filter((agent) =>
+                    successfulAgents?.has(agent)
+                  ).length
+                : 0
+              return Number(
+                (
+                  source.prompt_activated_agents / source.prompt_get_agents
+                ).toFixed(4)
+              )
+            })()
           : null
       source.activation_rate =
         source.initialized_agents > 0
@@ -488,6 +547,8 @@ export class MemoryCatalogStore implements CatalogStore {
           b.successful_invocations - a.successful_invocations ||
           b.tool_call_agents - a.tool_call_agents ||
           b.tool_call_events - a.tool_call_events ||
+          b.prompt_get_agents - a.prompt_get_agents ||
+          b.prompt_get_events - a.prompt_get_events ||
           b.initialized_agents - a.initialized_agents ||
           b.initialize_events - a.initialize_events ||
           b.install_clicks - a.install_clicks ||
