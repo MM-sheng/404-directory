@@ -5,6 +5,7 @@ import type {
 } from "../domain/store.js"
 import type { ReliabilitySummary } from "../domain/metrics.js"
 import type { ToolCatalogEntry, ToolDiscoveryEntry } from "../tools/types.js"
+import { SERVICE_VERSION } from "../version.js"
 
 export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
   const toolLines = tools
@@ -19,7 +20,63 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>404.directory</title>
+  <title>404.directory — MCP tools for AI Agents</title>
+  <meta name="description" content="A public MCP server for AI Agents to search current official AI and cloud documentation, verify public deployments, and discover trusted read-only tools." />
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+  <link rel="canonical" href="https://404.directory/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="404.directory — MCP tools for AI Agents" />
+  <meta property="og:description" content="Search current official documentation, verify public deployments, and discover trusted read-only Agent tools through one MCP connection." />
+  <meta property="og:url" content="https://404.directory/" />
+  <meta property="og:image" content="https://404.directory/icon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "name": "404.directory",
+        "url": "https://404.directory/",
+        "description": "Agent Discovery and Trust infrastructure for public read-only MCP tools."
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "404.directory",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Any",
+        "softwareVersion": "${SERVICE_VERSION}",
+        "dateModified": "2026-08-24",
+        "url": "https://404.directory/",
+        "downloadUrl": "https://404.directory/connect",
+        "codeRepository": "https://github.com/MM-sheng/404-directory",
+        "license": "https://opensource.org/license/mit",
+        "description": "A public MCP server for AI Agents to search current official AI and cloud documentation, verify public deployments, and discover trusted read-only tools.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What can an AI Agent do with 404.directory?",
+            "acceptedAnswer": { "@type": "Answer", "text": "An Agent can search current first-party OpenAI, Microsoft Learn, AWS, and Cloudflare documentation, verify public deployments, and discover trusted read-only MCP tools." }
+          },
+          {
+            "@type": "Question",
+            "name": "Does 404.directory require credentials?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No account or API key is currently required for the public read-only tools." }
+          },
+          {
+            "@type": "Question",
+            "name": "What counts as a real external Agent user?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Only a de-duplicated external Agent with a privacy-safe installation identity and at least one successful tool execution counts. Views, installs, probes, initialization, tool listing, and internal tests do not count." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
   <style>
     :root {
       --bg: #0b0c0f;
@@ -58,6 +115,10 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
       color: var(--muted);
       font-size: 1.15rem;
     }
+    .definition {
+      margin: 0 0 1.25rem;
+      color: var(--fg);
+    }
     .cta {
       display: inline-block;
       margin: 0 0 2.25rem;
@@ -86,6 +147,17 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
       background: #101318;
     }
     .skill-install p { margin: 0 0 0.65rem; color: var(--muted); }
+    .faq {
+      margin: 0 0 2rem;
+    }
+    .faq h3 {
+      margin: 1rem 0 0.25rem;
+      font-size: 1rem;
+    }
+    .faq p {
+      margin: 0;
+      color: var(--muted);
+    }
     pre {
       margin: 0;
       padding: 0.75rem;
@@ -146,6 +218,7 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
   <main>
     <h1>404.directory</h1>
     <p class="tagline">One MCP connection for official docs and trusted read-only Agent tools.</p>
+    <p class="definition"><strong>404.directory is a public MCP server for AI Agents.</strong> It searches current first-party AI and cloud documentation, verifies public deployments, and discovers trusted read-only tools. It requires no account or API key and publishes privacy-safe adoption and reliability evidence.</p>
     <a class="cta" href="/connect?source=homepage">Connect your Agent →</a>
     <section class="skill-install">
       <h2>Install as an Agent Skill</h2>
@@ -164,6 +237,15 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
     <ul>
 ${toolLines}
     </ul>
+    <section class="faq">
+      <h2>Questions Agents and operators ask</h2>
+      <h3>What can an AI Agent do with 404.directory?</h3>
+      <p>Search current first-party documentation, verify a public deployment, or discover and compare trusted read-only MCP tools.</p>
+      <h3>Does it require credentials?</h3>
+      <p>No account or API key is currently required for the public read-only tools.</p>
+      <h3>What counts as a real external Agent user?</h3>
+      <p>Only a de-duplicated external Agent with a privacy-safe installation identity and at least one successful tool execution. Views, installs, probes, initialization, tool listing, and internal tests do not count.</p>
+    </section>
     <nav>
       <a href="/connect?source=homepage-nav">Connect</a>
       <a href="/tools">Tools</a>

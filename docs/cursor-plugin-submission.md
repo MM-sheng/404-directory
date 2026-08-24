@@ -69,6 +69,6 @@ useful non-error tool result before reporting success.
 1. Search current official OpenAI documentation for remote MCP servers and cite
    the source.
 2. Verify that `https://404.directory/health` returns HTTP 200 and contains the
-   release string `0.9.2`.
+   release string `0.9.3`.
 3. Find a trusted read-only MCP tool for deployment verification and explain
    the trust dimensions used.

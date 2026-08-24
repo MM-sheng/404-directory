@@ -47,8 +47,8 @@ at least one de-duplicated external Agent with a successful tool execution.
 
 ## Additional directory actions
 
-- The v0.9.3 release tag is public at
-  `https://github.com/MM-sheng/404-directory/tree/v0.9.3`; npm and the
+- The v0.9.3 GitHub Release is public at
+  `https://github.com/MM-sheng/404-directory/releases/tag/v0.9.3`; npm and the
   Official MCP Registry publish workflow passed for the same commit.
 - A source-labelled submission was added to the canonical mcp.so intake issue.
 - GitHub's public MCP Registry does not yet show 404.directory. A nomination
