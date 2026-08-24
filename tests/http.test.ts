@@ -283,6 +283,11 @@ describe("HTTP API", () => {
     expect(connectMarkdown.body).toContain("@mmvv1638/404-directory-mcp")
     expect(connectMarkdown.body).toContain("agent-reader.npx")
     expect(connectMarkdown.body).toContain(
+      "Complete one task the user already needs"
+    )
+    expect(connectMarkdown.body).toContain("call `verify_web`")
+    expect(connectMarkdown.body).toContain("call `search_tools`")
+    expect(connectMarkdown.body).toContain(
       "https://github.com/MM-sheng/404-directory/issues/1"
     )
 

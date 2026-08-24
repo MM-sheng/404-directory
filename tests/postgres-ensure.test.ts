@@ -78,6 +78,7 @@ describe("postgres ensureTool idempotency", () => {
       expect(handle).not.toBeNull()
       const store = new PostgresCatalogStore(handle!.db)
       const suffix = Date.now().toString()
+      const metricSource = `postgres-test-${suffix}`
       const tool = await store.ensureTool(
         {
           name: `metric_tool_${suffix}`,
@@ -106,9 +107,17 @@ describe("postgres ensureTool idempotency", () => {
         agent_key: `a1_postgres_${suffix}`,
         agent_identity_kind: "explicit",
         client_name: "postgres-test-client",
-        attribution_source: "postgres-test",
+        attribution_source: metricSource,
         is_external: true,
         result_count: 2,
+      })
+      await store.recordActivationEvent({
+        stage: "mcp_initialize",
+        source: metricSource,
+        client: "postgres-test-client",
+        agent_key: `a1_postgres_${suffix}`,
+        agent_identity_kind: "explicit",
+        is_external: true,
       })
 
       const agents = await store.agentUsageSummary(
@@ -119,6 +128,29 @@ describe("postgres ensureTool idempotency", () => {
         identified_agents: 1,
         successful_invocations: 1,
       })
+
+      const activation = await store.activationFunnelSummary(
+        new Date(Date.now() - 60_000)
+      )
+      expect(activation.stages).toContainEqual({
+        stage: "tool_attempt",
+        events: 1,
+        identified_agents: 1,
+        anonymous_external_events: 0,
+      })
+      expect(activation.sources).toContainEqual(
+        expect.objectContaining({
+          source: metricSource,
+          initialized_agents: 1,
+          tool_call_events: 1,
+          tool_call_agents: 1,
+          failed_invocations: 0,
+          successful_invocations: 1,
+          tool_call_rate: 1,
+          tool_success_rate: 1,
+          activation_rate: 1,
+        })
+      )
 
       const reliability = await store.reliabilitySummary(
         new Date(Date.now() - 60_000)

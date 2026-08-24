@@ -28,6 +28,20 @@ Invocation events may contain only:
 Activation events may contain only stage, source, safe client label, optional
 Agent HMAC, identity kind, external classification and time.
 
+The activation summary derives `tool_attempt`, `successful_tool`, and
+`failed_tool` stages from the same invocation records. It does not create a
+second copy of tool-call data. Per source it reports:
+
+- call rate: identified Agents with any tool attempt / identified initialized
+  Agents;
+- tool success rate: identified Agents with a success / identified Agents with
+  any attempt;
+- activation rate: identified Agents with a success / identified initialized
+  Agents.
+
+These ratios diagnose where activation stops. Only the successful numerator is
+eligible for the public Agent target.
+
 ## Prohibited fields
 
 Product analytics must never store or expose:

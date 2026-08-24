@@ -531,10 +531,18 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     "",
     "## Verify the connection",
     "",
-    "Call `search_official_docs` with a technical question for an immediate",
-    "multi-provider result. For deeper discovery, call `search_tools`, then",
-    "`inspect_tool_server`, then `invoke_registered_tool`. A successful execution counts once toward the",
-    "public unique-Agent target, regardless of how many later calls that Agent makes.",
+    "Complete one task the user already needs; never call a tool only to create",
+    "traffic. Choose the smallest relevant first call:",
+    "",
+    "- Current AI/cloud documentation: call `search_official_docs` with the",
+    "  user's actual technical question and cite the returned first-party URLs.",
+    "- A deployment claim: call `verify_web` with the public URL plus an expected",
+    "  status or release-specific text.",
+    "- Tool selection: call `search_tools`, then inspect the best candidate with",
+    "  `get_tool` and `get_trust_score` before recommending it.",
+    "",
+    "The connection is activated only after one non-error tool result. One Agent",
+    "counts once toward the public target regardless of later calls.",
     "",
     `Progress: ${baseUrl}/v1/metrics/agents`,
     `Reliability: ${baseUrl}/v1/metrics/reliability?days=30`,
@@ -574,7 +582,10 @@ export function renderMetricsDashboard(
       (source) => `<tr>
         <td><code>${escapeHtml(source.source)}</code></td>
         <td>${source.connect_views}</td><td>${source.install_clicks}</td>
-        <td>${source.initialized_agents}</td><td>${source.successful_agents}</td>
+        <td>${source.initialized_agents}</td><td>${source.tool_call_agents}</td>
+        <td>${source.successful_agents}</td><td>${source.failed_agents}</td>
+        <td>${percent(source.tool_call_rate)}</td>
+        <td>${percent(source.tool_success_rate)}</td>
         <td>${percent(source.activation_rate)}</td>
       </tr>`
     )
@@ -632,7 +643,7 @@ export function renderMetricsDashboard(
     <article class="card"><div class="muted">30-day retention</div><div class="value">${percent(agents.retention.day_30.retention_rate)}</div><div class="muted">${agents.retention.day_30.retained_agents}/${agents.retention.day_30.eligible_agents} eligible</div></article>
     <article class="card"><div class="muted">30-day external success rate</div><div class="value">${percent(reliability.overall.success_rate)}</div><div class="muted">${reliability.overall.invocations} observations</div></article>
   </div>
-  <section><h2>Activation by source</h2><table><thead><tr><th>Source</th><th>Views</th><th>Installs</th><th>Initialized Agents</th><th>Successful Agents</th><th>Activation</th></tr></thead><tbody>${sourceRows || '<tr><td colspan="6">No evidence yet</td></tr>'}</tbody></table></section>
+  <section><h2>Activation by source</h2><table><thead><tr><th>Source</th><th>Views</th><th>Installs</th><th>Initialized Agents</th><th>Calling Agents</th><th>Successful Agents</th><th>Failed Agents</th><th>Call rate</th><th>Call success</th><th>Activation</th></tr></thead><tbody>${sourceRows || '<tr><td colspan="10">No evidence yet</td></tr>'}</tbody></table></section>
   <section><h2>Tool reliability — last 30 days</h2><table><thead><tr><th>Tool</th><th>Calls</th><th>Agents</th><th>Success</th><th>P95 ms</th><th>Last observed</th></tr></thead><tbody>${toolRows || '<tr><td colspan="6">No external executions yet</td></tr>'}</tbody></table></section>
   <section><h2>Canonical errors — last 30 days</h2><table><thead><tr><th>Error</th><th>Events</th></tr></thead><tbody>${errorRows || '<tr><td colspan="2">No external failures observed</td></tr>'}</tbody></table></section>
   <p class="muted">Generated ${escapeHtml(agents.generated_at)}. Raw Agent IDs, session IDs, prompts, arguments and results are never shown.</p>

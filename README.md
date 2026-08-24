@@ -250,9 +250,11 @@ optional lowercase attribution label. Public progress is available at
 The privacy-safe activation funnel is available at
 `GET /v1/metrics/activation`. It reports observed Connect views and installer
 clicks plus de-duplicated external Agents that completed MCP `initialize`,
-`tools/list`, and a successful tool execution. Views and clicks are diagnostic
-only and never count toward the 1,000-Agent target. No raw Agent IDs, IPs,
-prompts, arguments, or results are stored in the funnel.
+`tools/list`, attempted a tool call, failed a tool call, or completed a
+successful tool execution. The per-source output separates call rate, call
+success rate, and end-to-end activation rate. Every stage except successful
+execution is diagnostic only and never counts toward the 1,000-Agent target.
+No raw Agent IDs, IPs, prompts, arguments, or results are stored in the funnel.
 
 `GET /v1/metrics/agents` also reports privacy-safe 7/30-day retention cohorts
 and qualified Agent counts by safe client label. An Agent becomes eligible only

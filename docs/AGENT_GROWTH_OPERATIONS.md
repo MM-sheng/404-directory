@@ -21,6 +21,8 @@ Record:
 
 - cumulative and new qualified Agents;
 - remaining Agents and required daily/weekly pace;
+- call rate from identified initialization to any identified tool attempt;
+- tool success rate from identified attempt to identified success;
 - first-success rate from identified initialization to identified success;
 - 7/30-day retention when the cohort is eligible;
 - qualified Agents by source and client;
@@ -63,8 +65,8 @@ One channel and one major variable per seven-day window:
 
 1. Give the channel a unique safe source label.
 2. Freeze the page, install path and first task except for the selected variable.
-3. Capture views, install clicks, identified initialization, identified success
-   and eligible retention.
+3. Capture views, install clicks, identified initialization, identified tool
+   attempt, identified failure/success and eligible retention.
 4. Compare qualified-Agent activation, not raw traffic.
 5. Stop after two windows with zero qualified Agents.
 6. Scale when a channel brings at least five qualified Agents and exceeds the
@@ -81,14 +83,14 @@ One channel and one major variable per seven-day window:
 
 ## Milestone gates
 
-| Cumulative Agents | Evidence required before proceeding |
-| ---: | --- |
-| 10 | Individual admission audit, first-success time and first 7-day cohort |
-| 50 | At least one repeatable source and two leading real task categories |
-| 100 | Three client sources, three used tools/providers, retention baseline and a decision on signed-receipt research |
-| 300 | Two effective sources, controlled error rate and no source over 70% without a diversification plan |
-| 600 | Reliable acquisition pace, anomaly review and stable provider performance |
-| 1,000 | Strict metric proof, 7/30-day retention, source/tool/provider breakdown and final definition snapshot |
+| Cumulative Agents | Evidence required before proceeding                                                                            |
+| ----------------: | -------------------------------------------------------------------------------------------------------------- |
+|                10 | Individual admission audit, first-success time and first 7-day cohort                                          |
+|                50 | At least one repeatable source and two leading real task categories                                            |
+|               100 | Three client sources, three used tools/providers, retention baseline and a decision on signed-receipt research |
+|               300 | Two effective sources, controlled error rate and no source over 70% without a diversification plan             |
+|               600 | Reliable acquisition pace, anomaly review and stable provider performance                                      |
+|             1,000 | Strict metric proof, 7/30-day retention, source/tool/provider breakdown and final definition snapshot          |
 
 ## Stop rules
 

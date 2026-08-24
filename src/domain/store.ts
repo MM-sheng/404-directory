@@ -61,7 +61,7 @@ export type ActivationFunnelSummary = {
   generated_at: string
   privacy: string
   stages: Array<{
-    stage: ActivationStage | "successful_tool"
+    stage: ActivationStage | "tool_attempt" | "successful_tool" | "failed_tool"
     events: number
     identified_agents: number
     anonymous_external_events: number
@@ -74,8 +74,14 @@ export type ActivationFunnelSummary = {
     initialized_agents: number
     tools_list_events: number
     tools_listed_agents: number
+    tool_call_events: number
+    tool_call_agents: number
+    failed_invocations: number
+    failed_agents: number
     successful_invocations: number
     successful_agents: number
+    tool_call_rate: number | null
+    tool_success_rate: number | null
     activation_rate: number | null
   }>
 }
