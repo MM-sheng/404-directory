@@ -1,6 +1,6 @@
 # Distribution status
 
-Last audited: 2026-08-23 17:13 UTC
+Last audited: 2026-08-24 11:16 UTC
 
 This tracker separates a submission from a public listing and a public listing
 from a qualified external Agent. A channel is successful only after it produces
@@ -10,10 +10,10 @@ at least one de-duplicated external Agent with a successful tool execution.
 
 | Surface | Current public state | Prepared state | Next action | Blocker |
 | --- | --- | --- | --- | --- |
-| GitHub PR #5 | Merged as `8a12355`; release tag `v0.9.2` exists | Release code and metadata are on `main` | None for v0.9.2 | None |
-| npm | v0.9.2 public | Trusted Publisher release workflow passed | Measure clean-install activation by source | None |
-| Official MCP Registry | v0.9.2 public | npm package and remote HTTP metadata are published | Measure Registry-client activation | None |
-| Production | Cloud Run v0.9.2, 12 MCP tools | Production smoke passed `verify_web`, `search_official_docs`, and `search_tools` | Monitor reliability and qualified external usage | None |
+| GitHub | v0.9.2 release tag exists; activation PRs #12-#14 and v0.9.3 preparation PR #15 are merged | v0.9.3 manifests and release code are on `main` at `0bd82e7` | Create the v0.9.3 tag only with action-time release authorization | Tag triggers npm and Official Registry publication |
+| npm | v0.9.2 public | v0.9.3 package manifest and dry-run pack pass | Publish through the trusted workflow only after action-time tag authorization | v0.9.3 tag not created |
+| Official MCP Registry | v0.9.2 public | v0.9.3 `server.json` matches the npm package version | Publish after npm through the tag workflow | v0.9.3 tag not created |
+| Production | Cloud Run v0.9.2, 12 MCP tools | v0.9.3 service tests, typecheck, lint and build pass | Back up, deploy a canary, smoke test, then shift traffic only with production authorization | Production deployment not authorized |
 
 ## Marketplace and directory surfaces
 
@@ -41,6 +41,9 @@ at least one de-duplicated external Agent with a successful tool execution.
 | ZeroClaw Skills | [#21](https://github.com/zeroclaw-labs/zeroclaw-skills/pull/21) | Open, mergeable, blocked | Maintainer review |
 | MCPfinder | [#9](https://github.com/mcpfinder/mcpfinder/pull/9) | Open, mergeable, review required | Maintainer review and upstream deployment secret |
 | TensorBlock | [#1910](https://github.com/TensorBlock/awesome-mcp-servers/pull/1910) | Merged on 2026-08-23 | Verify public listing attribution and wait for qualified external usage |
+| MCPM package manager | [#379](https://github.com/pathintegral-institute/mcpm.sh/pull/379) | Open, mergeable; manifest validation, lint and test checks pass | Maintainer review; after merge measure source `mcpm` |
+| Awesome MCP ZH | [#495](https://github.com/yzfly/Awesome-MCP-ZH/pull/495) | Open; one Chinese Search-category entry with executable npm install | Maintainer review; after merge measure source `awesome-mcp-zh` |
+| Awesome MCP Servers DevOps | [#72](https://github.com/WagnerAgent/awesome-mcp-servers-devops/pull/72) | Open, clean and mergeable; deployment verification and discovery entry | Maintainer review; after merge measure source `awesome-mcp-devops` |
 
 ## Additional directory actions
 
@@ -63,6 +66,15 @@ MCPfinder PR #9 did not receive a version comment because it is an upstream
 ingestion-pipeline change and the release version does not affect its review.
 No repeat reminder will be posted without a maintainer question, state change or
 new actionable result.
+
+On 2026-08-24, three additional non-duplicate submissions were selected for
+executable installation or high-relevance discovery rather than raw listing
+volume. No submission was made to static mirrors, low-signal bot backlogs, or
+channels without a path to accept an executable MCP server. MCPM installs the
+public npm bridge with `--source mcpm`, which creates and preserves a random
+non-personal Agent ID. The two curated lists publish source-labelled npm
+commands. Views, stars, PR merges and installation attempts remain diagnostic
+only.
 
 ## Measurement rule after acceptance
 
