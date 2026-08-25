@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.MM-sheng/404-directory",
   "title": "404.directory",
-  "description": "Evidence-backed risk preflight before AI Agents install or invoke third-party tools, plus discovery and verification.",
+  "description": "Evidence-backed risk preflight for AI Agent actions, including prediction-market settlement and execution risk.",
   "version": "0.9.3",
   "websiteUrl": "https://404.directory",
   "icons": [

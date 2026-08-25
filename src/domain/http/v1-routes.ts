@@ -47,6 +47,18 @@ import {
   getRiskEvaluationReceipt,
   reportRiskEvaluationOutcome,
 } from "../risk-evaluation.js"
+import {
+  EvaluatePredictionMarketRequestSchema,
+  PolymarketPublicDataSource,
+  PredictionMarketInputError,
+  PredictionMarketNotFoundError,
+  PredictionMarketOutcomeRequestSchema,
+  PredictionMarketUpstreamError,
+  evaluatePredictionMarket,
+  getPredictionMarketEvaluationReceipt,
+  reportPredictionMarketOutcome,
+  type PredictionMarketDataSource,
+} from "../prediction-market-risk.js"
 import { trackInvocation } from "../telemetry.js"
 import { refreshTrustForTool } from "../trust.js"
 import { RegisterToolRequestSchema, ToolSearchQuerySchema } from "../types.js"
@@ -75,6 +87,7 @@ function slugify(value: string): string {
 export type V1RoutesOptions = {
   store: CatalogStore
   config: AppConfig
+  predictionMarketDataSource: PredictionMarketDataSource
 }
 
 /**
@@ -85,7 +98,7 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
   app,
   options
 ) => {
-  const { store, config } = options
+  const { store, config, predictionMarketDataSource } = options
 
   const riskAttribution = (request: FastifyRequest) =>
     agentAttributionFromHeaders(
@@ -234,6 +247,156 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
         }
         return reply.status(400).send(invalidRequest(error))
       }
+    }
+  )
+
+  app.post(
+    "/v1/prediction-markets/evaluations",
+    {
+      schema: {
+        summary: "Preflight one Polymarket decision",
+        description:
+          "Evaluate public settlement rules, timing, order-book liquidity, caller-observed geographic eligibility, and execution mode. Never predicts a winner or places an order.",
+        body: zodToJsonSchema(EvaluatePredictionMarketRequestSchema),
+      } as FastifySchema,
+    },
+    async (request, reply) => {
+      const started = performance.now()
+      const attribution = riskAttribution(request)
+      try {
+        const input = EvaluatePredictionMarketRequestSchema.parse(request.body)
+        const evaluation = await withAgentAttribution(attribution, () =>
+          evaluatePredictionMarket(
+            store,
+            input,
+            predictionMarketDataSource,
+            config.PUBLIC_BASE_URL
+          )
+        )
+        await withAgentAttribution(attribution, () =>
+          trackInvocation(store, {
+            tool_name: "evaluate_prediction_market",
+            source: "http:prediction-market-preflight",
+            success: true,
+            latency_ms: performance.now() - started,
+            result_count: 1,
+          })
+        )
+        return reply
+          .header("cache-control", "no-store")
+          .status(201)
+          .send(evaluation)
+      } catch (error) {
+        await withAgentAttribution(attribution, () =>
+          trackInvocation(store, {
+            tool_name: "evaluate_prediction_market",
+            source: "http:prediction-market-preflight",
+            success: false,
+            latency_ms: performance.now() - started,
+            error_type:
+              error instanceof PredictionMarketNotFoundError
+                ? "market_not_found"
+                : error instanceof PredictionMarketUpstreamError
+                  ? "provider_error"
+                  : "invalid_request",
+            result_count: 0,
+          })
+        ).catch(() => undefined)
+        if (error instanceof PredictionMarketNotFoundError) {
+          return reply.status(404).send({
+            error: "not_found",
+            message: error.message,
+          })
+        }
+        if (error instanceof PredictionMarketUpstreamError) {
+          return reply.status(502).send({
+            error: "upstream_unavailable",
+            message: error.message,
+          })
+        }
+        if (error instanceof PredictionMarketInputError) {
+          return reply.status(400).send({
+            error: "invalid_request",
+            message: error.message,
+          })
+        }
+        return reply.status(400).send(invalidRequest(error))
+      }
+    }
+  )
+
+  app.get(
+    "/v1/prediction-markets/evaluations/:id",
+    {
+      schema: {
+        summary: "Read a prediction-market preflight receipt",
+        description:
+          "Returns the public decision, bounded intent, evidence, unknowns, and optional bounded behavior outcome. Never returns the one-time outcome token or its hash.",
+      } as FastifySchema,
+    },
+    async (request, reply) => {
+      try {
+        const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
+        const receipt = await getPredictionMarketEvaluationReceipt(store, id)
+        if (!receipt) {
+          return reply.status(404).send({
+            error: "not_found",
+            message: `Unknown prediction-market evaluation receipt: ${id}`,
+          })
+        }
+        return reply.header("cache-control", "no-store").send(receipt)
+      } catch (error) {
+        return reply.status(400).send(invalidRequest(error))
+      }
+    }
+  )
+
+  app.post(
+    "/v1/prediction-markets/evaluations/:id/outcome",
+    {
+      schema: {
+        summary: "Report bounded behavior after prediction-market preflight",
+        description:
+          "Accepts only bounded behavior/execution enums and the one-time token. Never send wallet data, order payloads, prompts, personal data, or free-form rationale.",
+        body: zodToJsonSchema(PredictionMarketOutcomeRequestSchema),
+      } as FastifySchema,
+    },
+    async (request, reply) => {
+      try {
+        const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
+        const outcome = PredictionMarketOutcomeRequestSchema.parse(request.body)
+        const status = await reportPredictionMarketOutcome(store, id, outcome)
+        if (status === "not_found") {
+          return reply.status(404).send({
+            error: "not_found",
+            message: "Receipt or one-time outcome token was not found.",
+          })
+        }
+        return reply.header("cache-control", "no-store").send({
+          receipt_id: id,
+          status,
+          evidence_level: "self_reported",
+          calibration_effect:
+            "This report measures behavior and execution only. It does not establish profitability or prediction accuracy.",
+        })
+      } catch (error) {
+        return reply.status(400).send(invalidRequest(error))
+      }
+    }
+  )
+
+  app.get(
+    "/v1/metrics/prediction-market-evaluations",
+    {
+      schema: {
+        summary: "Get privacy-safe prediction-market preflight metrics",
+        description:
+          "Aggregate evaluations, identified external Agents, decisions, bounded outcomes, behavior changes, and common reason codes.",
+      } as FastifySchema,
+    },
+    async (_request, reply) => {
+      const summary = await store.predictionMarketEvaluationSummary()
+      return reply.header("cache-control", "no-store").send(summary)
     }
   )
 
@@ -653,7 +816,12 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
 export async function registerV1Routes(
   app: FastifyInstance,
   store: CatalogStore,
-  config: AppConfig
+  config: AppConfig,
+  predictionMarketDataSource: PredictionMarketDataSource = new PolymarketPublicDataSource()
 ): Promise<void> {
-  await app.register(v1Routes, { store, config })
+  await app.register(v1Routes, {
+    store,
+    config,
+    predictionMarketDataSource,
+  })
 }

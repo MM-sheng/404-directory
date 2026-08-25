@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "404-directory",
   "version": "0.9.3",
-  "description": "Search official AI and cloud documentation, verify public deployments, and discover trusted read-only MCP tools.",
+  "description": "Preflight prediction-market and third-party tool decisions with evidence-backed allow, review, or block results.",
   "author": {
     "name": "404.directory",
     "url": "https://404.directory"
@@ -13,6 +13,7 @@
   "keywords": [
     "agent-tools",
     "mcp",
+    "prediction-markets",
     "official-documentation",
     "tool-discovery",
     "web-verification"

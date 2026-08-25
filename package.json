@@ -1,7 +1,7 @@
 {
   "name": "404-directory",
   "version": "0.9.3",
-  "description": "Evidence-backed risk preflight before AI Agents install or invoke third-party tools.",
+  "description": "Evidence-backed risk preflight for AI Agent actions, starting with prediction-market settlement and execution risk.",
   "homepage": "https://404.directory",
   "repository": {
     "type": "git",

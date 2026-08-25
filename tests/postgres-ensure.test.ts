@@ -95,6 +95,35 @@ describe("postgres ensureTool idempotency", () => {
   )
 
   it.skipIf(!url)(
+    "has the prediction-market preflight table after migrations",
+    async () => {
+      const handle = openDatabase(url)
+      expect(handle).not.toBeNull()
+      const columns = await handle!.sql<Array<{ column_name: string }>>`
+        select column_name
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'prediction_market_evaluations'
+          and column_name in (
+            'market_snapshot',
+            'outcome_token_hash',
+            'risk_score',
+            'snapshot_hash'
+          )
+        order by column_name
+      `
+
+      expect(columns).toEqual([
+        { column_name: "market_snapshot" },
+        { column_name: "outcome_token_hash" },
+        { column_name: "risk_score" },
+        { column_name: "snapshot_hash" },
+      ])
+      await handle!.close()
+    }
+  )
+
+  it.skipIf(!url)(
     "aggregates qualified clients and provider reliability",
     async () => {
       const handle = openDatabase(url)

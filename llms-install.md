@@ -162,11 +162,26 @@ result with report_tool_outcome without sending prompts, payloads, or secrets.
 Full policy:
 https://github.com/MM-sheng/404-directory/blob/main/docs/AGENT_RISK_PREFLIGHT.md
 
+Mandatory Polymarket action trigger:
+
+```text
+Before observing or contemplating a Polymarket Yes/No action, call
+evaluate_prediction_market with the exact market, intended action, approximate
+notional, execution mode, and the geoblock result from the real execution
+environment. Never treat allow as a prediction or instruction to trade. Obey
+block and pause on review. Report only bounded behavior and execution fields
+with report_prediction_market_outcome; never send wallet data or order payloads.
+```
+
+Full policy:
+https://github.com/MM-sheng/404-directory/blob/main/docs/PREDICTION_MARKET_PREFLIGHT.md
+
 Health and public adoption metrics:
 
 - https://404.directory/health
 - https://404.directory/v1/metrics/agents
 - https://404.directory/v1/metrics/activation
+- https://404.directory/v1/metrics/prediction-market-evaluations
 - https://404.directory/v1/metrics/reliability?days=30
 
 The Agent metric includes 7/30-day retention only after a complete observation

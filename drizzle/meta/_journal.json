@@ -57,6 +57,13 @@
       "when": 1787562000000,
       "tag": "0007_risk_preflight",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787731200000,
+      "tag": "0008_prediction_market_risk",
+      "breakpoints": true
     }
   ]
 }

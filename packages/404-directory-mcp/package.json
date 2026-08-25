@@ -2,7 +2,7 @@
   "name": "@mmvv1638/404-directory-mcp",
   "version": "0.9.3",
   "mcpName": "io.github.MM-sheng/404-directory",
-  "description": "Identity-preserving bridge to 404.directory Agent tool risk preflight.",
+  "description": "Identity-preserving bridge to 404.directory Agent action risk preflight.",
   "type": "module",
   "bin": {
     "404-directory-mcp": "bin/404-directory-mcp.mjs"
@@ -21,6 +21,7 @@
     "ai-agent",
     "risk-preflight",
     "agent-trust",
+    "prediction-markets",
     "official-documentation",
     "tool-discovery"
   ],

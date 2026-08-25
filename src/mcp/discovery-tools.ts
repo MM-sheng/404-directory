@@ -22,6 +22,17 @@ import {
   evaluateToolRisk,
   reportRiskEvaluationOutcome,
 } from "../domain/risk-evaluation.js"
+import {
+  EvaluatePredictionMarketRequestSchema,
+  PolymarketPublicDataSource,
+  PredictionMarketInputError,
+  PredictionMarketNotFoundError,
+  PredictionMarketOutcomeRequestSchema,
+  PredictionMarketUpstreamError,
+  evaluatePredictionMarket,
+  reportPredictionMarketOutcome,
+  type PredictionMarketDataSource,
+} from "../domain/prediction-market-risk.js"
 import { refreshTrustForTool } from "../domain/trust.js"
 import { ToolProtocolSchema, type CatalogTool } from "../domain/types.js"
 import { SERVICE_VERSION } from "../version.js"
@@ -69,7 +80,8 @@ async function withDiscoveryTelemetry<T>(
 export function registerDiscoveryMcpTools(
   server: McpServer,
   store: CatalogStore,
-  gateway?: RemoteMcpGateway | null
+  gateway?: RemoteMcpGateway | null,
+  predictionMarketDataSource: PredictionMarketDataSource = new PolymarketPublicDataSource()
 ): void {
   server.registerTool(
     "evaluate_tool_risk",
@@ -176,6 +188,124 @@ export function registerDiscoveryMcpTools(
         evidence_level: "self_reported",
         trust_effect:
           "This report is behavioral evidence and does not directly increase the target Trust score.",
+      }
+      return {
+        content: [{ type: "text", text: JSON.stringify(payload) }],
+        structuredContent: payload,
+      }
+    }
+  )
+
+  server.registerTool(
+    "evaluate_prediction_market",
+    {
+      title: "Preflight a Polymarket decision",
+      description:
+        "Evaluate one specific Polymarket market before an AI Agent observes or contemplates buying or selling a Yes/No position. Use immediately before a decision when settlement wording, source ambiguity, timing boundaries, order-book depth, spread, slippage, geographic eligibility, or unattended execution could change whether the Agent should proceed. Returns a deterministic allow, review, or block decision with public evidence, a risk score, bounded unknowns, and a receipt. This tool never predicts the winner, never places or signs an order, never accesses a wallet, and is not investment or legal advice. For size-specific liquidity analysis, provide estimated_notional_usd. For a trading action, provide the current geoblock result from the real execution environment rather than guessing eligibility.",
+      inputSchema: EvaluatePredictionMarketRequestSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (args) => {
+      try {
+        const payload = await withDiscoveryTelemetry(
+          store,
+          "evaluate_prediction_market",
+          () =>
+            evaluatePredictionMarket(store, args, predictionMarketDataSource)
+        )
+        return {
+          content: [{ type: "text", text: JSON.stringify(payload) }],
+          structuredContent: payload as unknown as Record<string, unknown>,
+        }
+      } catch (error) {
+        const known =
+          error instanceof PredictionMarketInputError
+            ? {
+                error_type: "invalid_market_reference",
+                message: error.message,
+                recovery:
+                  "Provide an exact polymarket.com market URL, numeric market ID, or lowercase market slug.",
+              }
+            : error instanceof PredictionMarketNotFoundError
+              ? {
+                  error_type: "market_not_found",
+                  message: error.message,
+                  recovery:
+                    "Confirm the market URL or slug using Polymarket search, then retry.",
+                }
+              : error instanceof PredictionMarketUpstreamError
+                ? {
+                    error_type: "upstream_unavailable",
+                    message: error.message,
+                    recovery:
+                      "Retry later. Do not treat missing market or order-book evidence as safe.",
+                  }
+                : null
+        if (!known) throw error
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ error: true, ...known }),
+            },
+          ],
+        }
+      }
+    }
+  )
+
+  server.registerTool(
+    "report_prediction_market_outcome",
+    {
+      title: "Report a prediction-market preflight outcome",
+      description:
+        "Close the behavioral feedback loop for one prior evaluate_prediction_market receipt. Call after the Agent proceeds, reduces position size, changes side, waits, requests review, aborts, or encounters an execution failure. Submit only the bounded enums and one-time token returned by the evaluation. Never include wallet data, keys, prompts, order payloads, personal data, or free-form trading rationale. This self-report measures whether the preflight changed behavior; it does not prove profitability or prediction accuracy.",
+      inputSchema: PredictionMarketOutcomeRequestSchema.extend({
+        receipt_id: z
+          .string()
+          .uuid()
+          .describe("Receipt UUID returned by evaluate_prediction_market."),
+      }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ receipt_id, ...outcome }) => {
+      const status = await withDiscoveryTelemetry(
+        store,
+        "report_prediction_market_outcome",
+        () => reportPredictionMarketOutcome(store, receipt_id, outcome)
+      )
+      if (status === "not_found") {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                error: true,
+                error_type: "invalid_receipt",
+                message: "Receipt or one-time outcome token was not found.",
+              }),
+            },
+          ],
+        }
+      }
+      const payload = {
+        receipt_id,
+        status,
+        evidence_level: "self_reported",
+        calibration_effect:
+          "This report measures behavior and execution only. It does not establish market resolution accuracy or profitability.",
       }
       return {
         content: [{ type: "text", text: JSON.stringify(payload) }],

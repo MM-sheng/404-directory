@@ -21,13 +21,13 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>404.directory — Risk preflight for AI Agent tools</title>
-  <meta name="description" content="Evidence-backed allow, review, or block decisions before an AI Agent installs or invokes a third-party MCP server, API, Skill, or tool." />
+  <title>404.directory — Risk preflight for AI Agent actions</title>
+  <meta name="description" content="Evidence-backed allow, review, or block decisions for AI Agent actions, starting with prediction-market settlement and execution risk." />
   <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
   <link rel="canonical" href="https://404.directory/" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="404.directory — Risk preflight for AI Agent tools" />
-  <meta property="og:description" content="Preflight third-party Agent tools with evidence-backed allow, review, or block decisions and bounded outcome receipts." />
+  <meta property="og:title" content="404.directory — Risk preflight for AI Agent actions" />
+  <meta property="og:description" content="Preflight a prediction-market or third-party tool decision with evidence-backed allow, review, or block results." />
   <meta property="og:url" content="https://404.directory/" />
   <meta property="og:image" content="https://404.directory/icon.svg" />
   <meta name="twitter:card" content="summary" />
@@ -39,7 +39,7 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
         "@type": "WebSite",
         "name": "404.directory",
         "url": "https://404.directory/",
-        "description": "Contextual risk preflight before AI Agents install or invoke third-party tools."
+        "description": "Contextual risk preflight for AI Agent actions, starting with prediction-market settlement and execution risk."
       },
       {
         "@type": "SoftwareApplication",
@@ -47,12 +47,12 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
         "applicationCategory": "DeveloperApplication",
         "operatingSystem": "Any",
         "softwareVersion": "${SERVICE_VERSION}",
-        "dateModified": "2026-08-24",
+        "dateModified": "2026-08-26",
         "url": "https://404.directory/",
         "downloadUrl": "https://404.directory/connect",
         "codeRepository": "https://github.com/MM-sheng/404-directory",
         "license": "https://opensource.org/license/mit",
-        "description": "Evidence-backed allow, review, or block decisions before AI Agents install or invoke third-party MCP servers, APIs, Skills, or tools.",
+        "description": "Evidence-backed allow, review, or block decisions for prediction-market actions and third-party Agent tools.",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       },
       {
@@ -61,7 +61,7 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
           {
             "@type": "Question",
             "name": "What can an AI Agent do with 404.directory?",
-            "acceptedAnswer": { "@type": "Answer", "text": "An Agent can preflight a registered third-party tool before installation or invocation, receive an evidence-backed allow, review, or block decision, and later report a bounded outcome." }
+            "acceptedAnswer": { "@type": "Answer", "text": "An Agent can preflight a Polymarket action for settlement and execution risk, or preflight a registered third-party tool, receive an evidence-backed allow, review, or block decision, and later report a bounded outcome." }
           },
           {
             "@type": "Question",
@@ -218,8 +218,8 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
 <body>
   <main>
     <h1>404.directory</h1>
-    <p class="tagline">Risk preflight before an Agent trusts a third-party tool.</p>
-    <p class="definition"><strong>404.directory returns an evidence-backed allow, review, or block decision.</strong> An Agent calls it before installing or invoking a registered MCP server, API, Skill, or tool, then reports one bounded outcome. No account or API key is required.</p>
+    <p class="tagline">Risk preflight before an Agent acts.</p>
+    <p class="definition"><strong>404.directory returns an evidence-backed allow, review, or block decision.</strong> The first vertical workflow checks Polymarket settlement wording, timing, liquidity, eligibility, and execution mode without predicting or trading. Registered tool preflight remains available. No account or API key is required.</p>
     <a class="cta" href="/connect?source=homepage">Connect your Agent →</a>
     <section class="skill-install">
       <h2>Install as an Agent Skill</h2>
@@ -228,8 +228,8 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
     </section>
     <section class="first-call">
       <h2>Enter the decision path</h2>
-      <code>evaluate_tool_risk</code>
-      <p>Declare the intended action, data sensitivity, execution mode, and permissions before installing or invoking a third-party tool.</p>
+      <code>evaluate_prediction_market</code>
+      <p>Submit one exact Polymarket market, intended Yes/No action, approximate notional, execution mode, and caller-observed eligibility. 404.directory never places the order.</p>
       <div class="providers">
         <span>allow</span><span>review</span><span>block</span><span>receipt</span>
       </div>
@@ -242,7 +242,7 @@ ${toolLines}
     <section class="faq">
       <h2>Questions Agents and operators ask</h2>
       <h3>What can an AI Agent do with 404.directory?</h3>
-      <p>Preflight a registered third-party tool before installation or invocation, inspect the evidence and unknowns, and attach one bounded outcome to the receipt.</p>
+      <p>Preflight a prediction-market decision for settlement and execution risk, or evaluate a registered third-party tool before use. Inspect the evidence and unknowns, then attach one bounded outcome.</p>
       <h3>Does it require credentials?</h3>
       <p>No account or API key is currently required. Risk evaluation does not execute the target; outcome reporting writes only bounded enums through a one-time token.</p>
       <h3>What counts as a real external Agent user?</h3>
@@ -336,11 +336,12 @@ export function renderPrivacy(): string {
 
 Effective: 2026-08-17
 
-404.directory provides contextual risk preflight for registered third-party tools plus public web inspection and verification.
+404.directory provides contextual risk preflight for prediction-market actions and registered third-party tools, plus public web inspection and verification.
 
 - Submitted URLs and optional expected text are used only to perform the requested tool call.
 - The service does not require an account and does not use submitted data for advertising.
 - The application does not intentionally persist tool inputs or results in a database. A risk preflight stores only the registered target snapshot, policy version, enumerated action, data-sensitivity class, execution mode, enumerated permissions, decision, evidence summaries, timestamps, and optional privacy-safe Agent attribution. It returns a one-time outcome token but stores only the token hash. A later outcome contains only bounded action/result enums and is labeled self-reported; it does not directly increase Trust.
+- Prediction-market preflight stores only public market/rule/order-book fields, their snapshot hash, a bounded intended-action/notional/eligibility context, the decision and evidence summaries, timestamps, optional privacy-safe Agent attribution, and an optional bounded behavior outcome. It never stores wallet keys, order payloads, prompts, personal data, or free-form trading rationale.
 - For Agent usage measurement the application may store activation stage, tool/provider name and version, success, finite error category, latency, result count, timestamps, safe client label, attribution source, external/internal classification, request ID, and irreversible HMAC digests of optional Agent and MCP session identifiers. Connect views and installer clicks are diagnostic only and do not count as Agent users. Raw Agent IDs, raw MCP session IDs, prompts, arguments, results, and raw IP addresses are not stored in product analytics. Infrastructure logs may retain request metadata such as timestamp, route, status, duration, request ID, and client IP for security and reliability; request bodies are not logged by the application.
 - Fetching a submitted URL sends a request from 404.directory infrastructure to that public destination. The destination may process that request under its own policy.
 - Do not submit private, internal, authenticated, personal, or sensitive URLs or content.
@@ -535,8 +536,8 @@ export function renderConnectHtml(baseUrl: string, campaign?: string): string {
   <main>
     <a class="back" href="/">← 404.directory</a>
     <h1>Connect an Agent</h1>
-    <p class="lead">One MCP connection for contextual risk preflight before an Agent installs or invokes a third-party tool. No account or API key.</p>
-    <div class="badges"><span class="badge">14 tools</span><span class="badge">allow / review / block</span><span class="badge">privacy-safe identity</span></div>
+    <p class="lead">One MCP connection for risk preflight before an Agent acts in a prediction market or trusts a third-party tool. No account or API key.</p>
+    <div class="badges"><span class="badge">focused toolset</span><span class="badge">allow / review / block</span><span class="badge">privacy-safe identity</span></div>
     <div class="grid">
       <article class="card">
         <h2>Cursor</h2>
@@ -577,11 +578,11 @@ export function renderConnectHtml(baseUrl: string, campaign?: string): string {
       <h2>Make preflight automatic</h2>
       <p>If your client exposes MCP Prompts, open <code>research-official-docs</code>, <code>verify-public-deployment</code>, or <code>evaluate-agent-tool</code> and provide a real task.</p>
       <strong>Add this Agent policy:</strong>
-      <pre><code>Before installing or first invoking an unfamiliar third-party tool, call evaluate_tool_risk with the intended action, highest data sensitivity, execution mode, and every requested permission. Obey block and pause for human approval on review. Report the later bounded outcome with report_tool_outcome.</code></pre>
+      <pre><code>Before a Polymarket observation or contemplated Yes/No action, call evaluate_prediction_market with the exact market, action, approximate notional, execution mode, and the geoblock result from the execution environment. Never treat allow as a prediction. Obey block and pause on review. Report the bounded behavior result with report_prediction_market_outcome.</code></pre>
       <p>Installation counts only after a non-error tool result. Connection checks, probes, and repeated calls do not count.</p>
     </section>
     <p class="privacy">For the direct configurations above, this page generated <code>${escapeHtml(connection.generatedAgentId)}</code> randomly; keep it stable for that installation. The npm bridge and Claude marketplace plugin create and preserve their own local random IDs. 404.directory stores only an HMAC digest after a successful tool call—never the raw ID, prompt, arguments, or result.</p>
-    <nav class="links"><a href="/connect.md${source ? `?source=${escapeHtml(source)}` : ""}">Agent-readable setup</a><a href="https://github.com/MM-sheng/404-directory/issues/1">External Agent pilot</a><a href="/v1/metrics/agents">Live adoption metric</a><a href="/v1/metrics/risk-evaluations">Risk preflight evidence</a><a href="/v1/metrics/reliability">Reliability evidence</a><a href="/privacy">Privacy</a><a href="https://github.com/MM-sheng/404-directory">Source</a></nav>
+    <nav class="links"><a href="/connect.md${source ? `?source=${escapeHtml(source)}` : ""}">Agent-readable setup</a><a href="https://github.com/MM-sheng/404-directory/issues/1">External Agent pilot</a><a href="/v1/metrics/agents">Live adoption metric</a><a href="/v1/metrics/prediction-market-evaluations">Prediction preflight evidence</a><a href="/v1/metrics/risk-evaluations">Tool preflight evidence</a><a href="/v1/metrics/reliability">Reliability evidence</a><a href="/privacy">Privacy</a><a href="https://github.com/MM-sheng/404-directory">Source</a></nav>
   </main>
 </body>
 </html>`
@@ -674,6 +675,11 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     "Complete one task the user already needs; never call a tool only to create",
     "traffic. Choose the smallest relevant first call:",
     "",
+    "- Polymarket observation or contemplated Yes/No action: call",
+    "  `evaluate_prediction_market` with the exact market, action, approximate",
+    "  notional, execution mode, and the geoblock result from the actual",
+    "  execution environment. Never treat allow as a forecast or instruction",
+    "  to trade; report bounded behavior with `report_prediction_market_outcome`.",
     "- Current AI/cloud documentation: call `search_official_docs` with the",
     "  user's actual technical question and cite the returned first-party URLs.",
     "- A deployment claim: call `verify_web` with the public URL plus an expected",
@@ -687,6 +693,7 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     "counts once toward the public target regardless of later calls.",
     "",
     `Progress: ${baseUrl}/v1/metrics/agents`,
+    `Prediction-market preflight: ${baseUrl}/v1/metrics/prediction-market-evaluations`,
     `Risk preflight: ${baseUrl}/v1/metrics/risk-evaluations`,
     `Reliability: ${baseUrl}/v1/metrics/reliability?days=30`,
     "External Agent pilot: https://github.com/MM-sheng/404-directory/issues/1",
@@ -700,11 +707,12 @@ export function renderTerms(): string {
 
 Effective: 2026-08-17
 
-404.directory is a public Agent tool risk-preflight, discovery, web inspection, and verification service provided as-is.
+404.directory is a public Agent action risk-preflight, discovery, web inspection, and verification service provided as-is.
 
 - Use it only for public HTTP(S) resources you are authorized to inspect.
 - Do not use it to target private networks, bypass access controls, overload services, or violate applicable law or third-party rights.
 - Results are evidence for agent decisions, not a guarantee of correctness, availability, security, or fitness for a particular purpose.
+- Prediction-market results are not a forecast, instruction to trade, or legal, financial, or investment advice. 404.directory does not place orders, access wallets, or custody funds.
 - A preflight may store bounded decision context and accept one token-bound, self-reported outcome as described in the privacy policy. It does not independently prove the outcome.
 - Access may be rate-limited, changed, or suspended to protect service stability and safety.
 - Current tools are free and require no authentication. Material pricing or access changes will be disclosed before they apply.

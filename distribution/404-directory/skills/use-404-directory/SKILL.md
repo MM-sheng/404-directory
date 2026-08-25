@@ -33,6 +33,11 @@ local development. No account or API key is required.
 
 ## Choose the workflow
 
+- Before observing or contemplating a Polymarket Yes/No position, call
+  `evaluate_prediction_market` with the exact market, intended action, stated
+  notional, execution mode, and caller-observed geographic eligibility. Obey
+  `block`; pause and resolve unknowns on `review`. This tool never predicts a
+  winner or places an order.
 - Before installing or first invoking a third-party catalog tool, call
   `evaluate_tool_risk` with the exact action, data sensitivity, execution mode,
   and requested permissions. Obey `block`; pause for human review on `review`.
@@ -58,6 +63,19 @@ local development. No account or API key is required.
 5. After the decision or action, call `report_tool_outcome` with only the
    receipt token and bounded action/result fields. Never report prompts,
    arguments, outputs, secrets, or personal data.
+
+## Preflight a prediction-market action
+
+1. Call `evaluate_prediction_market` immediately before the contemplated
+   Polymarket observation or Yes/No action.
+2. Include approximate notional for size-specific depth and slippage. Get
+   geographic eligibility from Polymarket in the real execution environment;
+   never infer it from the 404.directory server.
+3. Treat `allow` as a bounded risk decision, never as a forecast, guarantee, or
+   instruction to trade. On `review`, pause. On `block`, do not proceed.
+4. After the decision, call `report_prediction_market_outcome` with only the
+   receipt token and bounded behavior/execution enums. Never send wallet data,
+   keys, order payloads, prompts, personal data, or free-form rationale.
 
 ## Search official documentation
 

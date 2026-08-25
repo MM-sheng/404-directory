@@ -45,7 +45,7 @@ describe("registry MCP adapter", () => {
 
     expect(client.getServerVersion()).toMatchObject({
       name: "404.directory",
-      title: "404.directory — Agent Tool Risk Preflight",
+      title: "404.directory — Agent Action Risk Preflight",
       description: expect.stringContaining("allow, review, or block"),
       websiteUrl: "https://404.directory",
     })

@@ -425,6 +425,75 @@ export const riskEvaluations = pgTable(
   ]
 )
 
+/**
+ * Public-data snapshots and bounded Agent intents for prediction-market risk
+ * decisions. No wallet, private key, prompt, order payload, or free-form Agent
+ * rationale is stored. Outcome updates require a one-time token hash.
+ */
+export const predictionMarketEvaluations = pgTable(
+  "prediction_market_evaluations",
+  {
+    id: uuid("id").primaryKey(),
+    platform: text("platform").notNull(),
+    marketId: text("market_id").notNull(),
+    marketSlug: text("market_slug").notNull(),
+    marketQuestion: text("market_question").notNull(),
+    marketSnapshot: jsonb("market_snapshot")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    policyVersion: text("policy_version").notNull(),
+    intent: jsonb("intent").$type<Record<string, unknown>>().notNull(),
+    decision: text("decision").notNull(),
+    riskScore: integer("risk_score").notNull(),
+    confidence: numeric("confidence", { precision: 5, scale: 4 }).notNull(),
+    reasonCodes: text("reason_codes").array().notNull().default([]),
+    riskFactors: jsonb("risk_factors")
+      .$type<Array<Record<string, unknown>>>()
+      .notNull()
+      .default([]),
+    evidence: jsonb("evidence")
+      .$type<Array<Record<string, unknown>>>()
+      .notNull()
+      .default([]),
+    unknowns: text("unknowns").array().notNull().default([]),
+    depth: jsonb("depth").$type<Record<string, unknown>>(),
+    nextAction: text("next_action").notNull(),
+    snapshotHash: text("snapshot_hash").notNull(),
+    outcomeTokenHash: text("outcome_token_hash").notNull(),
+    agentKey: text("agent_key"),
+    agentIdentityKind: text("agent_identity_kind")
+      .notNull()
+      .default("anonymous"),
+    clientName: text("client_name"),
+    attributionSource: text("attribution_source"),
+    isExternal: boolean("is_external").notNull().default(false),
+    outcome: jsonb("outcome").$type<Record<string, unknown>>(),
+    outcomeReportedAt: timestamp("outcome_reported_at", {
+      withTimezone: true,
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("prediction_market_eval_outcome_token_uidx").on(
+      table.outcomeTokenHash
+    ),
+    index("prediction_market_eval_market_idx").on(
+      table.platform,
+      table.marketId,
+      table.createdAt
+    ),
+    index("prediction_market_eval_agent_idx").on(
+      table.agentKey,
+      table.createdAt
+    ),
+    index("prediction_market_eval_decision_idx").on(
+      table.decision,
+      table.createdAt
+    ),
+  ]
+)
+
 export type ProviderRow = typeof providers.$inferSelect
 export type ToolRow = typeof tools.$inferSelect
 export type ToolVersionRow = typeof toolVersions.$inferSelect
@@ -435,3 +504,5 @@ export type InvocationRow = typeof invocations.$inferSelect
 export type ActivationEventRow = typeof activationEvents.$inferSelect
 export type UsageReceiptRow = typeof usageReceipts.$inferSelect
 export type RiskEvaluationRow = typeof riskEvaluations.$inferSelect
+export type PredictionMarketEvaluationRow =
+  typeof predictionMarketEvaluations.$inferSelect
