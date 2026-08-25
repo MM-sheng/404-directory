@@ -5,6 +5,8 @@ import type {
   AgentUsageSummary,
   CatalogStore,
   EnsureToolOptions,
+  PredictionMarketEvaluationOutcome,
+  PredictionMarketEvaluationRecord,
   ProviderRecord,
   RiskEvaluationRecord,
   RiskEvaluationOutcome,
@@ -27,6 +29,7 @@ import {
 import { nextVerifyBackoffMs } from "./verification.js"
 import { isDiscoverableStatus } from "./lifecycle.js"
 import { buildRiskEvaluationSummary } from "./risk-metrics.js"
+import { buildPredictionMarketEvaluationSummary } from "./prediction-market-metrics.js"
 
 function slugify(value: string): string {
   return value
@@ -72,6 +75,10 @@ export class MemoryCatalogStore implements CatalogStore {
   > = []
   private readonly receipts: Array<UsageReceiptInput & { id: string }> = []
   private readonly riskEvaluations = new Map<string, RiskEvaluationRecord>()
+  private readonly predictionMarketEvaluations = new Map<
+    string,
+    PredictionMarketEvaluationRecord
+  >()
 
   async registerTool(input: RegisterToolRequest): Promise<CatalogTool> {
     const slug = slugify(input.name)
@@ -290,6 +297,48 @@ export class MemoryCatalogStore implements CatalogStore {
 
   async riskEvaluationSummary(since?: Date) {
     return buildRiskEvaluationSummary([...this.riskEvaluations.values()], since)
+  }
+
+  async recordPredictionMarketEvaluation(
+    evaluation: PredictionMarketEvaluationRecord
+  ): Promise<void> {
+    this.predictionMarketEvaluations.set(
+      evaluation.id,
+      structuredClone(evaluation)
+    )
+  }
+
+  async getPredictionMarketEvaluation(
+    id: string
+  ): Promise<PredictionMarketEvaluationRecord | null> {
+    const evaluation = this.predictionMarketEvaluations.get(id)
+    return evaluation ? structuredClone(evaluation) : null
+  }
+
+  async recordPredictionMarketEvaluationOutcome(input: {
+    id: string
+    outcome_token_hash: string
+    outcome: PredictionMarketEvaluationOutcome
+    reported_at: string
+  }): Promise<"recorded" | "not_found" | "already_reported"> {
+    const evaluation = this.predictionMarketEvaluations.get(input.id)
+    if (
+      !evaluation ||
+      evaluation.outcome_token_hash !== input.outcome_token_hash
+    ) {
+      return "not_found"
+    }
+    if (evaluation.outcome) return "already_reported"
+    evaluation.outcome = structuredClone(input.outcome)
+    evaluation.outcome_reported_at = input.reported_at
+    return "recorded"
+  }
+
+  async predictionMarketEvaluationSummary(since?: Date) {
+    return buildPredictionMarketEvaluationSummary(
+      [...this.predictionMarketEvaluations.values()],
+      since
+    )
   }
 
   async getEndpointForTool(

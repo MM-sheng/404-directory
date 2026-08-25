@@ -132,6 +132,112 @@ export type RiskEvaluationSummary = {
   evidence_notice: string
 }
 
+export type PredictionMarketEvaluationOutcome = {
+  action_taken:
+    | "proceeded"
+    | "reduced_position"
+    | "changed_side"
+    | "waited"
+    | "requested_review"
+    | "aborted"
+  execution_result: "executed" | "not_executed" | "failed" | "unknown"
+  failure_type:
+    | "resolution_rules"
+    | "liquidity"
+    | "execution"
+    | "data_quality"
+    | "compliance"
+    | "signal"
+    | "other"
+    | null
+  evidence_level: "self_reported" | "observed"
+}
+
+export type PredictionMarketEvaluationRecord = {
+  id: string
+  platform: "polymarket"
+  market_id: string
+  market_slug: string
+  market_question: string
+  market_snapshot: {
+    condition_id: string
+    description: string
+    resolution_source: string
+    end_date: string | null
+    updated_at: string | null
+    active: boolean
+    closed: boolean
+    accepting_orders: boolean
+    restricted: boolean
+    outcomes: string[]
+    prices: Array<number | null>
+    token_ids: string[]
+    best_bid: number | null
+    best_ask: number | null
+    spread: number | null
+    liquidity_usd: number | null
+  }
+  policy_version: string
+  intent: {
+    intended_action: "observe" | "buy_yes" | "buy_no" | "sell_yes" | "sell_no"
+    estimated_notional_usd: number | null
+    execution_mode: "supervised" | "unattended"
+    geographic_eligibility: "eligible" | "blocked" | "unknown"
+  }
+  decision: "allow" | "review" | "block"
+  risk_score: number
+  confidence: number
+  reason_codes: string[]
+  risk_factors: Array<{
+    code: string
+    severity: "low" | "medium" | "high" | "critical"
+    explanation: string
+  }>
+  evidence: Array<{
+    kind: string
+    status: "pass" | "warn" | "fail" | "unknown"
+    source: string
+    summary: string
+    observed_at: string | null
+  }>
+  unknowns: string[]
+  depth: {
+    available_notional_usd: number
+    coverage_ratio: number | null
+    estimated_average_price: number | null
+    estimated_slippage_bps: number | null
+    best_price: number | null
+    observed_at: string | null
+  } | null
+  next_action: string
+  snapshot_hash: string
+  outcome_token_hash: string
+  agent_key: string | null
+  agent_identity_kind: "explicit" | "anonymous" | "internal"
+  client_name: string | null
+  attribution_source: string | null
+  is_external: boolean
+  created_at: string
+  expires_at: string
+  outcome: PredictionMarketEvaluationOutcome | null
+  outcome_reported_at: string | null
+}
+
+export type PredictionMarketEvaluationSummary = {
+  metric: "privacy_safe_prediction_market_preflight"
+  generated_at: string
+  evaluations: number
+  external_evaluations: number
+  identified_external_agents: number
+  decisions: { allow: number; review: number; block: number }
+  reported_outcomes: number
+  outcome_report_rate: number | null
+  behavior_changes: number
+  behavior_change_rate: number | null
+  top_reason_codes: Array<{ reason_code: string; evaluations: number }>
+  evidence_notice: string
+}
+
 export type AgentUsageSummary = {
   window_start: string
   generated_at: string
@@ -260,6 +366,21 @@ export interface CatalogStore {
     reported_at: string
   }): Promise<"recorded" | "not_found" | "already_reported">
   riskEvaluationSummary(since?: Date): Promise<RiskEvaluationSummary>
+  recordPredictionMarketEvaluation(
+    evaluation: PredictionMarketEvaluationRecord
+  ): Promise<void>
+  getPredictionMarketEvaluation(
+    id: string
+  ): Promise<PredictionMarketEvaluationRecord | null>
+  recordPredictionMarketEvaluationOutcome(input: {
+    id: string
+    outcome_token_hash: string
+    outcome: PredictionMarketEvaluationOutcome
+    reported_at: string
+  }): Promise<"recorded" | "not_found" | "already_reported">
+  predictionMarketEvaluationSummary(
+    since?: Date
+  ): Promise<PredictionMarketEvaluationSummary>
   getEndpointForTool(
     toolId: string
   ): Promise<{ id: string; url: string; transport: string } | null>

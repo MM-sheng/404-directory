@@ -1,11 +1,16 @@
 # 404.directory
 
-**Risk preflight for AI Agents using third-party tools.**
+**Risk preflight for AI Agent actions.**
 
 404.directory gives AI Agents an evidence-backed `allow`, `review`, or `block`
 decision before they install or invoke a third-party tool. Discovery, provider
 verification, live checks, privacy-safe usage evidence, and a curated read-only
 MCP gateway support that decision.
+
+The first vertical decision workflow evaluates Polymarket settlement wording,
+timing, public order-book liquidity, caller-observed eligibility, and execution
+mode before an Agent contemplates a Yes/No action. It never predicts the winner
+or places an order.
 
 Connect a real Agent in under a minute (Codex, Cursor, Claude Code, or MCP SDK):
 https://404.directory/connect?source=github
@@ -43,17 +48,18 @@ under review:
 
 ## Product layers
 
-| Layer                         | Purpose                                              | Surface                                                                        |
-| ----------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------ |
-| **First-party execution**     | Run first-party tools in this process                | `GET /tools`, `POST /understand`, `POST /verify/web`, MCP tools                |
-| **Curated remote execution**  | Search and call approved read-only remote MCP tools  | MCP `search_official_docs` / `inspect_tool_server` / `invoke_registered_tool`  |
-| **Ecosystem catalog + trust** | Register / verify / trust / search third-party tools | `/v1/*`, MCP `search_tools` / `get_tool` / `compare_tools` / `get_trust_score` |
-| **Contextual risk preflight** | Decide whether an Agent should proceed now           | MCP `evaluate_tool_risk` / `report_tool_outcome`, REST `/v1/evaluations/*`     |
+| Layer                           | Purpose                                              | Surface                                                                                                            |
+| ------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **First-party execution**       | Run first-party tools in this process                | `GET /tools`, `POST /understand`, `POST /verify/web`, MCP tools                                                    |
+| **Curated remote execution**    | Search and call approved read-only remote MCP tools  | MCP `search_official_docs` / `inspect_tool_server` / `invoke_registered_tool`                                      |
+| **Ecosystem catalog + trust**   | Register / verify / trust / search third-party tools | `/v1/*`, MCP `search_tools` / `get_tool` / `compare_tools` / `get_trust_score`                                     |
+| **Contextual risk preflight**   | Decide whether an Agent should proceed now           | MCP `evaluate_tool_risk` / `report_tool_outcome`, REST `/v1/evaluations/*`                                         |
+| **Prediction-market preflight** | Check settlement and execution risk before action    | MCP `evaluate_prediction_market` / `report_prediction_market_outcome`, REST `/v1/prediction-markets/evaluations/*` |
 
-The current product is intentionally narrow: preflight registered third-party
-tools before installation or invocation, then capture a bounded outcome. Future
-identity, reputation, guarantee, and insurance layers remain hypotheses until
-real external Agent usage validates them.
+The current product is intentionally narrow: preflight one prediction-market
+decision or one registered third-party tool action, then capture a bounded
+outcome. Future identity, reputation, guarantee, and insurance layers remain
+hypotheses until real external Agent usage validates them.
 
 ## Current first-party tools
 
@@ -111,10 +117,17 @@ Privacy-safe product validation is public at
 `GET /v1/metrics/risk-evaluations`: evaluation volume, decision distribution,
 outcome-report rate, and behavior-change rate, without prompts or raw identity.
 
+The prediction-market workflow is documented at
+[`docs/PREDICTION_MARKET_PREFLIGHT.md`](./docs/PREDICTION_MARKET_PREFLIGHT.md).
+Its privacy-safe aggregate metrics are available at
+`GET /v1/metrics/prediction-market-evaluations`.
+
 ## MCP Discovery tools
 
 When the catalog is enabled, MCP also exposes:
 
+- `evaluate_prediction_market`
+- `report_prediction_market_outcome`
 - `evaluate_tool_risk`
 - `report_tool_outcome`
 - `search_tools`

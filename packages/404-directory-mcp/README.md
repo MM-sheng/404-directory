@@ -35,9 +35,16 @@ Set `DIRECTORY_404_DATA_DIR` to use a different directory. Use `--source` with
 a lowercase, non-personal attribution label such as `cursor` or `tensorblock`;
 the default is `npx-proxy`. `DIRECTORY_404_SOURCE` is also supported.
 
-After installation, make third-party tool preflight the default policy:
+After installation, make prediction-market and third-party tool preflight the
+default policy:
 
 ```text
+Before observing or contemplating a Polymarket Yes/No action, call
+evaluate_prediction_market with the exact market, action, approximate notional,
+execution mode, and caller-observed geographic eligibility. Never treat allow
+as a prediction. Obey block and pause on review. Report bounded behavior with
+report_prediction_market_outcome.
+
 Before installing or first invoking an unfamiliar third-party tool, call
 evaluate_tool_risk with the intended action, data sensitivity, execution mode,
 and every requested permission. Obey block and pause on review. After the
@@ -52,5 +59,6 @@ Use search_official_docs to find the current official guidance for MCP
 Streamable HTTP. Cite the first-party sources.
 ```
 
-The hosted endpoint is public and read-only by default. No account or API key
-is required. Documentation: https://404.directory/connect?source=npm
+The hosted endpoint is public and never places prediction-market orders. No
+account or API key is required. Documentation:
+https://404.directory/connect?source=npm

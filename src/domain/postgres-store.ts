@@ -4,6 +4,7 @@ import {
   activationEvents,
   endpoints,
   invocations,
+  predictionMarketEvaluations,
   providers,
   riskEvaluations,
   tools,
@@ -18,6 +19,8 @@ import type {
   AgentUsageSummary,
   CatalogStore,
   EnsureToolOptions,
+  PredictionMarketEvaluationOutcome,
+  PredictionMarketEvaluationRecord,
   ProviderRecord,
   RiskEvaluationRecord,
   RiskEvaluationOutcome,
@@ -39,6 +42,7 @@ import {
 } from "./metrics.js"
 import { nextVerifyBackoffMs } from "./verification.js"
 import { buildRiskEvaluationSummary } from "./risk-metrics.js"
+import { buildPredictionMarketEvaluationSummary } from "./prediction-market-metrics.js"
 
 function toolMetadata(input: RegisterToolRequest): Record<string, unknown> {
   return {
@@ -653,6 +657,132 @@ export class PostgresCatalogStore implements CatalogStore {
       await Promise.all(ids.map((row) => this.getRiskEvaluation(row.id)))
     ).filter((record): record is RiskEvaluationRecord => Boolean(record))
     return buildRiskEvaluationSummary(records, since)
+  }
+
+  async recordPredictionMarketEvaluation(
+    evaluation: PredictionMarketEvaluationRecord
+  ): Promise<void> {
+    await this.db.insert(predictionMarketEvaluations).values({
+      id: evaluation.id,
+      platform: evaluation.platform,
+      marketId: evaluation.market_id,
+      marketSlug: evaluation.market_slug,
+      marketQuestion: evaluation.market_question,
+      marketSnapshot: evaluation.market_snapshot,
+      policyVersion: evaluation.policy_version,
+      intent: evaluation.intent,
+      decision: evaluation.decision,
+      riskScore: evaluation.risk_score,
+      confidence: String(evaluation.confidence),
+      reasonCodes: evaluation.reason_codes,
+      riskFactors: evaluation.risk_factors,
+      evidence: evaluation.evidence,
+      unknowns: evaluation.unknowns,
+      depth: evaluation.depth,
+      nextAction: evaluation.next_action,
+      snapshotHash: evaluation.snapshot_hash,
+      outcomeTokenHash: evaluation.outcome_token_hash,
+      agentKey: evaluation.agent_key,
+      agentIdentityKind: evaluation.agent_identity_kind,
+      clientName: evaluation.client_name,
+      attributionSource: evaluation.attribution_source,
+      isExternal: evaluation.is_external,
+      createdAt: new Date(evaluation.created_at),
+      expiresAt: new Date(evaluation.expires_at),
+    })
+  }
+
+  async getPredictionMarketEvaluation(
+    id: string
+  ): Promise<PredictionMarketEvaluationRecord | null> {
+    const row = await this.db
+      .select()
+      .from(predictionMarketEvaluations)
+      .where(eq(predictionMarketEvaluations.id, id))
+      .limit(1)
+      .then((rows) => rows[0])
+    if (!row) return null
+    return {
+      id: row.id,
+      platform: row.platform as "polymarket",
+      market_id: row.marketId,
+      market_slug: row.marketSlug,
+      market_question: row.marketQuestion,
+      market_snapshot:
+        row.marketSnapshot as PredictionMarketEvaluationRecord["market_snapshot"],
+      policy_version: row.policyVersion,
+      intent: row.intent as PredictionMarketEvaluationRecord["intent"],
+      decision: row.decision as PredictionMarketEvaluationRecord["decision"],
+      risk_score: row.riskScore,
+      confidence: num(row.confidence),
+      reason_codes: row.reasonCodes,
+      risk_factors:
+        row.riskFactors as PredictionMarketEvaluationRecord["risk_factors"],
+      evidence: row.evidence as PredictionMarketEvaluationRecord["evidence"],
+      unknowns: row.unknowns,
+      depth: (row.depth as PredictionMarketEvaluationRecord["depth"]) ?? null,
+      next_action: row.nextAction,
+      snapshot_hash: row.snapshotHash,
+      outcome_token_hash: row.outcomeTokenHash,
+      agent_key: row.agentKey,
+      agent_identity_kind:
+        row.agentIdentityKind as PredictionMarketEvaluationRecord["agent_identity_kind"],
+      client_name: row.clientName,
+      attribution_source: row.attributionSource,
+      is_external: row.isExternal,
+      created_at: row.createdAt.toISOString(),
+      expires_at: row.expiresAt.toISOString(),
+      outcome: row.outcome as PredictionMarketEvaluationOutcome | null,
+      outcome_reported_at: row.outcomeReportedAt?.toISOString() ?? null,
+    }
+  }
+
+  async recordPredictionMarketEvaluationOutcome(input: {
+    id: string
+    outcome_token_hash: string
+    outcome: PredictionMarketEvaluationOutcome
+    reported_at: string
+  }): Promise<"recorded" | "not_found" | "already_reported"> {
+    const updated = await this.db
+      .update(predictionMarketEvaluations)
+      .set({
+        outcome: input.outcome,
+        outcomeReportedAt: new Date(input.reported_at),
+      })
+      .where(
+        and(
+          eq(predictionMarketEvaluations.id, input.id),
+          eq(
+            predictionMarketEvaluations.outcomeTokenHash,
+            input.outcome_token_hash
+          ),
+          isNull(predictionMarketEvaluations.outcome)
+        )
+      )
+      .returning({ id: predictionMarketEvaluations.id })
+    if (updated[0]) return "recorded"
+    const existing = await this.getPredictionMarketEvaluation(input.id)
+    if (!existing || existing.outcome_token_hash !== input.outcome_token_hash) {
+      return "not_found"
+    }
+    return "already_reported"
+  }
+
+  async predictionMarketEvaluationSummary(
+    since = new Date("2026-01-01T00:00:00.000Z")
+  ) {
+    const ids = await this.db
+      .select({ id: predictionMarketEvaluations.id })
+      .from(predictionMarketEvaluations)
+      .where(gte(predictionMarketEvaluations.createdAt, since))
+    const records = (
+      await Promise.all(
+        ids.map((row) => this.getPredictionMarketEvaluation(row.id))
+      )
+    ).filter((record): record is PredictionMarketEvaluationRecord =>
+      Boolean(record)
+    )
+    return buildPredictionMarketEvaluationSummary(records, since)
   }
 
   async getEndpointForTool(
