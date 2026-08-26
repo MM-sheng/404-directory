@@ -1,7 +1,7 @@
 {
   "name": "404-directory",
-  "version": "0.9.3",
-  "description": "Agent Discovery + Trust: search, verify, and trust tools before calling them — plus webpage understanding and deployment verification.",
+  "version": "0.10.0",
+  "description": "Agent Discovery + Trust: search, verify, and trust tools before calling them \u2014 plus webpage understanding and deployment verification.",
   "author": {
     "name": "404.directory",
     "url": "https://404.directory"
@@ -22,7 +22,9 @@
     "longDescription": "Discover and trust ecosystem tools via search_tools / get_trust_score / recommend_tools, and use read-only verify_web / understand_webpage for public web checks.",
     "developerName": "404.directory",
     "category": "Developer Tools",
-    "capabilities": ["Read"],
+    "capabilities": [
+      "Read"
+    ],
     "websiteURL": "https://404.directory",
     "privacyPolicyURL": "https://404.directory/privacy",
     "termsOfServiceURL": "https://404.directory/terms",

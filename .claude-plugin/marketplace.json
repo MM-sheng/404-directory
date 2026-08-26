@@ -9,7 +9,7 @@
       "name": "404-directory",
       "source": "./distribution/404-directory",
       "description": "Preflight third-party Agent tools with allow, review, or block decisions backed by evidence and bounded outcome receipts.",
-      "version": "0.9.3",
+      "version": "0.10.0",
       "author": {
         "name": "404.directory"
       },

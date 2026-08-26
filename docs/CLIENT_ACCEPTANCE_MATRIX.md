@@ -4,6 +4,15 @@ This document separates protocol/package evidence that can be automated from a
 real external installation. Internal validation proves release compatibility;
 it never counts toward the 1,000-Agent adoption target.
 
+
+## v0.10.0 target
+
+After the v0.10.0 production cutover, a clean client install must list all
+production MCP tools including `evaluate_prediction_market` and
+`report_prediction_market_outcome`, then complete one useful
+`evaluate_prediction_market` call in observe/supervised mode. Historical rows
+below remain the v0.9.3 evidence baseline (12 tools).
+
 ## Release gate
 
 Every supported path must complete:

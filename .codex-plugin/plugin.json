@@ -1,13 +1,19 @@
 {
   "name": "404-directory",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "description": "Search official AI and cloud documentation, verify public web deployments, and discover trusted MCP tools.",
   "author": {
     "name": "404.directory",
     "url": "https://404.directory"
   },
   "homepage": "https://404.directory/docs",
-  "keywords": ["agents", "mcp", "web", "verification", "evidence"],
+  "keywords": [
+    "agents",
+    "mcp",
+    "web",
+    "verification",
+    "evidence"
+  ],
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "404.directory",
@@ -15,7 +21,9 @@
     "longDescription": "Use read-only tools to search current official OpenAI, Microsoft Learn, AWS, and Cloudflare documentation, understand public webpages, verify deployments, and discover MCP tools with transparent trust metadata.",
     "developerName": "404.directory",
     "category": "Developer Tools",
-    "capabilities": ["Read"],
+    "capabilities": [
+      "Read"
+    ],
     "websiteURL": "https://404.directory",
     "privacyPolicyURL": "https://404.directory/privacy",
     "termsOfServiceURL": "https://404.directory/terms",
