@@ -3,13 +3,15 @@
   "name": "io.github.MM-sheng/404-directory",
   "title": "404.directory",
   "description": "Evidence-backed risk preflight for AI Agent actions, including prediction-market settlement and execution risk.",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "websiteUrl": "https://404.directory",
   "icons": [
     {
       "src": "https://404.directory/icon.svg",
       "mimeType": "image/svg+xml",
-      "sizes": ["any"]
+      "sizes": [
+        "any"
+      ]
     }
   ],
   "repository": {
@@ -20,7 +22,7 @@
     {
       "registryType": "npm",
       "identifier": "@mmvv1638/404-directory-mcp",
-      "version": "0.9.3",
+      "version": "0.10.0",
       "transport": {
         "type": "stdio"
       },

@@ -1,6 +1,6 @@
 {
   "name": "404-directory",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "description": "Evidence-backed risk preflight for AI Agent actions, starting with prediction-market settlement and execution risk.",
   "homepage": "https://404.directory",
   "repository": {

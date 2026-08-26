@@ -1,19 +1,31 @@
 # Distribution status
 
-Last audited: 2026-08-24 12:07 UTC
+Last audited: 2026-08-26 04:20 UTC
 
 This tracker separates a submission from a public listing and a public listing
 from a qualified external Agent. A channel is successful only after it produces
 at least one de-duplicated external Agent with a successful tool execution.
 
+## v0.10.0 release note (2026-08-26)
+
+404.directory v0.10.0 introduces the first vertical Agent decision workflow:
+evidence-backed Polymarket settlement and execution-risk preflight.
+
+It evaluates public rules, time boundaries, subjective language, order-book
+depth, spread, estimated slippage, caller-observed geographic eligibility, and
+execution mode.
+
+It does not predict outcomes, recommend trades, place orders, access wallets,
+or custody funds.
+
 ## First-party release surfaces
 
 | Surface | Current public state | Prepared state | Next action | Blocker |
 | --- | --- | --- | --- | --- |
-| GitHub | v0.9.3 tag points to `main` at `2396798`; release workflow passed | Activation and tool-only client paths are released | Keep the tag immutable and monitor downstream propagation | None |
-| npm | `@mmvv1638/404-directory-mcp@0.9.3` public and `latest` | Identity-preserving bridge and ownership metadata verified | Measure qualified calls attributed to npm distribution sources | None |
-| Official MCP Registry | `io.github.MM-sheng/404-directory` v0.9.3 public | Remote HTTP and npm package entries both published | Measure qualified calls from `official-registry` | None |
-| Production | Cloud Run revision `directory-404-aidisc-cbda6a7` serves 100% of traffic; v0.9.3 exposes 12 MCP tools, 3 prompts, AI-readable metadata and explicit crawler access | Database backup, migration check, canary smoke, production smoke and discovery metadata validation passed | Monitor errors, activation stages, qualified external usage and citation discovery | None |
+| GitHub | v0.9.3 remains the last public tag; `main` includes merged prediction-market preflight (`a873fb1`) | Release branch prepares `v0.10.0` | Publish GitHub Release after production cutover | Release PR / CI |
+| npm | `@mmvv1638/404-directory-mcp@0.9.3` remains `latest` until cutover | Package manifests bumped to `0.10.0` on the release branch | Publish npm `0.10.0` after production verification | Post-cutover publish |
+| Official MCP Registry | `io.github.MM-sheng/404-directory` v0.9.3 public | `server.json` bumped to `0.10.0` on the release branch | Publish Registry `0.10.0` after production verification | Post-cutover publish |
+| Production | Cloud Run revision `directory-404-aidisc-cbda6a7` still serves v0.9.3 with 12 MCP tools | v0.10.0 adds prediction-market risk preflight plus previously merged tool-risk preflight tools; migration `0008` creates `prediction_market_evaluations` only | Complete backup → migrate → canary → traffic switch | Release in progress |
 
 ## Marketplace and directory surfaces
 
