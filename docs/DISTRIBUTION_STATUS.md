@@ -94,6 +94,23 @@ non-personal Agent ID. The two curated lists publish source-labelled npm
 commands. Views, stars, PR merges and installation attempts remain diagnostic
 only.
 
+## Vertical repeat-use acquisition
+
+The first v0.10.1 acquisition batch targets existing prediction-market
+execution paths instead of general MCP directories:
+
+- [Awesome Prediction Market Tools #194](https://github.com/aarora4/Awesome-Prediction-Market-Tools/pull/194)
+  adds one bounded, open-source Agent entry and is awaiting review;
+- [BlockRunAI/polymarket-agent #5](https://github.com/BlockRunAI/polymarket-agent/issues/5)
+  proposes an optional Python `shadow` preflight at its live CLOB boundary;
+- [demwick/polymarket-agent-mcp #96](https://github.com/demwick/polymarket-agent-mcp/issues/96)
+  proposes an optional TypeScript `shadow` wrapper around live order execution.
+
+These actions are prospects, not usage. The post-deploy baseline remains 1
+identified external Agent, 6 successful invocations, 0 new pilot Agents, and 0
+later-day repeat Agents. No listing, issue, pull request, install, or internal
+smoke test changes those numbers.
+
 ## Measurement rule after acceptance
 
 Every install surface must use a distinct safe source label. Review status,
