@@ -6,6 +6,13 @@ on an exact Polymarket market. Do not use `tools/list`, health checks, or the
 
 ## Any TypeScript trading Agent
 
+Until the npm SDK package is initialized, install the signed v0.1.0 release
+artifact directly:
+
+```text
+npm install https://github.com/MM-sheng/404-directory/releases/download/v0.10.1/mmvv1638-404-directory-risk-sdk-0.1.0.tgz
+```
+
 Use the risk SDK around the Agent's existing action function:
 
 ```ts
@@ -35,6 +42,12 @@ after reviewing false positives and unavailable-call behavior. Use `enforce`
 only when the operator explicitly wants fail-closed execution.
 
 ## Any Python trading Agent
+
+Python 3.11 or newer is required. Until the PyPI project is initialized:
+
+```text
+python -m pip install https://github.com/MM-sheng/404-directory/releases/download/v0.10.1/directory404_risk-0.1.0-py3-none-any.whl
+```
 
 ```python
 from directory404_risk import Directory404Client

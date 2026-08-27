@@ -4,9 +4,16 @@ Dependency-free Python middleware that places a 404.directory risk preflight
 immediately before an AI Agent's Polymarket order function. It never signs or
 places an order itself.
 
-Before the package's first public release, install it from this repository
-checkout with `python -m pip install ./packages/directory404-risk-python`.
-After release, use `python -m pip install directory404-risk`.
+Python 3.11 or newer is required. The v0.1.0 wheel is public and carries a
+GitHub Release SHA-256 digest:
+
+```text
+python -m pip install https://github.com/MM-sheng/404-directory/releases/download/v0.10.1/directory404_risk-0.1.0-py3-none-any.whl
+```
+
+After the PyPI project is initialized, use
+`python -m pip install directory404-risk`. From a repository checkout, use
+`python -m pip install ./packages/directory404-risk-python`.
 
 ```python
 from directory404_risk import Directory404Client

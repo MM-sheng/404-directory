@@ -3,9 +3,15 @@
 Put an evidence-backed risk preflight immediately before an AI Agent's
 Polymarket order function. The SDK never signs or places an order itself.
 
-Before the package's first public release, install it from this repository
-checkout with `npm install ./packages/404-directory-risk-sdk`. After release,
-use `npm install @mmvv1638/404-directory-risk-sdk`.
+The v0.1.0 artifact is public and carries a GitHub Release SHA-256 digest:
+
+```text
+npm install https://github.com/MM-sheng/404-directory/releases/download/v0.10.1/mmvv1638-404-directory-risk-sdk-0.1.0.tgz
+```
+
+After the npm package is initialized, use
+`npm install @mmvv1638/404-directory-risk-sdk`. From a repository checkout,
+use `npm install ./packages/404-directory-risk-sdk`.
 
 ```ts
 import { Directory404Client } from "@mmvv1638/404-directory-risk-sdk"
