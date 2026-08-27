@@ -30,7 +30,8 @@ jobs:
           PACKAGE_NAME="$(jq -r .name packages/404-directory-mcp/package.json)"
           VERSION="$(jq -r .version packages/404-directory-mcp/package.json)"
           if npm view "$PACKAGE_NAME@$VERSION" version >/dev/null 2>&1; then
-            test "$(npm view "$PACKAGE_NAME@$VERSION" mcpName --json | jq -r .)" = "$(jq -r .name server.json)"
+            MCP_NAME="$(npm view "$PACKAGE_NAME@$VERSION" mcpName 2>/dev/null || true)"
+            test "$MCP_NAME" = "$(jq -r .name server.json)"
             echo "$PACKAGE_NAME@$VERSION already exists with matching MCP ownership metadata."
           else
             npm publish --access public ./packages/404-directory-mcp
