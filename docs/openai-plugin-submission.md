@@ -18,11 +18,12 @@ Do not submit under an identity that does not match the public listing.
 
 - **Name:** 404.directory
 - **Category:** Developer Tools
-- **Short description:** Official docs search and trusted read-only tools for AI Agents.
-- **Long description:** 404.directory helps AI Agents search current official
-  OpenAI, Microsoft Learn, AWS, and Cloudflare documentation; understand and
-  verify public webpages; and discover, compare, inspect, and safely invoke
-  curated read-only MCP tools using transparent trust metadata.
+- **Short description:** Risk preflight before an AI Agent acts.
+- **Long description:** 404.directory evaluates a real Polymarket action or an
+  unfamiliar third-party Agent tool before use and returns an evidence-backed
+  allow, review, or block decision. It does not predict, trade, sign, access a
+  wallet, or place orders. Official documentation search, public deployment
+  verification, and webpage understanding remain supporting workflows.
 - **Website:** https://404.directory
 - **Support:** https://github.com/MM-sheng/404-directory/issues
 - **Privacy policy:** https://404.directory/privacy
@@ -38,13 +39,15 @@ Do not submit under an identity that does not match the public listing.
 - **Authentication:** None
 - **Custom UI:** None
 - **Account required:** No
-- **Tool count:** 12
+- **Tool count:** 16
 
 Every tool declares `readOnlyHint`, `destructiveHint`, and `openWorldHint`.
-All tools are read-only and declare `destructiveHint: false`. Tools that access
-public webpages or remote first-party documentation declare
-`openWorldHint: true`; catalog-only discovery tools declare
-`openWorldHint: false`.
+Research, inspection, catalog, and risk-evaluation tools are read-only. Receipt
+and outcome-report tools append bounded records and therefore declare
+`readOnlyHint: false`; they do not act on the evaluated market or tool. Every
+tool declares `destructiveHint: false`. Tools that access public webpages or
+remote first-party documentation declare `openWorldHint: true`; catalog and
+local receipt operations declare `openWorldHint: false`.
 
 The endpoint rejects private, loopback, link-local, metadata-service, and
 otherwise unsafe targets. Remote MCP invocation is limited to active,
@@ -62,18 +65,27 @@ forbids calls made only to inflate usage.
 
 ## Starter prompts
 
-1. Search current official OpenAI documentation for remote MCP server setup and
-   cite the first-party sources.
-2. Compare the trust profiles of the registered official documentation tools
-   and explain which one fits my task.
-3. Verify that my public deployment returns the expected status and release
+1. Before I act, evaluate this exact Polymarket market for settlement,
+   liquidity, eligibility, and execution risk without predicting or trading.
+2. Before I install or invoke this unfamiliar Agent tool, return an
+   evidence-backed allow, review, or block decision.
+3. Search current official OpenAI documentation for this concrete API question
+   and cite first-party sources.
+4. Verify that my public deployment returns the expected status and release
    string, then show the evidence.
-4. Explain the current state, entities, forms, and available actions on this
-   public webpage without clicking anything.
 
 ## Positive test cases
 
-### 1. Current official OpenAI documentation
+### 1. Prediction-market action preflight
+
+**Prompt:** Before I act, evaluate this exact Polymarket market for settlement,
+liquidity, eligibility, and execution risk without predicting or trading.
+
+**Expected:** Calls `evaluate_prediction_market` with the exact public market
+URL and intended action; returns an evidence-backed allow, review, or block
+decision; does not predict, recommend, sign, or place an order.
+
+### 2. Current official OpenAI documentation
 
 **Prompt:** Search current official OpenAI guidance for remote MCP servers in
 the Responses API and cite the first-party sources.
@@ -82,7 +94,7 @@ the Responses API and cite the first-party sources.
 with all sources enabled; returns a non-error result; cites OpenAI developer
 documentation; distinguishes sourced facts from inference.
 
-### 2. Current AWS documentation
+### 3. Current AWS documentation
 
 **Prompt:** Find the current official AWS guidance for choosing a region for an
 Amazon Bedrock workload. Cite the source.
@@ -90,7 +102,7 @@ Amazon Bedrock workload. Cite the source.
 **Expected:** Calls `search_official_docs`; returns first-party AWS results and
 provenance; does not fabricate regional availability.
 
-### 3. Trust-aware tool inspection
+### 4. Trust-aware tool inspection
 
 **Prompt:** Show why `openai_docs_mcp` is or is not trustworthy enough for
 read-only documentation research.
@@ -99,7 +111,7 @@ read-only documentation research.
 availability, compatibility, security, and usage dimensions rather than only a
 single rank; notes that trust metadata is evidence, not a guarantee.
 
-### 4. Deployment verification
+### 5. Deployment verification
 
 **Prompt:** Verify that https://404.directory/health returns HTTP 200 and
 contains the release string `0.9.2`.
@@ -108,7 +120,7 @@ contains the release string `0.9.2`.
 Claim → Evidence → Result; includes final URL, HTTP status, TLS/redirect evidence,
 and whether the text matched.
 
-### 5. Public webpage understanding
+### 6. Public webpage understanding
 
 **Prompt:** Explain what is on https://example.com, its current state, and what
 actions are available. Do not click anything.
@@ -150,16 +162,17 @@ support. This is a publisher decision and must be confirmed in the portal.
 ## Release notes
 
 Initial public submission of the hosted 404.directory MCP server and its
-`use-404-directory` Agent Skill. The service provides 12 public read-only tools,
-standard MCP discovery metadata, explicit safety annotations, privacy-safe
-optional Agent attribution, and no-account access.
+`use-404-directory` Agent Skill. The service provides 16 public tools, standard
+MCP discovery metadata, explicit safety annotations, privacy-safe optional
+Agent attribution, and no-account access. Its primary first-use workflow is a
+bounded prediction-market or unfamiliar-tool risk preflight.
 
 ## Final pre-submit checks
 
 - Validate `.codex-plugin/plugin.json` with the official Plugin Creator
   validator.
 - Run `npm run mcp:openai:review`. This connects to the production MCP endpoint,
-  checks all 12 safety annotations, runs the five positive and three negative
+  checks all 16 safety annotations, runs the positive and negative
   cases above, and marks every request as internal so it cannot count toward
   external Agent adoption.
 - When the portal generates the domain token, set

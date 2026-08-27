@@ -266,4 +266,72 @@ describe("curated remote MCP gateway", () => {
       })
     )
   })
+
+  it("compacts raw documentation indexes into bounded citation packets", async () => {
+    const store = new MemoryCatalogStore()
+    await seedCuratedMcpServers(store)
+    const catalogServer = await store.getToolBySlug("openai_docs_mcp")
+    await store.setToolStatus(catalogServer!.id, "active")
+    const hugeContent = "MCP transport details ".repeat(1_000)
+    const gateway: RemoteMcpGateway = {
+      inspect: vi.fn(),
+      invoke: vi.fn(async () => ({
+        is_error: false,
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              hits: [
+                {
+                  url: "https://developers.openai.com/api/docs/guides/tools-connectors-mcp",
+                  hierarchy: { lvl1: "MCP and Connectors" },
+                  content: hugeContent,
+                },
+              ],
+            }),
+          },
+        ],
+        truncated: false,
+      })),
+    }
+    const server = createMcpServerFromRegistry(
+      new ToolRegistry(),
+      store,
+      gateway
+    )
+    const client = new Client({ name: "docs-compact-test", version: "1.0" })
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair()
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ])
+    clients.push(client)
+
+    const result = await client.callTool({
+      name: "search_official_docs",
+      arguments: {
+        query: "MCP Streamable HTTP",
+        sources: ["openai"],
+        limit_per_source: 2,
+      },
+    })
+    const payload = result.structuredContent as {
+      results: Array<{
+        documents: Array<{ title: string; url: string; snippet?: string }>
+        content?: unknown
+        truncated: boolean
+      }>
+    }
+    expect(payload.results[0]).not.toHaveProperty("content")
+    expect(payload.results[0]?.documents[0]).toMatchObject({
+      title: "MCP and Connectors",
+      url: "https://developers.openai.com/api/docs/guides/tools-connectors-mcp",
+    })
+    expect(payload.results[0]?.documents[0]?.snippet?.length).toBeLessThanOrEqual(
+      600
+    )
+    expect(payload.results[0]?.truncated).toBe(true)
+    expect(JSON.stringify(payload).length).toBeLessThan(2_000)
+  })
 })

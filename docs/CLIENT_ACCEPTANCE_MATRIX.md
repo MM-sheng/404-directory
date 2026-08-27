@@ -20,9 +20,11 @@ Every supported path must complete:
 1. Install from a clean environment.
 2. Send MCP `initialize`.
 3. Send `notifications/initialized`.
-4. List exactly the 12 documented tools.
-5. Execute `verify_web` and `search_tools`.
-6. Execute one real read-only provider call through `search_official_docs`.
+4. List exactly the 16 documented tools.
+5. Execute one real `evaluate_prediction_market` preflight with an exact public
+   market URL and `intended_action: observe`.
+6. Confirm the result is bounded, evidence-backed, and does not predict or
+   execute a trade.
 7. Preserve a stable random Agent ID without exposing it in analytics storage.
 8. Preserve the source label and negotiated MCP protocol version.
 
@@ -30,10 +32,10 @@ Every supported path must complete:
 
 | Client/path | Installation surface | Automated evidence | Real client evidence required before claiming support | Attribution source |
 | --- | --- | --- | --- | --- |
-| Universal stdio | `npx -y @mmvv1638/404-directory-mcp` | Package, identity persistence, concurrency, protocol negotiation and forwarding tests | Clean install against public npm v0.9.3 after release | `npx` or supplied `--source` |
-| Official MCP Registry | npm package plus remote HTTP in `server.json` | Registry validation and package ownership metadata | Install from a Registry-compatible client after v0.9.3 propagation | `official-registry` |
-| Cursor | One-click URL or stdio bridge | Generated URL/config schema, stable generated ID, source test | Open a clean Cursor profile, install, list 12 tools, make one useful call | `<campaign>.cursor` |
-| VS Code / GitHub Copilot | `vscode:mcp/install` URL | Generated URL/config schema and source test | Open a clean VS Code profile, install, list 12 tools, make one useful call | `<campaign>.vscode` |
+| Universal stdio | `npx -y @mmvv1638/404-directory-mcp` | Package, identity persistence, concurrency, protocol negotiation and forwarding tests | Clean install against public npm v0.10.0 and run one risk preflight | `npx` or supplied `--source` |
+| Official MCP Registry | npm package plus remote HTTP in `server.json` | Registry validation and package ownership metadata | Install from a Registry-compatible client after v0.10.0 propagation | `official-registry` |
+| Cursor | stdio bridge from the plugin manifest | Config schema, stable generated ID, source test | Open a clean Cursor profile, install, list 16 tools, run one risk preflight | `<campaign>.cursor` |
+| VS Code / GitHub Copilot | `vscode:mcp/install` URL | Generated URL/config schema and source test | Open a clean VS Code profile, install, list 16 tools, run one risk preflight | `<campaign>.vscode` |
 | Claude Code | native plugin or direct HTTP command | Plugin manifest/package validation and bridge tests | Install from a clean user scope and make one useful call | `claude` / campaign source |
 | Codex | generated HTTP/TOML configuration | Configuration is rendered and covered by HTTP tests | Add to a clean Codex profile and make one useful call | `<campaign>.codex` |
 | OpenAI Responses API | remote MCP tool configuration | Submission/review payload validation | One external application performs a useful call with its stable deployment ID | `openai-responses` |
@@ -48,7 +50,7 @@ assuming every MCP surface is universal:
 | ------------------------ | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | Cursor                   | Tools, prompts, resources, roots and elicitation are documented as supported                      | Offer the three task prompts, while still requiring a successful tool result |
 | Claude API MCP connector | Tool calls only are currently documented                                                          | Give a task-specific tool instruction; do not depend on `prompts/list`       |
-| OpenAI Responses API     | Remote MCP tool discovery and calls, tool filtering, approval policy and forced MCP `tool_choice` | Limit the first request to `search_official_docs` and force that tool once   |
+| OpenAI Responses API     | Remote MCP tool discovery and calls, tool filtering, approval policy and forced MCP `tool_choice` | Limit the first request to `evaluate_prediction_market` and force that tool once |
 
 Official references:
 
@@ -65,7 +67,7 @@ itself.
 Record one row per real validation. Never paste prompts, arguments, results,
 credentials, raw Agent IDs, raw session IDs, or personal information.
 
-| Date UTC | Client/version | Install path | Source | 12 tools | Useful call | Stable identity | External/internal | Evidence link | Result |
+| Date UTC | Client/version | Install path | Source | Tool inventory | Useful call | Stable identity | External/internal | Evidence link | Result |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-08-23 | Universal stdio bridge / public npm v0.9.2 | Three clean temporary data directories using `npx -y @mmvv1638/404-directory-mcp@0.9.2` | `codex.acceptance`, `claude.acceptance`, `cursor.acceptance` | Yes, exactly 12 on every run | `search_tools` returned non-error structured content on every run | Yes; bridge identity persistence is covered by the release tests | Internal | Local acceptance output plus release CI | Pass against the public npm package |
 | 2026-08-23 | Generic Streamable HTTP / MCP SDK 1.30.0 | Production `https://404.directory/mcp` | `release-smoke` | Yes, exactly 12 | `verify_web`, Microsoft `search_official_docs`, and `search_tools` all returned structured content | Stable internal test identity; explicitly excluded from adoption | Internal | Local production smoke output | Pass against production v0.9.2 |
@@ -79,9 +81,9 @@ credentials, raw Agent IDs, raw session IDs, or personal information.
 Use one task that has a real outcome rather than a synthetic list request:
 
 ```text
-Use search_official_docs to find the current official guidance for MCP
-Streamable HTTP. Cite the first-party sources and distinguish facts from
-inference.
+Before I act, use evaluate_prediction_market on this exact public Polymarket
+market URL. Evaluate settlement, liquidity, eligibility, and execution risk
+with intended_action=observe. Do not predict the outcome or trade.
 ```
 
 The installation passes only if a tool returns a non-error result. Health

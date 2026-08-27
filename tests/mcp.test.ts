@@ -84,6 +84,7 @@ describe("registry MCP adapter", () => {
 
     const prompts = await client.listPrompts()
     expect(prompts.prompts.map((prompt) => prompt.name)).toEqual([
+      "preflight-prediction-market",
       "research-official-docs",
       "verify-public-deployment",
       "evaluate-agent-tool",
@@ -96,6 +97,28 @@ describe("registry MCP adapter", () => {
         "get_tool",
         "get_trust_score",
       ])
+    )
+
+    const marketPreflight = await client.getPrompt({
+      name: "preflight-prediction-market",
+      arguments: {
+        market: "example-market",
+        intended_action: "buy_yes",
+        estimated_notional_usd: "100",
+        execution_mode: "supervised",
+        geographic_eligibility: "eligible",
+      },
+    })
+    expect(JSON.stringify(marketPreflight.messages)).toContain(
+      "evaluate_prediction_market"
+    )
+    const marketPreflightText =
+      marketPreflight.messages[0]?.content.type === "text"
+        ? marketPreflight.messages[0].content.text
+        : ""
+    expect(marketPreflightText).toContain('"estimated_notional_usd":100')
+    expect(JSON.stringify(marketPreflight.messages)).toContain(
+      "report_prediction_market_outcome"
     )
 
     const research = await client.getPrompt({

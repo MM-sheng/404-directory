@@ -1,7 +1,7 @@
 {
   "name": "404-directory",
   "version": "0.10.0",
-  "description": "Agent Discovery + Trust: search, verify, and trust tools before calling them \u2014 plus webpage understanding and deployment verification.",
+  "description": "Preflight Polymarket and third-party Agent actions with evidence-backed allow, review, or block decisions.",
   "author": {
     "name": "404.directory",
     "url": "https://404.directory"
@@ -18,8 +18,8 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "404.directory",
-    "shortDescription": "Discovery + Trust infrastructure for agent tools",
-    "longDescription": "Discover and trust ecosystem tools via search_tools / get_trust_score / recommend_tools, and use read-only verify_web / understand_webpage for public web checks.",
+    "shortDescription": "Risk preflight before an Agent acts",
+    "longDescription": "Evaluate a real Polymarket action or unfamiliar third-party tool before use. Return evidence-backed allow, review, or block decisions and attach bounded outcomes. Official documentation search and public deployment verification remain supporting workflows.",
     "developerName": "404.directory",
     "category": "Developer Tools",
     "capabilities": [
@@ -29,9 +29,10 @@
     "privacyPolicyURL": "https://404.directory/privacy",
     "termsOfServiceURL": "https://404.directory/terms",
     "defaultPrompt": [
-      "Search 404 for tools that can verify a public deployment.",
-      "Compare trust profiles for two candidate MCP tools.",
-      "Verify that my latest website deployment is really live."
+      "Preflight this exact Polymarket market before I act. Explain settlement, liquidity, eligibility, and execution risks without predicting or trading.",
+      "Before I install or invoke this unfamiliar Agent tool, return an evidence-backed allow, review, or block decision.",
+      "Search current official documentation for this concrete implementation question and cite first-party URLs.",
+      "Verify that my latest public deployment is live using release-specific evidence."
     ],
     "brandColor": "#C8F542"
   }

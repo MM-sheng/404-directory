@@ -1,6 +1,6 @@
 {
   "name": "404-directory",
-  "description": "Contextual risk preflight before Claude Agents install or invoke third-party tools, plus evidence-backed discovery and verification.",
+  "description": "Preflight Polymarket and unfamiliar third-party tool actions before Claude Agents act.",
   "owner": {
     "name": "404.directory"
   },
@@ -8,7 +8,7 @@
     {
       "name": "404-directory",
       "source": "./distribution/404-directory",
-      "description": "Preflight third-party Agent tools with allow, review, or block decisions backed by evidence and bounded outcome receipts.",
+      "description": "Preflight exact Polymarket markets and unfamiliar Agent tools with evidence-backed allow, review, or block decisions.",
       "version": "0.10.0",
       "author": {
         "name": "404.directory"

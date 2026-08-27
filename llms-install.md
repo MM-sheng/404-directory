@@ -9,9 +9,9 @@ not run a local process unless the user explicitly asks for local development.
 https://404.directory/mcp
 ```
 
-The server does not require an account or API key. Its main workflow makes a
-read-only risk decision before a third-party tool action; the optional
-`report_tool_outcome` call records one bounded self-reported result.
+The server does not require an account or API key. Its main workflow evaluates
+one real Polymarket observation or contemplated Yes/No action before the Agent
+acts. Third-party tool risk preflight is the second mandatory workflow.
 
 ## Universal identity-preserving bridge
 
@@ -80,19 +80,19 @@ this application or deployment instead of generating a new value per request:
     {
       "type": "mcp",
       "server_label": "directory_404",
-      "server_description": "Search current official AI and cloud documentation, verify public deployments, and discover trusted read-only Agent tools.",
+      "server_description": "Preflight Polymarket and third-party Agent actions with evidence-backed allow, review, or block decisions.",
       "server_url": "https://404.directory/mcp",
       "authorization": "agent:REPLACE_WITH_THE_GENERATED_UUID@openai-responses",
-      "allowed_tools": ["search_official_docs"],
+      "allowed_tools": ["evaluate_prediction_market"],
       "require_approval": "never"
     }
   ],
   "tool_choice": {
     "type": "mcp",
     "server_label": "directory_404",
-    "name": "search_official_docs"
+    "name": "evaluate_prediction_market"
   },
-  "input": "Use search_official_docs to find the current OpenAI guidance for remote MCP servers and cite the official sources."
+  "input": "Before I act, preflight this market: REPLACE_WITH_EXACT_POLYMARKET_URL. Use intended_action=observe, execution_mode=supervised, and geographic_eligibility=unknown. Return Decision, Reasons, Evidence, Unknowns, and Next action. Do not predict or trade."
 }
 ```
 
@@ -126,10 +126,9 @@ and the same two headers. Use the lowercase client name as `X-404-Source`.
 After connecting:
 
 1. Initialize the MCP server and confirm that tools are listed.
-2. For a third-party tool already in the catalog, call `evaluate_tool_risk`
-   before installation or first invocation. Otherwise, call
-   `search_official_docs` with a real technical query relevant to the user's
-   work.
+2. Paste one exact Polymarket market the user already cares about and call
+   `evaluate_prediction_market`. Do not use this homepage or a health check as
+   the demo task.
 3. Obey `block`, pause on `review`, and use minimum permissions on `allow`.
 4. After a real decision or execution, use `report_tool_outcome` with the
    receipt token and bounded outcome fields.
@@ -141,13 +140,19 @@ Recommended first tool:
 
 ```json
 {
-  "name": "search_official_docs",
+  "name": "evaluate_prediction_market",
   "arguments": {
-    "query": "Model Context Protocol Streamable HTTP",
-    "limit_per_source": 4
+    "market": "REPLACE_WITH_EXACT_POLYMARKET_URL",
+    "intended_action": "observe",
+    "execution_mode": "supervised",
+    "geographic_eligibility": "unknown"
   }
 }
 ```
+
+Supporting workflow after the primary preflight is proven: use
+`search_official_docs` for one concrete OpenAI, Microsoft, AWS, or Cloudflare
+implementation question and cite the returned first-party URLs.
 
 Mandatory third-party tool trigger:
 

@@ -2,9 +2,10 @@ import { z } from "zod"
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 
 export const ACTIVATION_PROMPT_NAMES = [
+  "preflight-prediction-market",
+  "evaluate-agent-tool",
   "research-official-docs",
   "verify-public-deployment",
-  "evaluate-agent-tool",
 ] as const
 
 type ActivationPromptOptions = {
@@ -41,6 +42,73 @@ export function registerActivationPrompts(
   server: McpServer,
   options: ActivationPromptOptions
 ): void {
+  if (options.hasCatalog) {
+    server.registerPrompt(
+      "preflight-prediction-market",
+      {
+        title: "Preflight a Polymarket action",
+        description:
+          "Evaluate one real Polymarket observation or contemplated Yes/No action for settlement, liquidity, eligibility, and execution risk.",
+        argsSchema: {
+          market: z
+            .string()
+            .min(2)
+            .max(512)
+            .describe(
+              "Exact polymarket.com market URL, numeric market ID, or lowercase market slug."
+            ),
+          intended_action: z
+            .enum(["observe", "buy_yes", "buy_no", "sell_yes", "sell_no"])
+            .default("observe")
+            .describe("The Agent's actual next action."),
+          estimated_notional_usd: z
+            .string()
+            .regex(/^\d+(?:\.\d{1,2})?$/)
+            .optional()
+            .describe(
+              "Approximate USD notional for a contemplated trade. Omit only for observe."
+            ),
+          execution_mode: z
+            .enum(["supervised", "unattended"])
+            .default("supervised"),
+          geographic_eligibility: z
+            .enum(["eligible", "blocked", "unknown"])
+            .default("unknown")
+            .describe(
+              "Caller-observed geoblock result from the actual execution environment."
+            ),
+        },
+      },
+      ({
+        market,
+        intended_action,
+        estimated_notional_usd,
+        execution_mode,
+        geographic_eligibility,
+      }) => {
+        const argumentsValue = {
+          market,
+          intended_action,
+          ...(estimated_notional_usd
+            ? { estimated_notional_usd: Number(estimated_notional_usd) }
+            : {}),
+          execution_mode,
+          geographic_eligibility,
+        }
+        return taskMessage(
+          [
+            "Preflight the user's real Polymarket task using 404.directory.",
+            `Call the MCP tool \`evaluate_prediction_market\` now with these exact arguments: ${JSON.stringify(argumentsValue)}.`,
+            "Report Decision → Reasons → Evidence → Unknowns → Next action. Treat allow only as a bounded risk result, never as a forecast, guarantee, or instruction to trade.",
+            "Obey block. On review, pause and resolve the listed unknowns or obtain human approval. 404.directory never signs or places an order.",
+            "After the user or Agent decides, call report_prediction_market_outcome with only the receipt token and bounded enums. Never send wallet data, keys, order payloads, prompts, personal data, or free-form rationale.",
+            "A rendered prompt, connection, initialize response, or tools/list response is not task completion; require a non-error evaluate_prediction_market result.",
+          ].join("\n\n")
+        )
+      }
+    )
+  }
+
   if (options.hasGateway) {
     server.registerPrompt(
       "research-official-docs",

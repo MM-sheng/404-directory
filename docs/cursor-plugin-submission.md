@@ -7,7 +7,7 @@ Cursor Marketplace Publisher Terms.
 ## Source
 
 - GitHub repository: `https://github.com/MM-sheng/404-directory`
-- Review tag: `v0.9.3`
+- Review tag: `v0.10.0`
 - Format: Agent Plugins 1.0
 - Manifest: `plugin.json`
 - MCP configuration: `mcp.json`
@@ -18,15 +18,15 @@ Cursor Marketplace Publisher Terms.
 
 **Name:** 404.directory
 
-**Short description:** Search current official AI and cloud documentation,
-verify public deployments, and discover trusted read-only MCP tools.
+**Short description:** Preflight Polymarket and unfamiliar Agent-tool actions
+before an Agent acts.
 
 **Long description:** 404.directory gives Cursor Agents one public, no-account
-MCP endpoint for current OpenAI, Microsoft Learn, AWS, and Cloudflare
-documentation search; structured public deployment verification; webpage
-understanding; and trust-aware discovery of approved read-only MCP tools. The
-bundled Skill routes tasks to the smallest relevant workflow and requires a
-useful non-error tool result before reporting success.
+risk preflight for an exact Polymarket market or unfamiliar third-party tool.
+It returns evidence-backed allow, review, or block decisions and never predicts,
+trades, signs, accesses a wallet, or places an order. Official documentation
+search, deployment verification, and webpage understanding remain supporting
+workflows. The bundled Skill requires a useful non-error result before success.
 
 **Category:** Developer tools
 
@@ -43,8 +43,9 @@ useful non-error tool result before reporting success.
 ## Data and security notes
 
 - No account, API key, or user secret is required.
-- The package exposes 12 read-only MCP tools from the fixed
-  `https://404.directory/mcp` origin.
+- The package exposes 16 MCP tools through the fixed
+  `https://404.directory/mcp` origin. Evaluation tools are read-only; bounded
+  receipt and outcome-report tools append privacy-safe records.
 - The dependency-free local bridge generates one random, non-personal ID in
   Cursor's client-managed persistent plugin data directory.
 - The raw ID remains local. The service persists only an HMAC digest after a
@@ -60,15 +61,15 @@ useful non-error tool result before reporting success.
 - Agent Plugins 1.0 `plugin.json` and `mcp.json` pass the official schemas.
 - GitHub Copilot's external plugin intake passed spec compliance, Vally Skill
   lint, clean install smoke testing, version matching, and ref/SHA consistency.
-- The MCP Registry publishes `io.github.MM-sheng/404-directory` at `v0.9.3`.
-- The v0.9.3 project suite passes 111 tests with three intentionally skipped
-  tests.
+- The MCP Registry publishes `io.github.MM-sheng/404-directory` at `v0.10.0`.
+- The release gate verifies the 16-tool inventory, first prediction-market
+  call, persistent identity, and bounded documentation results.
 
 ## Suggested review prompts
 
-1. Search current official OpenAI documentation for remote MCP servers and cite
-   the source.
-2. Verify that `https://404.directory/health` returns HTTP 200 and contains the
-   release string `0.9.3`.
-3. Find a trusted read-only MCP tool for deployment verification and explain
-   the trust dimensions used.
+1. Before I act, evaluate this exact Polymarket market for settlement and
+   execution risk without predicting or trading.
+2. Before I install this unfamiliar MCP tool, return an evidence-backed allow,
+   review, or block decision.
+3. Search current official OpenAI documentation for this concrete API question
+   and cite first-party sources.

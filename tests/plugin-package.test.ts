@@ -37,6 +37,14 @@ type ClaudeMarketplace = {
   }>
 }
 
+type CodexPluginManifest = {
+  description: string
+  interface: {
+    longDescription: string
+    defaultPrompt: string[]
+  }
+}
+
 async function readJson<T>(path: string): Promise<T> {
   return JSON.parse(await readFile(path, "utf8")) as T
 }
@@ -191,11 +199,56 @@ describe("Agent Plugins package", () => {
     })
   })
 
-  it("documents a valid first official-docs tool call", async () => {
+  it("documents a valid first prediction-market preflight call", async () => {
     const guide = await readFile("llms-install.md", "utf8")
 
-    expect(guide).toContain('"name": "search_official_docs"')
-    expect(guide).toContain('"limit_per_source": 4')
-    expect(guide).not.toContain('"limit": 5')
+    expect(guide).toContain('"name": "evaluate_prediction_market"')
+    expect(guide).toContain('"intended_action": "observe"')
+    expect(guide).toContain("REPLACE_WITH_EXACT_POLYMARKET_URL")
+  })
+
+  it("uses the identity-preserving bridge in Codex plugin configurations", async () => {
+    const [rootConfig, packagedConfig] = await Promise.all([
+      readJson<McpConfig>(".mcp.json"),
+      readJson<McpConfig>("distribution/404-directory/.mcp.json"),
+    ])
+
+    for (const config of [rootConfig, packagedConfig]) {
+      expect(config.mcpServers["404-directory"]).toEqual({
+        command: "npx",
+        args: [
+          "-y",
+          "@mmvv1638/404-directory-mcp@0.10.0",
+          "--source",
+          "codex-plugin",
+        ],
+      })
+    }
+  })
+
+  it("keeps the first activation prompt aligned with the product wedge", async () => {
+    const [rootManifest, packagedManifest, submission, installGuide] =
+      await Promise.all([
+        readJson<CodexPluginManifest>(".codex-plugin/plugin.json"),
+        readJson<CodexPluginManifest>(
+          "distribution/404-directory/.codex-plugin/plugin.json"
+        ),
+        readFile("distribution/404-directory/SUBMISSION.md", "utf8"),
+        readFile("llms-install.md", "utf8"),
+      ])
+
+    for (const manifest of [rootManifest, packagedManifest]) {
+      expect(manifest.description).toMatch(/Polymarket/i)
+      expect(manifest.interface.longDescription).toMatch(/Polymarket/i)
+      expect(manifest.interface.defaultPrompt[0]).toMatch(/Polymarket/i)
+      expect(manifest.interface.defaultPrompt[0]).not.toMatch(
+        /search current official/i
+      )
+    }
+
+    expect(submission).toMatch(/Expected: `evaluate_prediction_market`/)
+    expect(installGuide.indexOf("evaluate_prediction_market")).toBeLessThan(
+      installGuide.indexOf("search_official_docs")
+    )
   })
 })
