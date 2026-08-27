@@ -20,6 +20,23 @@ Frozen at 2026-08-27 08:34 UTC, before this pilot implementation is deployed:
 The cohort target is therefore 11 cumulative identified external Agents, with
 10 new independently controlled Agents admitted after this baseline.
 
+## Recruitment pipeline
+
+Prospects and listings do not count as cohort members. This table exists only
+to keep acquisition focused on operators with a real recurring execution
+boundary.
+
+| Target | Why it can produce repeat use | Current action | State |
+| --- | --- | --- | --- |
+| BlockRunAI `polymarket-agent` | Python Agent calls a concrete CLOB executor with market, action, and size available | [Optional seven-day shadow preflight proposed](https://github.com/BlockRunAI/polymarket-agent/issues/5) | Awaiting maintainer decision |
+| `polymarket-agent-mcp` | TypeScript MCP server has one live `TradeExecutor` boundary with slug, side, and amount | [Optional shadow wrapper proposed](https://github.com/demwick/polymarket-agent-mcp/issues/96) | Awaiting maintainer decision |
+| Awesome Prediction Market Tools | Active vertical audience already operates prediction-market Agents and bots | [Accurate open-source AI Agent entry submitted](https://github.com/aarora4/Awesome-Prediction-Market-Tools/pull/194) | Maintainer review |
+
+Do not post the same pitch across repositories. A project receives a proposal
+only when its public code exposes the exact information needed for a bounded
+preflight. If a maintainer declines or does not engage, record that result and
+move to a different integration shape.
+
 ## Admission rule
 
 An Agent enters the cohort only when all of the following are true:
