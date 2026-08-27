@@ -42,8 +42,10 @@ Each pilot participant must:
 
 1. Control the Agent outside the 404.directory project.
 2. Install through a source-labelled path.
-3. See all 12 tools.
-4. Complete a task relevant to their work.
+3. See all 16 tools, including `evaluate_prediction_market` and
+   `evaluate_tool_risk`.
+4. Complete one task they already needed: preflight an exact market they were
+   already watching, or preflight an unfamiliar tool they were considering.
 5. Produce at least one non-error tool result.
 6. Share only client/version, task category, failure stage and request ID when
    troubleshooting; never share content or credentials.
@@ -54,13 +56,15 @@ or generating many IDs is not growth.
 ## Outreach message
 
 ```text
-404.directory is a public read-only MCP connection for official OpenAI,
-Microsoft, AWS and Cloudflare documentation, deployment verification and
-trusted tool discovery. We are validating the installation with real external
-Agents. Install from https://404.directory/connect?source=external-pilot and
-use it for one task you already need to complete. No account or API key is
-required. Please report only your client/version and failure stage—never your
-prompt, code, credentials or result content.
+404.directory gives an AI Agent a risk preflight before it acts. If you already
+use an Agent to watch Polymarket, send one exact market you care about and get
+an evidence-backed settlement, liquidity, eligibility, and execution-risk
+decision—without prediction or trading. Or preflight one unfamiliar MCP tool
+before installing it. Install from
+https://404.directory/connect?source=external-pilot and use it on that real
+task. No account or API key is required. Please report only your client/version
+and failure stage—never your prompt, code, credentials, market position, or
+result content.
 ```
 
 ## Channel experiment

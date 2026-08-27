@@ -40,7 +40,136 @@ import {
   GatewayError,
   readGatewayPolicy,
   type RemoteMcpGateway,
+  type RemoteInvocationResult,
 } from "./remote-gateway.js"
+
+type OfficialDocument = {
+  title: string
+  url: string
+  snippet?: string
+}
+
+function compactDocText(value: unknown, max = 600): string | undefined {
+  if (typeof value !== "string") return undefined
+  const compact = value
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&(?:nbsp|amp|lt|gt|quot);/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+  if (!compact) return undefined
+  return compact.slice(0, max)
+}
+
+function possibleJson(value: string): unknown {
+  const trimmed = value.trim()
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return value
+  try {
+    return JSON.parse(trimmed) as unknown
+  } catch {
+    return value
+  }
+}
+
+/**
+ * Remote documentation MCP servers return incompatible shapes and sometimes
+ * entire search indexes. Reduce them to a bounded citation packet so the first
+ * Agent call is useful instead of consuming the model's context window.
+ */
+export function normalizeOfficialDocSearchResult(
+  result: RemoteInvocationResult,
+  limit: number
+): {
+  documents: OfficialDocument[]
+  summary?: string
+  truncated: boolean
+} {
+  const documents: OfficialDocument[] = []
+  const seenUrls = new Set<string>()
+  let summary: string | undefined
+  let compacted = false
+
+  const addDocument = (value: Record<string, unknown>) => {
+    const rawUrl = value.url ?? value.uri ?? value.link ?? value.href
+    if (typeof rawUrl !== "string" || !/^https?:\/\//i.test(rawUrl)) return
+    let url: string
+    try {
+      url = new URL(rawUrl).toString()
+    } catch {
+      return
+    }
+    if (seenUrls.has(url) || documents.length >= limit) return
+    const hierarchy =
+      value.hierarchy &&
+      typeof value.hierarchy === "object" &&
+      !Array.isArray(value.hierarchy)
+        ? (value.hierarchy as Record<string, unknown>)
+        : undefined
+    const title =
+      compactDocText(
+        value.title ??
+          value.name ??
+          value.heading ??
+          hierarchy?.lvl2 ??
+          hierarchy?.lvl1 ??
+          hierarchy?.lvl0,
+        240
+      ) ?? new URL(url).hostname
+    const rawSnippet =
+      value.snippet ??
+      value.description ??
+      value.summary ??
+      value.content ??
+      value.text
+    const snippet = compactDocText(rawSnippet)
+    if (typeof rawSnippet === "string" && snippet?.length !== rawSnippet.length) {
+      compacted = true
+    }
+    seenUrls.add(url)
+    documents.push({ title, url, ...(snippet ? { snippet } : {}) })
+  }
+
+  const visit = (value: unknown, depth = 0) => {
+    if (depth > 5 || documents.length >= limit) return
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item, depth + 1)
+      return
+    }
+    if (!value || typeof value !== "object") return
+    const record = value as Record<string, unknown>
+    addDocument(record)
+    for (const key of [
+      "hits",
+      "results",
+      "documents",
+      "items",
+      "matches",
+      "data",
+      "pages",
+    ]) {
+      if (record[key] !== undefined) visit(record[key], depth + 1)
+    }
+  }
+
+  if (result.structured_content) visit(result.structured_content)
+  for (const block of result.content) {
+    if (block.type !== "text" || typeof block.text !== "string") continue
+    const parsed = possibleJson(block.text)
+    if (typeof parsed === "string") {
+      summary ??= compactDocText(parsed, 1_000)
+      const urls = parsed.match(/https?:\/\/[^\s)\]}>"']+/g) ?? []
+      for (const url of urls) addDocument({ url, title: url })
+      if (summary && summary.length !== parsed.trim().length) compacted = true
+    } else {
+      visit(parsed)
+    }
+  }
+
+  return {
+    documents,
+    ...(documents.length === 0 && summary ? { summary } : {}),
+    truncated: result.truncated || compacted,
+  }
+}
 
 async function withDiscoveryTelemetry<T>(
   store: CatalogStore,
@@ -807,11 +936,10 @@ function registerGatewayMcpTools(
               source,
               server: catalogServer.slug,
               remote_tool: route.toolName,
-              content: result.content,
-              ...(result.structured_content
-                ? { structured_content: result.structured_content }
-                : {}),
-              truncated: result.truncated,
+              ...normalizeOfficialDocSearchResult(
+                result,
+                args.limit_per_source
+              ),
             }
           } catch (error) {
             const gatewayError =

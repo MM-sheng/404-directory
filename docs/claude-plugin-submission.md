@@ -27,7 +27,7 @@ hosted service.
 - Transport: Streamable HTTP
 - Authentication: None
 - URL model: Every user connects to the same URL
-- Tools: 12 read-only MCP tools
+- Tools: 16 MCP tools
 
 The portal synchronizes tool metadata from the live server. Before submitting,
 confirm that every tool displays a title and the correct `readOnlyHint` and
@@ -37,12 +37,13 @@ confirm that every tool displays a title and the correct `readOnlyHint` and
 
 **Name:** 404.directory
 
-**Tagline:** Trusted read-only tools for AI agents
+**Tagline:** Risk preflight before an AI Agent acts
 
-**Description:** 404.directory gives Claude one public, no-account MCP endpoint
-for current OpenAI, Microsoft Learn, AWS, and Cloudflare documentation search;
-structured public deployment verification; webpage understanding; and
-trust-aware discovery of approved read-only MCP tools.
+**Description:** 404.directory gives Claude one public, no-account risk preflight
+for an exact Polymarket market or unfamiliar third-party Agent tool. It returns
+evidence-backed allow, review, or block decisions and never predicts, trades,
+signs, accesses a wallet, or places an order. Official documentation search and
+public deployment verification remain supporting workflows.
 
 **Categories:** Developer tools; Productivity
 
@@ -59,27 +60,29 @@ trust-aware discovery of approved read-only MCP tools.
 ## Review notes
 
 - No account, API key, secret, or test credential is required.
-- The service exposes 12 read-only MCP tools at one fixed HTTPS origin.
+- The service exposes 16 MCP tools at one fixed HTTPS origin. Evaluation tools
+  are read-only; bounded receipt and outcome-report tools append privacy-safe
+  records and never act on the evaluated target.
 - The server rejects private, loopback, link-local, metadata-service, and
   credential-bearing URL targets.
 - Adoption telemetry stores only source/client labels and an optional HMAC of a
   random installation ID after successful external use. It stores no raw Agent
   IDs, prompts, arguments, results, IP addresses, emails, or usernames.
-- The production server and public npm bridge are both version `0.9.3`.
+- The production server and public npm bridge are both version `0.10.1`.
 
 ## Suggested review prompts
 
-1. Search current official OpenAI documentation for remote MCP servers and cite
-   the source.
-2. Verify that `https://404.directory/health` returns HTTP 200 and contains the
-   release string `0.9.3`.
-3. Find a trusted read-only MCP tool for deployment verification and explain
-   the trust dimensions used.
+1. Before I act, evaluate this exact Polymarket market for settlement and
+   execution risk without predicting or trading.
+2. Before I install this unfamiliar MCP tool, return an evidence-backed allow,
+   review, or block decision.
+3. Search current official OpenAI documentation for this concrete API question
+   and cite first-party sources.
 
 ## Separate Claude Code plugin distribution
 
 The source at
-`https://github.com/MM-sheng/404-directory/tree/v0.9.3/distribution/404-directory`
+`https://github.com/MM-sheng/404-directory/tree/v0.10.1/distribution/404-directory`
 remains valid for direct Claude Code plugin installation and validation. It is
 not a substitute for the Claude Connectors Directory submission, and it should
 not be uploaded to the MCPB desktop-extension form.

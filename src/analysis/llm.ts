@@ -154,6 +154,20 @@ export class OptionalLlmAnalyzer {
       if (!content) throw new Error("LLM returned empty content")
 
       const patch = LlmPatchSchema.parse(extractJsonObject(content))
+      const rootHomepage = (() => {
+        try {
+          return (
+            baseline.page_type === "homepage" &&
+            new URL(signals.finalUrl).pathname === "/"
+          )
+        } catch {
+          return false
+        }
+      })()
+      const pageTypeConflict =
+        rootHomepage &&
+        patch.page_type !== undefined &&
+        patch.page_type !== "homepage"
       const evidence: Evidence[] = [
         ...baseline.evidence,
         {
@@ -164,7 +178,9 @@ export class OptionalLlmAnalyzer {
       ]
 
       return AgentPageModelSchema.parse({
-        page_type: patch.page_type ?? baseline.page_type,
+        page_type: rootHomepage
+          ? "homepage"
+          : (patch.page_type ?? baseline.page_type),
         summary: patch.summary ?? baseline.summary,
         entities: patch.entities ?? baseline.entities,
         state: {
@@ -177,10 +193,15 @@ export class OptionalLlmAnalyzer {
         },
         actions: patch.actions ?? baseline.actions,
         evidence: evidence.slice(0, 200),
-        confidence: Math.min(
-          0.98,
-          Math.max(baseline.confidence, patch.confidence ?? baseline.confidence)
-        ),
+        confidence: pageTypeConflict
+          ? Math.min(baseline.confidence, 0.75)
+          : Math.min(
+              0.98,
+              Math.max(
+                baseline.confidence,
+                patch.confidence ?? baseline.confidence
+              )
+            ),
       })
     } finally {
       clearTimeout(timer)

@@ -136,6 +136,25 @@ describe("privacy-safe Agent attribution", () => {
     ).toBe(false)
     expect(
       agentAttributionFromHeaders(
+        {
+          "x-404-agent-id": "agent:external-risk-sdk-0001",
+          "x-404-source": "prediction-agent-pilot",
+          "x-404-client-name": "agent-risk-sdk-ts",
+        },
+        salt
+      )
+    ).toMatchObject({
+      agent_identity_kind: "explicit",
+      attribution_source: "prediction-agent-pilot",
+      client_name: "agent-risk-sdk-ts",
+      is_external: true,
+    })
+    expect(
+      agentAttributionFromHeaders({}, salt, "OpenClaw Gateway")
+        .attribution_source
+    ).toBe("openclaw")
+    expect(
+      agentAttributionFromHeaders(
         { "user-agent": "unrecognized-client/1.0" },
         salt
       ).attribution_source

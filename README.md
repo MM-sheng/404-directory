@@ -143,30 +143,38 @@ When the catalog is enabled, MCP also exposes:
 
 alongside the existing executable tools.
 
-`search_official_docs` is the low-friction path: one call searches current
-first-party OpenAI, Microsoft Learn, AWS, and Cloudflare documentation in
-parallel, with source-level provenance and partial-failure reporting. For other
-curated servers, discover a catalog server, inspect its live allowlisted schemas,
-then invoke one approved tool. Arbitrary URLs, authenticated servers, non-active
-entries, unverified providers, and destructive tools are rejected. Remote
-results are bounded and explicitly marked as untrusted external data.
+`evaluate_prediction_market` is the primary first-use path: one call evaluates
+an exact Polymarket market for settlement, liquidity, eligibility, and execution
+risk without predicting or trading. `evaluate_tool_risk` is the second wedge,
+used before an Agent installs or invokes an unfamiliar third-party tool.
+`search_official_docs` remains a supporting path and returns bounded first-party
+citations instead of raw provider indexes. Arbitrary URLs, authenticated
+servers, non-active entries, unverified providers, and destructive tools are
+rejected. Remote results are bounded and explicitly marked as untrusted data.
 
 ## MCP task prompts
 
-Clients that expose MCP Prompts also receive three task-oriented starting
+Clients that expose MCP Prompts also receive four task-oriented starting
 points:
 
+- `preflight-prediction-market` — turns an exact market and contemplated action
+  into an `evaluate_prediction_market` call;
+- `evaluate-agent-tool` — finds a catalog candidate, calls the contextual risk
+  preflight, and requires an `allow`, `review`, or `block` result;
 - `research-official-docs` — turns a real technical question into a
   `search_official_docs` call;
 - `verify-public-deployment` — turns a concrete public deployment claim into a
-  `verify_web` call;
-- `evaluate-agent-tool` — finds a catalog candidate, calls the contextual risk
-  preflight, and requires an `allow`, `review`, or `block` result.
+  `verify_web` call.
 
 Rendering or opening a prompt never counts toward the 1,000-Agent target. Each
 template explicitly requires a non-error tool result that materially answers
 the user's task. The server records only aggregate `prompts/list` and
 `prompts/get` activation stages, never prompt arguments or task text.
+
+For direct trading-Agent integration, see
+[`docs/AGENT_INTEGRATION_QUICKSTART.md`](docs/AGENT_INTEGRATION_QUICKSTART.md).
+The privacy-safe first-10 cohort process is documented in
+[`docs/FIRST_10_AGENT_PILOT.md`](docs/FIRST_10_AGENT_PILOT.md).
 
 ## Capability Graph
 

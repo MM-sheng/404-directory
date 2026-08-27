@@ -129,6 +129,26 @@ function detectPageType(
     return "search_results"
   }
 
+  const passwordForm = signals.forms.some((form) =>
+    form.controls.some((control) => control.type === "password")
+  )
+  if (
+    passwordForm ||
+    signals.buttons.some((button) => LABELS.login.test(button.label))
+  ) {
+    return "login"
+  }
+
+  // A root landing page often describes orders, products, jobs, or search as
+  // capabilities. Those words are not evidence that the page itself is an
+  // order/product/job/search page. Prefer the URL's structural signal before
+  // scanning broad visible copy.
+  try {
+    if (new URL(signals.finalUrl).pathname === "/") return "homepage"
+  } catch {
+    // Keep analysis total if URL parsing somehow fails.
+  }
+
   const hint = `${signals.finalUrl} ${signals.title} ${signals.meta
     .map((item) => `${item.property ?? item.name ?? ""} ${item.content}`)
     .join(" ")} ${signals.visibleText.slice(0, 800)}`.toLowerCase()
@@ -140,22 +160,7 @@ function detectPageType(
   if (/\b(job|career|hiring)\b|\/(?:jobs?|careers?)\//.test(hint)) return "job"
   if (/\border\b|\/(?:orders?|checkout)\//.test(hint)) return "order"
   if (/\b(search|results?)\b|[?&]q=/.test(hint)) return "search_results"
-
-  const passwordForm = signals.forms.some((form) =>
-    form.controls.some((control) => control.type === "password")
-  )
-  if (
-    passwordForm ||
-    signals.buttons.some((button) => LABELS.login.test(button.label))
-  ) {
-    return "login"
-  }
   if (signals.forms.length > 0) return "form"
-  try {
-    if (new URL(signals.finalUrl).pathname === "/") return "homepage"
-  } catch {
-    // Keep analysis total if URL parsing somehow fails.
-  }
   return "other"
 }
 
@@ -444,8 +449,11 @@ function inferLoginStatus(signals: PageSignals, actions: AgentAction[]) {
     .map((item) => item.label)
     .join(" ")
   const hasLogout = /\b(log[ -]?out|sign[ -]?out)\b|退出登录/i.test(labels)
-  const hasAccount =
-    /\b(my account|account|profile|dashboard)\b|我的账户|个人中心/i.test(labels)
+  const hasAccount = signals.links.some((link) =>
+    /^(?:my account|account|profile|我的账户|个人中心)$/i.test(
+      link.label.trim()
+    )
+  )
   const hasLogin = actions.some((action) => action.type === "login")
   const hasPassword = signals.forms.some((form) =>
     form.controls.some((control) => control.type === "password")
@@ -542,9 +550,11 @@ export function analyzePage(signals: PageSignals): AgentPageModel {
     properties.price_candidates = priceMatches.slice(0, 5).join(" | ")
   }
 
-  const availability = text.match(
-    /\b(?:in stock|out of stock|available|sold out|limited stock)\b|有货|缺货|售罄|现货/i
-  )?.[0]
+  const availability = ["product", "hotel"].includes(pageType)
+    ? text.match(
+        /\b(?:in stock|out of stock|available|sold out|limited stock)\b|有货|缺货|售罄|现货/i
+      )?.[0]
+    : undefined
   if (availability) {
     properties.availability = availability
     evidence.push({

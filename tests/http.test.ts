@@ -288,10 +288,10 @@ describe("HTTP API", () => {
     expect(connect.body).toContain("awesome-remote.claude-code")
     expect(connect.body).toContain("@mmvv1638/404-directory-mcp")
     expect(connect.body).toContain("awesome-remote.npx")
-    expect(connect.body).toContain("Make preflight automatic")
-    expect(connect.body).toContain("research-official-docs")
+    expect(connect.body).toContain("Make the first call useful")
+    expect(connect.body).toContain("preflight-prediction-market")
     expect(connect.body).toContain("OpenAI Responses API")
-    expect(connect.body).toContain("search_official_docs")
+    expect(connect.body).toContain("evaluate_prediction_market")
     expect(connect.body).toContain("awesome-remote.openai-responses")
     expect(connect.body).toContain("authorization")
     expect(connect.body).toContain("/connect.md?source=awesome-remote")
@@ -320,7 +320,9 @@ describe("HTTP API", () => {
     expect(connectMarkdown.body).toContain("verify-public-deployment")
     expect(connectMarkdown.body).toContain("## OpenAI Responses API")
     expect(connectMarkdown.body).toContain('"server_label": "directory_404"')
-    expect(connectMarkdown.body).toContain('"name": "search_official_docs"')
+    expect(connectMarkdown.body).toContain(
+      '"name": "evaluate_prediction_market"'
+    )
     expect(connectMarkdown.body).toContain('"authorization": "agent:')
     expect(connectMarkdown.body).toContain("agent-reader.openai-responses")
     const openAiPayloadMatch = connectMarkdown.body.match(
@@ -334,7 +336,7 @@ describe("HTTP API", () => {
     expect(openAiPayload.tools[0]).toMatchObject({
       type: "mcp",
       server_url: "https://404.directory/mcp",
-      allowed_tools: ["search_official_docs"],
+      allowed_tools: ["evaluate_prediction_market"],
       require_approval: "never",
     })
     expect(openAiPayload.tools[0]).not.toHaveProperty("headers")
@@ -344,7 +346,7 @@ describe("HTTP API", () => {
     expect(openAiPayload.tool_choice).toEqual({
       type: "mcp",
       server_label: "directory_404",
-      name: "search_official_docs",
+      name: "evaluate_prediction_market",
     })
     expect(connectMarkdown.body).toContain("call `verify_web`")
     expect(connectMarkdown.body).toContain("call `search_tools`")

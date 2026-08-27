@@ -36,8 +36,8 @@ or custody funds.
 | MCP.Directory | Submission page reported that the repository was already submitted | In review queue, not proof of public listing | Do not resubmit; check listing after the review window |
 | IndexMCP | Free no-login form and documented submit API were tried without optional email | Not submitted; both the form and `.co` API return a provider-side schema-cache error because the `submissions.category` column is missing; documented `.com` endpoint returns 404 | Recheck only after IndexMCP fixes its backend; do not claim a submission or keep retrying the broken endpoint |
 | mcpservers.org | Public form inspected and valid public fields prepared | Not submitted | Owner supplies/approves contact email and confirms the representational submission |
-| GitHub MCP Registry | Not found in public discovery during this audit | Nomination not sent | Owner approves the official nomination email; measure Copilot/CLI attribution against v0.9.3 |
-| Glama | Public connector is Healthy but still exposes the old two-tool snapshot | Listed with stale metadata; production exposes 12 tools | Claiming requires publishing a maintainer email that matches a Glama account; obtain owner approval before exposing it, then request/rescan the listing |
+| GitHub MCP Registry | Not found in public discovery during this audit | Nomination not sent | Owner approves the official nomination email; measure Copilot/CLI attribution against v0.10.0 |
+| Glama | Public connector is Healthy but still exposes the old two-tool snapshot | Listed with stale metadata; production exposes 16 tools | Claiming requires publishing a maintainer email that matches a Glama account; obtain owner approval before exposing it, then request/rescan the listing |
 
 ## Open upstream pull requests
 

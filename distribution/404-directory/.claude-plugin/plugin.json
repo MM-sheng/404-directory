@@ -1,8 +1,8 @@
 {
   "name": "404-directory",
   "displayName": "404.directory",
-  "version": "0.10.0",
-  "description": "Search official AI and cloud documentation, verify public deployments, and discover trusted read-only MCP tools.",
+  "version": "0.10.1",
+  "description": "Preflight Polymarket and third-party Agent actions with evidence-backed allow, review, or block decisions.",
   "author": {
     "name": "404.directory",
     "url": "https://404.directory"
@@ -13,6 +13,9 @@
   "keywords": [
     "agent-tools",
     "mcp",
+    "prediction-markets",
+    "risk-preflight",
+    "agent-trust",
     "official-documentation",
     "tool-discovery",
     "web-verification"

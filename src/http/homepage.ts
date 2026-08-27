@@ -425,23 +425,23 @@ http_headers = { "X-404-Agent-ID" = "${generatedAgentId}", "X-404-Source" = "${s
     {
       model: "gpt-5.6",
       input:
-        "Use current official sources to answer this real technical question: REPLACE_WITH_YOUR_QUESTION",
+        "Before I act, preflight this real Polymarket market. Market: REPLACE_WITH_EXACT_POLYMARKET_URL. Intended action: observe. Execution mode: supervised. Geographic eligibility: unknown. Return Decision, Reasons, Evidence, Unknowns, and Next action. Do not predict the winner or trade.",
       tools: [
         {
           type: "mcp",
           server_label: "directory_404",
           server_description:
-            "Search current official OpenAI, Microsoft Learn, AWS, and Cloudflare documentation.",
+            "Preflight Polymarket and third-party Agent actions with evidence-backed allow, review, or block decisions.",
           server_url: endpoint,
           authorization: openAiAgentToken,
-          allowed_tools: ["search_official_docs"],
+          allowed_tools: ["evaluate_prediction_market"],
           require_approval: "never",
         },
       ],
       tool_choice: {
         type: "mcp",
         server_label: "directory_404",
-        name: "search_official_docs",
+        name: "evaluate_prediction_market",
       },
     },
     null,
@@ -571,12 +571,14 @@ export function renderConnectHtml(baseUrl: string, campaign?: string): string {
     </section>
     <section>
       <h2>OpenAI Responses API</h2>
-      <p class="privacy">Use this request body with your normal OpenAI API authentication. Replace the question before sending. The MCP <code>authorization</code> value is a random, non-personal installation token used only for privacy-safe attribution; it does not grant access. The request limits the MCP surface and forces one real <code>search_official_docs</code> call. OpenAI model usage may incur charges, while 404.directory itself currently requires no account or API key.</p>
+      <p class="privacy">Use this request body with your normal OpenAI API authentication and replace the Polymarket URL before sending. The MCP <code>authorization</code> value is a random, non-personal installation token used only for privacy-safe attribution; it does not grant access. The request limits the MCP surface and forces one real <code>evaluate_prediction_market</code> call. OpenAI model usage may incur charges, while 404.directory itself currently requires no account or API key.</p>
       <pre><code>${escapeHtml(connection.openAiResponsesPayload)}</code></pre>
     </section>
     <section class="first-call">
-      <h2>Make preflight automatic</h2>
-      <p>If your client exposes MCP Prompts, open <code>research-official-docs</code>, <code>verify-public-deployment</code>, or <code>evaluate-agent-tool</code> and provide a real task.</p>
+      <h2>Make the first call useful</h2>
+      <p>Paste an exact market you already care about. Do not use <code>tools/list</code>, a health check, or this homepage as the demo task. If your client exposes MCP Prompts, open <code>preflight-prediction-market</code>.</p>
+      <strong>Copy, replace the URL, and run:</strong>
+      <pre><code>Before I act, use evaluate_prediction_market on REPLACE_WITH_EXACT_POLYMARKET_URL. Set intended_action=observe, execution_mode=supervised, and geographic_eligibility=unknown. Return Decision → Reasons → Evidence → Unknowns → Next action. Do not predict or trade.</code></pre>
       <strong>Add this Agent policy:</strong>
       <pre><code>Before a Polymarket observation or contemplated Yes/No action, call evaluate_prediction_market with the exact market, action, approximate notional, execution mode, and the geoblock result from the execution environment. Never treat allow as a prediction. Obey block and pause on review. Report the bounded behavior result with report_prediction_market_outcome.</code></pre>
       <p>Installation counts only after a non-error tool result. Connection checks, probes, and repeated calls do not count.</p>
@@ -658,7 +660,7 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     "sending. The MCP `authorization` value is a random, non-personal",
     "installation token used only for privacy-safe attribution; it does not",
     "grant access. The request limits the MCP surface and forces one real",
-    "`search_official_docs` call. OpenAI model usage may incur charges;",
+    "`evaluate_prediction_market` call. OpenAI model usage may incur charges;",
     "404.directory itself currently requires no account or API key.",
     "",
     "```json",
@@ -667,8 +669,10 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     "",
     "## Verify the connection",
     "",
-    "If the client exposes MCP Prompts, open `research-official-docs`,",
-    "`verify-public-deployment`, or `evaluate-agent-tool` and provide one real",
+    "If the client exposes MCP Prompts, open `preflight-prediction-market`",
+    "with an exact market the user already cares about. Supporting prompts",
+    "include `evaluate-agent-tool`, `research-official-docs`, and",
+    "`verify-public-deployment`. Provide one real",
     "task. Opening a prompt is diagnostic only; it must lead to a successful",
     "tool call.",
     "",

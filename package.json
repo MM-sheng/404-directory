@@ -1,6 +1,6 @@
 {
   "name": "404-directory",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Evidence-backed risk preflight for AI Agent actions, starting with prediction-market settlement and execution risk.",
   "homepage": "https://404.directory",
   "repository": {
@@ -19,8 +19,14 @@
     "mcp:proxy:pack": "npm pack --dry-run ./packages/404-directory-mcp",
     "mcp:smoke": "tsx scripts/smoke-mcp.ts",
     "mcp:gateway:smoke": "tsx scripts/smoke-gateway.ts",
+    "mcp:first-shot:smoke": "tsx scripts/smoke-first-shot.ts",
     "mcp:openai:review": "tsx scripts/review-openai-plugin.ts",
     "test": "vitest run",
+    "test:first-shot": "vitest run tests/analyze.test.ts tests/llm.test.ts tests/mcp.test.ts tests/mcp-gateway.test.ts tests/http.test.ts tests/plugin-package.test.ts",
+    "risk-sdk:build": "npm run build --prefix packages/404-directory-risk-sdk",
+    "risk-sdk:test": "vitest run tests/risk-sdk.test.ts && PYTHONPATH=packages/directory404-risk-python/src python3 -m unittest discover -s packages/directory404-risk-python/tests -v",
+    "risk-sdk:pack": "npm pack --dry-run ./packages/404-directory-risk-sdk",
+    "pilot:status": "tsx scripts/pilot-status.ts",
     "test:watch": "vitest",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",

@@ -916,13 +916,17 @@ export async function buildApp(
         prompts: activationMcpPromptNames.map((name) => ({
           name,
           title:
-            name === "research-official-docs"
+            name === "preflight-prediction-market"
+              ? "Preflight a Polymarket action"
+              : name === "research-official-docs"
               ? "Research official AI and cloud documentation"
               : name === "verify-public-deployment"
                 ? "Verify a public deployment"
                 : "Find and preflight an Agent tool",
           description:
-            name === "research-official-docs"
+            name === "preflight-prediction-market"
+              ? "Evaluate one real Polymarket action for settlement, liquidity, eligibility, and execution risk."
+              : name === "research-official-docs"
               ? "Answer a real technical question with current first-party sources."
               : name === "verify-public-deployment"
                 ? "Check a concrete public deployment claim with structured evidence."

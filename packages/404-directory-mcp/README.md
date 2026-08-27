@@ -52,11 +52,13 @@ decision or action, call report_tool_outcome with only its receipt token and
 bounded outcome fields.
 ```
 
-Or ask the Agent to make another useful call, for example:
+The first useful call should use a real market the user already cares about:
 
 ```text
-Use search_official_docs to find the current official guidance for MCP
-Streamable HTTP. Cite the first-party sources.
+Before I act, use evaluate_prediction_market on
+REPLACE_WITH_EXACT_POLYMARKET_URL with intended_action=observe,
+execution_mode=supervised, and geographic_eligibility=unknown. Return Decision,
+Reasons, Evidence, Unknowns, and Next action. Do not predict or trade.
 ```
 
 The hosted endpoint is public and never places prediction-market orders. No

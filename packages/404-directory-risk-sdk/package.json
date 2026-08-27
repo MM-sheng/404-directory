@@ -1,0 +1,46 @@
+{
+  "name": "@mmvv1638/404-directory-risk-sdk",
+  "version": "0.1.0",
+  "description": "TypeScript risk-preflight middleware for AI Agents using 404.directory.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "ai-agent",
+    "polymarket",
+    "prediction-market",
+    "risk-preflight",
+    "agent-safety"
+  ],
+  "homepage": "https://404.directory",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MM-sheng/404-directory.git",
+    "directory": "packages/404-directory-risk-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/MM-sheng/404-directory/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT"
+}

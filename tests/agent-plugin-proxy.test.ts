@@ -235,6 +235,9 @@ describe("Agent Plugin identity bridge", () => {
 
   it("never forwards arbitrary client names into analytics headers", () => {
     expect(safeClientLabel("Claude Code")).toBe("claude")
+    expect(safeClientLabel("ElizaOS MCP Client")).toBe("elizaos")
+    expect(safeClientLabel("OpenClaw")).toBe("openclaw")
+    expect(safePluginClientLabel("OpenClaw Gateway")).toBe("openclaw")
     expect(safePluginClientLabel("Visual Studio Code")).toBe("vscode")
     expect(safeClientLabel("Alice's private workstation agent")).toBe(
       "mcp-client"

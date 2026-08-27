@@ -116,6 +116,22 @@ const jobSignals: PageSignals = {
   ],
 }
 
+const landingPageSignals: PageSignals = {
+  requestedUrl: "https://directory.example/",
+  finalUrl: "https://directory.example/",
+  title: "Agent risk preflight",
+  meta: [],
+  visibleText:
+    "Check an order before execution. No account is required. Service available.",
+  semanticDom: [{ tag: "main", text: "Agent risk preflight" }],
+  accessibility: '- link "Dashboard"',
+  jsonLd: [],
+  forms: [],
+  buttons: [],
+  links: [{ role: "link", label: "Dashboard", href: "/metrics" }],
+  wait: { network_idle: true, content_stable: true, waited_ms: 500 },
+}
+
 describe("analyzePage", () => {
   it("builds a schema-valid evidence-backed product model", () => {
     const model = analyzePage(productSignals)
@@ -162,6 +178,14 @@ describe("analyzePage", () => {
     expect(model.actions.map((action) => action.type)).toEqual(
       expect.arrayContaining(["submit", "download"])
     )
+  })
+
+  it("does not turn root-page capability copy into order or login state", () => {
+    const model = analyzePage(landingPageSignals)
+
+    expect(model.page_type).toBe("homepage")
+    expect(model.state.login_status).toBe("unknown")
+    expect(model.state.properties).not.toHaveProperty("availability")
   })
 })
 

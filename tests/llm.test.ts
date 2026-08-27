@@ -88,4 +88,47 @@ describe("OptionalLlmAnalyzer", () => {
       raw_value: "gpt-4o-mini",
     })
   })
+
+  it("does not let broad root-page copy become a high-confidence order page", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  page_type: "order",
+                  confidence: 0.95,
+                }),
+              },
+            },
+          ],
+        }),
+      }))
+    )
+    const analyzer = new OptionalLlmAnalyzer({
+      enabled: true,
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: "test-key",
+      model: "gpt-4o-mini",
+      timeoutMs: 1_000,
+    })
+    const rootSignals = {
+      ...signals,
+      requestedUrl: "https://directory.example/",
+      finalUrl: "https://directory.example/",
+      visibleText: "Risk preflight before an Agent places an order.",
+    }
+    const rootBaseline: AgentPageModel = {
+      ...baseline,
+      page_type: "homepage",
+      confidence: 0.7,
+    }
+
+    const refined = await analyzer.refine(rootSignals, rootBaseline)
+    expect(refined.page_type).toBe("homepage")
+    expect(refined.confidence).toBeLessThanOrEqual(0.7)
+  })
 })
