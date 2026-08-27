@@ -5,9 +5,9 @@ real external installation. Internal validation proves release compatibility;
 it never counts toward the 1,000-Agent adoption target.
 
 
-## v0.10.0 target
+## v0.10.1 target
 
-After the v0.10.0 production cutover, a clean client install must list all
+After the v0.10.1 production cutover, a clean client install must list all
 production MCP tools including `evaluate_prediction_market` and
 `report_prediction_market_outcome`, then complete one useful
 `evaluate_prediction_market` call in observe/supervised mode. Historical rows
@@ -32,8 +32,8 @@ Every supported path must complete:
 
 | Client/path | Installation surface | Automated evidence | Real client evidence required before claiming support | Attribution source |
 | --- | --- | --- | --- | --- |
-| Universal stdio | `npx -y @mmvv1638/404-directory-mcp` | Package, identity persistence, concurrency, protocol negotiation and forwarding tests | Clean install against public npm v0.10.0 and run one risk preflight | `npx` or supplied `--source` |
-| Official MCP Registry | npm package plus remote HTTP in `server.json` | Registry validation and package ownership metadata | Install from a Registry-compatible client after v0.10.0 propagation | `official-registry` |
+| Universal stdio | `npx -y @mmvv1638/404-directory-mcp` | Package, identity persistence, concurrency, protocol negotiation and forwarding tests | Clean install against public npm v0.10.1 and run one risk preflight | `npx` or supplied `--source` |
+| Official MCP Registry | npm package plus remote HTTP in `server.json` | Registry validation and package ownership metadata | Install from a Registry-compatible client after v0.10.1 propagation | `official-registry` |
 | Cursor | stdio bridge from the plugin manifest | Config schema, stable generated ID, source test | Open a clean Cursor profile, install, list 16 tools, run one risk preflight | `<campaign>.cursor` |
 | VS Code / GitHub Copilot | `vscode:mcp/install` URL | Generated URL/config schema and source test | Open a clean VS Code profile, install, list 16 tools, run one risk preflight | `<campaign>.vscode` |
 | Claude Code | native plugin or direct HTTP command | Plugin manifest/package validation and bridge tests | Install from a clean user scope and make one useful call | `claude` / campaign source |

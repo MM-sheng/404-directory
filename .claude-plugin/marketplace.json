@@ -9,7 +9,7 @@
       "name": "404-directory",
       "source": "./distribution/404-directory",
       "description": "Preflight exact Polymarket markets and unfamiliar Agent tools with evidence-backed allow, review, or block decisions.",
-      "version": "0.10.0",
+      "version": "0.10.1",
       "author": {
         "name": "404.directory"
       },

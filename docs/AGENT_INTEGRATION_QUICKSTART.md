@@ -77,7 +77,7 @@ export const character = {
           command: "npx",
           args: [
             "-y",
-            "@mmvv1638/404-directory-mcp@0.10.0",
+            "@mmvv1638/404-directory-mcp@0.10.1",
             "--source",
             "elizaos-pilot",
           ],

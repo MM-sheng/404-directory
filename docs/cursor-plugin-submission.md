@@ -7,7 +7,7 @@ Cursor Marketplace Publisher Terms.
 ## Source
 
 - GitHub repository: `https://github.com/MM-sheng/404-directory`
-- Review tag: `v0.10.0`
+- Review tag: `v0.10.1`
 - Format: Agent Plugins 1.0
 - Manifest: `plugin.json`
 - MCP configuration: `mcp.json`
@@ -61,7 +61,7 @@ workflows. The bundled Skill requires a useful non-error result before success.
 - Agent Plugins 1.0 `plugin.json` and `mcp.json` pass the official schemas.
 - GitHub Copilot's external plugin intake passed spec compliance, Vally Skill
   lint, clean install smoke testing, version matching, and ref/SHA consistency.
-- The MCP Registry publishes `io.github.MM-sheng/404-directory` at `v0.10.0`.
+- The MCP Registry publishes `io.github.MM-sheng/404-directory` at `v0.10.1`.
 - The release gate verifies the 16-tool inventory, first prediction-market
   call, persistent identity, and bounded documentation results.
 
