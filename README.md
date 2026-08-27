@@ -171,6 +171,11 @@ template explicitly requires a non-error tool result that materially answers
 the user's task. The server records only aggregate `prompts/list` and
 `prompts/get` activation stages, never prompt arguments or task text.
 
+For direct trading-Agent integration, see
+[`docs/AGENT_INTEGRATION_QUICKSTART.md`](docs/AGENT_INTEGRATION_QUICKSTART.md).
+The privacy-safe first-10 cohort process is documented in
+[`docs/FIRST_10_AGENT_PILOT.md`](docs/FIRST_10_AGENT_PILOT.md).
+
 ## Capability Graph
 
 Agents can explore shared-capability edges and get related-tool recommendations:

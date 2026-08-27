@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "directory404-risk"
+version = "0.1.0"
+description = "Python risk-preflight middleware for AI Agents using 404.directory."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "404.directory contributors" }]
+keywords = [
+  "ai-agent",
+  "polymarket",
+  "prediction-market",
+  "risk-preflight",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://404.directory"
+Repository = "https://github.com/MM-sheng/404-directory"
+Issues = "https://github.com/MM-sheng/404-directory/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+directory404_risk = ["py.typed"]

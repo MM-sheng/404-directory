@@ -16,6 +16,8 @@ const CLIENT_FAMILIES = [
   [/cursor/i, "cursor"],
   [/cline/i, "cline"],
   [/codex/i, "codex"],
+  [/eliza(?:os)?/i, "elizaos"],
+  [/openclaw/i, "openclaw"],
   [/visual studio code|vscode/i, "vscode"],
   [/goose/i, "goose"],
   [/mcp[ /_-]?inspector/i, "mcp-inspector"],
