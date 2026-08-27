@@ -1,6 +1,6 @@
 # Distribution status
 
-Last audited: 2026-08-26 04:20 UTC
+Last audited: 2026-08-27 04:50 UTC
 
 This tracker separates a submission from a public listing and a public listing
 from a qualified external Agent. A channel is successful only after it produces
@@ -22,10 +22,10 @@ or custody funds.
 
 | Surface | Current public state | Prepared state | Next action | Blocker |
 | --- | --- | --- | --- | --- |
-| GitHub | v0.9.3 remains the last public tag; `main` includes merged prediction-market preflight (`a873fb1`) | Release branch prepares `v0.10.0` | Publish GitHub Release after production cutover | Release PR / CI |
-| npm | `@mmvv1638/404-directory-mcp@0.9.3` remains `latest` until cutover | Package manifests bumped to `0.10.0` on the release branch | Publish npm `0.10.0` after production verification | Post-cutover publish |
-| Official MCP Registry | `io.github.MM-sheng/404-directory` v0.9.3 public | `server.json` bumped to `0.10.0` on the release branch | Publish Registry `0.10.0` after production verification | Post-cutover publish |
-| Production | Cloud Run revision `directory-404-aidisc-cbda6a7` still serves v0.9.3 with 12 MCP tools | v0.10.0 adds prediction-market risk preflight plus previously merged tool-risk preflight tools; migration `0008` creates `prediction_market_evaluations` only | Complete backup → migrate → canary → traffic switch | Release in progress |
+| GitHub | v0.10.0 tag and release published from `b36da6d` | Prediction-market preflight merged (`a873fb1`) | Monitor adoption metrics | None |
+| npm | `@mmvv1638/404-directory-mcp@0.10.0` published via tag workflow | Identity-preserving bridge matches `server.json` | Measure external Agent installs | None |
+| Official MCP Registry | `io.github.MM-sheng/404-directory` v0.10.0 published via tag workflow | 16 MCP tools on production | Monitor Registry sync to MCPCentral | None |
+| Production | Cloud Run revision `directory-404-v010-postmigrate` serves v0.10.0 with 16 MCP tools | Rollback revision `directory-404-aidisc-cbda6a7` kept at 0% (tag `aidisc-canary`) | Measure external prediction-market and tool-risk preflight usage | None |
 
 ## Marketplace and directory surfaces
 
