@@ -1,0 +1,86 @@
+name: Publish risk SDKs
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Risk SDK version without a v prefix
+        required: true
+        default: "0.1.0"
+
+permissions:
+  contents: read
+
+jobs:
+  publish-npm:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+      - name: Install trusted-publishing compatible npm
+        run: npm install --global npm@latest
+      - name: Verify, test, and build
+        run: |
+          test "${{ inputs.version }}" = "$(jq -r .version packages/404-directory-risk-sdk/package.json)"
+          npm ci
+          npm run risk-sdk:test
+          npm pack --dry-run ./packages/404-directory-risk-sdk
+      - name: Publish TypeScript SDK
+        run: |
+          PACKAGE_NAME="$(jq -r .name packages/404-directory-risk-sdk/package.json)"
+          VERSION="$(jq -r .version packages/404-directory-risk-sdk/package.json)"
+          if npm view "$PACKAGE_NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "$PACKAGE_NAME@$VERSION already exists; refusing to overwrite it."
+          else
+            npm publish --access public ./packages/404-directory-risk-sdk
+          fi
+
+  publish-pypi:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Verify, test, and build
+        run: |
+          python - <<'PY'
+          import pathlib
+          import tomllib
+
+          metadata = tomllib.loads(
+              pathlib.Path("packages/directory404-risk-python/pyproject.toml").read_text()
+          )
+          assert metadata["project"]["version"] == "${{ inputs.version }}"
+          PY
+          PYTHONPATH=packages/directory404-risk-python/src \
+            python -m unittest discover -s packages/directory404-risk-python/tests -v
+          python -m pip install --disable-pip-version-check build
+          python -m build packages/directory404-risk-python
+      - name: Check whether the immutable version already exists
+        id: pypi
+        run: |
+          if curl --fail --silent --show-error \
+            "https://pypi.org/pypi/directory404-risk/${{ inputs.version }}/json" \
+            >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish Python SDK with PyPI trusted publishing
+        if: steps.pypi.outputs.exists != 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/directory404-risk-python/dist/

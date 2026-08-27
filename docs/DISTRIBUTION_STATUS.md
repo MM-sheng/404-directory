@@ -1,15 +1,17 @@
 # Distribution status
 
-Last audited: 2026-08-27 04:50 UTC
+Last audited: 2026-08-27 08:58 UTC
 
 This tracker separates a submission from a public listing and a public listing
 from a qualified external Agent. A channel is successful only after it produces
 at least one de-duplicated external Agent with a successful tool execution.
 
-## v0.10.0 release note (2026-08-26)
+## v0.10.1 release note (2026-08-27)
 
-404.directory v0.10.0 introduces the first vertical Agent decision workflow:
-evidence-backed Polymarket settlement and execution-risk preflight.
+404.directory v0.10.1 makes the first installed-Agent interaction match the
+vertical product: evidence-backed Polymarket and third-party tool risk
+preflight. It also adds TypeScript and Python middleware for repeat use at an
+Agent's existing execution boundary.
 
 It evaluates public rules, time boundaries, subjective language, order-book
 depth, spread, estimated slippage, caller-observed geographic eligibility, and
@@ -22,10 +24,12 @@ or custody funds.
 
 | Surface | Current public state | Prepared state | Next action | Blocker |
 | --- | --- | --- | --- | --- |
-| GitHub | v0.10.0 tag and release published from `b36da6d` | Prediction-market preflight merged (`a873fb1`) | Monitor adoption metrics | None |
-| npm | `@mmvv1638/404-directory-mcp@0.10.0` published via tag workflow | Identity-preserving bridge matches `server.json` | Measure external Agent installs | None |
-| Official MCP Registry | `io.github.MM-sheng/404-directory` v0.10.0 published via tag workflow | 16 MCP tools on production | Monitor Registry sync to MCPCentral | None |
-| Production | Cloud Run revision `directory-404-v010-postmigrate` serves v0.10.0 with 16 MCP tools | Rollback revision `directory-404-aidisc-cbda6a7` kept at 0% (tag `aidisc-canary`) | Measure external prediction-market and tool-risk preflight usage | None |
+| GitHub | v0.10.1 release published from `f43bf3f`; TypeScript v0.1.0 tarball and Python v0.1.0 wheel attached with SHA-256 digests | Both artifacts pass clean-environment import checks | Use the artifacts for the first 10-Agent pilot | None |
+| npm MCP bridge | `@mmvv1638/404-directory-mcp@0.10.1` is the public `latest` version | Identity-preserving bridge matches `server.json` | Measure successful calls, not downloads | None |
+| npm risk SDK | Release tarball is public; registry package is not initialized | Trusted-publishing workflow prepared | Owner performs the one-time npm package initialization, then run `Publish risk SDKs` on `main` | npm local authentication is expired and npm requires an existing package before trusted publishing can be configured |
+| PyPI risk SDK | Release wheel is public; `directory404-risk` is not registered | Trusted-publishing workflow prepared | Owner creates a pending PyPI publisher for `publish-risk-sdks.yml`, then run it on `main` | One-time PyPI account configuration |
+| Official MCP Registry | `io.github.MM-sheng/404-directory` v0.10.1 is active and marked latest | 16 MCP tools on production | Measure Registry-attributed successful calls | None |
+| Production | Cloud Run revision `directory-404-v0101-f43bf3f` serves 100% of traffic with v0.10.1 and 16 MCP tools | Previous `directory-404-v010-postmigrate` revision remains available at 0% for rollback | Recruit and measure 10 independent Agents | None |
 
 ## Marketplace and directory surfaces
 
