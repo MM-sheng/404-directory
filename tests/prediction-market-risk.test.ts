@@ -1,11 +1,14 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import type { FastifyInstance } from "fastify"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { loadConfig } from "../src/config.js"
 import { MemoryCatalogStore } from "../src/domain/memory-store.js"
 import {
   PredictionMarketInputError,
+  ORDERBOOK_MAX_AGE_MS,
+  MARKET_METADATA_MAX_AGE_MS,
+  EVIDENCE_CLOCK_SKEW_MS,
   evaluatePredictionMarket,
   getPredictionMarketEvaluationReceipt,
   parsePredictionMarketReference,
@@ -19,10 +22,16 @@ import { ToolRegistry } from "../src/tools/registry.js"
 const clients: Client[] = []
 let app: FastifyInstance | undefined
 
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] })
+  vi.setSystemTime(new Date("2026-08-26T00:00:30Z"))
+})
+
 afterEach(async () => {
   await Promise.all(clients.splice(0).map((client) => client.close()))
   await app?.close()
   app = undefined
+  vi.useRealTimers()
 })
 
 function clearMarket(overrides: Record<string, unknown> = {}) {
@@ -89,6 +98,171 @@ class FakePredictionMarketDataSource implements PredictionMarketDataSource {
 }
 
 describe("prediction-market risk preflight", () => {
+  it.each([
+    [ORDERBOOK_MAX_AGE_MS - 1, "allow"],
+    [ORDERBOOK_MAX_AGE_MS, "block"],
+    [-EVIDENCE_CLOCK_SKEW_MS, "allow"],
+    [-EVIDENCE_CLOCK_SKEW_MS - 1, "block"],
+  ])("handles the order-book age boundary %s ms", async (age, decision) => {
+    const evaluation = await evaluatePredictionMarket(
+      new MemoryCatalogStore(),
+      {
+        market: "101",
+        intended_action: "buy_yes",
+        estimated_notional_usd: 100,
+        execution_mode: "supervised",
+        geographic_eligibility: "eligible",
+      },
+      new FakePredictionMarketDataSource(clearMarket(), {
+        "yes-token": {
+          ...liquidBook(),
+          timestamp: String(Date.now() - Number(age)),
+        },
+      })
+    )
+    expect(evaluation.decision).toBe(decision)
+    if (decision === "allow") {
+      expect(Date.parse(evaluation.expires_at) - Date.now()).toBeGreaterThan(0)
+      expect(
+        Date.parse(evaluation.expires_at) - Date.now()
+      ).toBeLessThanOrEqual(ORDERBOOK_MAX_AGE_MS)
+    }
+  })
+
+  it("checks age after upstream I/O and never substitutes fetch time for missing source time", async () => {
+    const staleBook = liquidBook()
+    const evaluation = await evaluatePredictionMarket(
+      new MemoryCatalogStore(),
+      {
+        market: "101",
+        intended_action: "buy_yes",
+        estimated_notional_usd: 100,
+        execution_mode: "supervised",
+        geographic_eligibility: "eligible",
+      },
+      {
+        getMarket: async () => clearMarket(),
+        getOrderBook: async () => {
+          vi.setSystemTime(new Date(Date.now() + ORDERBOOK_MAX_AGE_MS))
+          return staleBook
+        },
+      }
+    )
+    expect(evaluation.decision).toBe("block")
+    expect(evaluation.reason_codes).toContain("ORDERBOOK_STALE")
+    const missing = await evaluatePredictionMarket(
+      new MemoryCatalogStore(),
+      {
+        market: "101",
+        intended_action: "buy_yes",
+        estimated_notional_usd: 100,
+        execution_mode: "supervised",
+        geographic_eligibility: "eligible",
+      },
+      new FakePredictionMarketDataSource(clearMarket(), {
+        "yes-token": { ...liquidBook(), timestamp: "" },
+      })
+    )
+    expect(
+      missing.evidence.find((e) => e.kind === "order_book")?.observed_at
+    ).toBeNull()
+  })
+
+  it.each([MARKET_METADATA_MAX_AGE_MS - 1, MARKET_METADATA_MAX_AGE_MS])(
+    "checks metadata age cutoff %s",
+    async (age) => {
+      const evaluation = await evaluatePredictionMarket(
+        new MemoryCatalogStore(),
+        {
+          market: "101",
+          intended_action: "observe",
+          execution_mode: "supervised",
+          geographic_eligibility: "unknown",
+        },
+        new FakePredictionMarketDataSource(
+          clearMarket({ updatedAt: new Date(Date.now() - age).toISOString() })
+        )
+      )
+      expect(evaluation.decision).toBe(
+        age < MARKET_METADATA_MAX_AGE_MS ? "allow" : "review"
+      )
+    }
+  )
+
+  it.each([
+    ["stale", "1577836800000"],
+    ["missing", ""],
+    ["invalid", "not-a-time"],
+    ["out-of-range", "999999999999999999999"],
+    ["future", String(new Date("2026-08-26T01:00:00Z").getTime())],
+  ])(
+    "does not allow a trade with %s order-book time",
+    async (_label, timestamp) => {
+      const evaluation = await evaluatePredictionMarket(
+        new MemoryCatalogStore(),
+        {
+          market: "101",
+          intended_action: "buy_yes",
+          estimated_notional_usd: 100,
+          execution_mode: "supervised",
+          geographic_eligibility: "eligible",
+        },
+        new FakePredictionMarketDataSource(clearMarket(), {
+          "yes-token": { ...liquidBook(), timestamp },
+        })
+      )
+      expect(evaluation.decision).toBe("block")
+      expect(evaluation.reason_codes).not.toContain("PREFLIGHT_PASSED")
+      expect(evaluation.confidence).toBeLessThan(0.95)
+      expect(
+        evaluation.evidence.find((e) => e.kind === "order_book")?.status
+      ).not.toBe("pass")
+    }
+  )
+
+  it.each([
+    null,
+    "",
+    "invalid",
+    "2020-01-01T00:00:00Z",
+    "2026-08-27T00:00:00Z",
+  ])(
+    "requires review when market metadata time is not usable: %s",
+    async (updatedAt) => {
+      const evaluation = await evaluatePredictionMarket(
+        new MemoryCatalogStore(),
+        {
+          market: "101",
+          intended_action: "observe",
+          execution_mode: "supervised",
+          geographic_eligibility: "unknown",
+        },
+        new FakePredictionMarketDataSource(clearMarket({ updatedAt }))
+      )
+      expect(evaluation.decision).toBe("review")
+      expect(evaluation.reason_codes).not.toContain("PREFLIGHT_PASSED")
+      expect(evaluation.confidence).toBeLessThan(0.95)
+    }
+  )
+
+  it("requires size-specific review for a trade without a notional", async () => {
+    const evaluation = await evaluatePredictionMarket(
+      new MemoryCatalogStore(),
+      {
+        market: "101",
+        intended_action: "buy_yes",
+        execution_mode: "supervised",
+        geographic_eligibility: "eligible",
+      },
+      new FakePredictionMarketDataSource()
+    )
+    expect(evaluation.decision).toBe("review")
+    expect(evaluation.reason_codes).toContain(
+      "SIZE_SPECIFIC_DEPTH_NOT_EVALUATED"
+    )
+    expect(evaluation.reason_codes).not.toContain("PREFLIGHT_PASSED")
+  })
+
   it("accepts only exact Polymarket references", () => {
     expect(
       parsePredictionMarketReference(
@@ -125,7 +299,7 @@ describe("prediction-market risk preflight", () => {
       platform: "polymarket",
       decision: "allow",
       risk_score: 0,
-      policy_version: "polymarket-preflight-v1",
+      policy_version: "polymarket-preflight-v2",
       reason_codes: ["PREFLIGHT_PASSED"],
       market: {
         id: "101",

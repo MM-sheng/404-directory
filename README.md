@@ -99,6 +99,20 @@ curl -sS 'http://127.0.0.1:4040/v1/tools/search?capability=btc&trust_threshold=0
 curl -sS http://127.0.0.1:4040/v1/tools/btc_analyzer/trust
 ```
 
+Catalog keyword search uses `catalog-lexical-v2` in both memory and PostgreSQL.
+Try `q=official%20documentation` or `q=OpenAI%20docs`; words need not be adjacent.
+All meaningful terms must match across the name, description, capabilities,
+category or provider. Exact names rank first, then lexical relevance, existing
+trust evidence and usage. Capability/protocol/category/trust filters remain
+mandatory, and public search still excludes quarantined and suspended tools.
+
+No matches returns `count: 0`, `search.result_status: "no_matches"`, and a
+recovery step pointing to MCP `list_capabilities` / REST `/v1/capabilities`.
+An empty MCP search is a valid response, but is recorded as `no_matches` rather
+than a successful Agent activation. It does not mean the task is impossible.
+Search neither executes tools nor proves they are safe; preflight the exact
+chosen slug. See [search semantics and acceptance results](docs/AUDIT_SEARCH_RECALL_2026-08-27.md).
+
 Trust Profile dimensions (v1 algorithm, extensible factors JSON):
 
 - Ownership / Availability / Compatibility / Security / Usage → `overall_score`
@@ -170,6 +184,13 @@ Rendering or opening a prompt never counts toward the 1,000-Agent target. Each
 template explicitly requires a non-error tool result that materially answers
 the user's task. The server records only aggregate `prompts/list` and
 `prompts/get` activation stages, never prompt arguments or task text.
+
+MCP prompt arguments are strings. `evaluate-agent-tool` requires an explicit
+`permissions` argument, for example `"public_network,credentials"` or the JSON
+array string `'["public_network","credentials"]'`. Use `"[]"` only when the
+action requires no permissions. Missing, malformed, and unknown permissions
+are rejected rather than silently treated as safe. This string encoding is
+for `prompts/get` only; `evaluate_tool_risk` still accepts a JSON array.
 
 For direct trading-Agent integration, see
 [`docs/AGENT_INTEGRATION_QUICKSTART.md`](docs/AGENT_INTEGRATION_QUICKSTART.md).
@@ -249,7 +270,28 @@ npm run build
 npm start
 ```
 
-## Agent discovery (first-party)
+## Agent discovery (404 service tools)
+
+The service inventory and the registered ecosystem catalog are distinct:
+
+| Surface | Meaning |
+| --- | --- |
+| MCP `tools/list`, `GET /tools` | The same enabled, callable 404 service tools (16 with the default native tools, catalog and gateway enabled) |
+| `GET /tools/:name` | The actual MCP argument schema, safety annotations, and explicit MCP / REST invocation routes |
+| `GET /v1/tools/search` | Registered target records, including seeded first-party and third-party tools; a match is not permission to execute |
+| `GET /v1/capabilities` | Capability labels for ecosystem records, not a list of callable 404 functions |
+
+The homepage, installation guides, docs, server card, and discovery metadata
+derive the enabled tool inventory from the real MCP registration at startup.
+The three gateway tools (`search_official_docs`, `inspect_tool_server`,
+`invoke_registered_tool`) are MCP-only: their metadata has `invocation.rest: null`.
+For other tools, follow the declared REST path and parameter mapping instead
+of assuming that `/tools/:name` executes a tool. HTTP contracts remain in
+`/openapi.json`; MCP metadata schemas follow MCP's JSON Schema dialect, not
+OpenAPI 3's schema dialect. Restart after changing registration/configuration.
+
+See [discovery consistency audit](docs/AUDIT_SERVICE_DISCOVERY_2026-08-27.md)
+for validation, compatibility notes, and the local-only delivery boundary.
 
 ```bash
 curl -sS http://127.0.0.1:4040/tools | jq

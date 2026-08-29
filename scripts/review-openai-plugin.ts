@@ -95,7 +95,7 @@ try {
   const verification = await expectSuccessfulTool("verify_web", {
     url: "https://404.directory/health",
     expected_status: 200,
-    expected_text: '"version":"0.10.1"',
+    expected_text: '"version":"0.10.2"',
   })
   requireCondition(
     verification.verified === true,

@@ -3,16 +3,26 @@ import type {
   ActivationFunnelSummary,
   AgentUsageSummary,
   RiskEvaluationSummary,
+  PredictionMarketEvaluationSummary,
 } from "../domain/store.js"
 import type { ReliabilitySummary } from "../domain/metrics.js"
-import type { ToolCatalogEntry, ToolDiscoveryEntry } from "../tools/types.js"
+import type { ServiceToolEntry } from "../mcp/service-manifest.js"
 import { SERVICE_VERSION } from "../version.js"
 
-export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
+export function renderHomepage(tools: ServiceToolEntry[]): string {
+  const has = (name: string) => tools.some((tool) => tool.name === name)
+  const hasPreflight = has("evaluate_prediction_market")
+  const firstTool = hasPreflight ? "evaluate_prediction_market" : tools[0]?.name
+  const pageTitle = hasPreflight
+    ? "404.directory — Risk preflight for AI Agent actions"
+    : "404.directory — Tools for AI Agents"
+  const introduction = hasPreflight
+    ? "Preflight Polymarket settlement wording, timing, liquidity, eligibility, and execution mode without predicting or trading. Registered tool preflight remains available."
+    : "Use the enabled service tools listed below. Unavailable catalog or gateway capabilities are not advertised as callable."
   const toolLines = tools
     .map(
       (tool) =>
-        `  <li><code>${escapeHtml(tool.name)}</code> — ${escapeHtml(tool.use_when)}</li>`
+        `  <li><a href="${escapeHtml(tool.href)}"><code>${escapeHtml(tool.name)}</code></a> — ${escapeHtml(tool.title ?? tool.name)}</li>`
     )
     .join("\n")
 
@@ -21,13 +31,13 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>404.directory — Risk preflight for AI Agent actions</title>
-  <meta name="description" content="Evidence-backed allow, review, or block decisions for AI Agent actions, starting with prediction-market settlement and execution risk." />
+  <title>${escapeHtml(pageTitle)}</title>
+  <meta name="description" content="${escapeHtml(introduction)}" />
   <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
   <link rel="canonical" href="https://404.directory/" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="404.directory — Risk preflight for AI Agent actions" />
-  <meta property="og:description" content="Preflight a prediction-market or third-party tool decision with evidence-backed allow, review, or block results." />
+  <meta property="og:title" content="${escapeHtml(pageTitle)}" />
+  <meta property="og:description" content="${escapeHtml(introduction)}" />
   <meta property="og:url" content="https://404.directory/" />
   <meta property="og:image" content="https://404.directory/icon.svg" />
   <meta name="twitter:card" content="summary" />
@@ -39,7 +49,7 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
         "@type": "WebSite",
         "name": "404.directory",
         "url": "https://404.directory/",
-        "description": "Contextual risk preflight for AI Agent actions, starting with prediction-market settlement and execution risk."
+        "description": ${JSON.stringify(introduction)}
       },
       {
         "@type": "SoftwareApplication",
@@ -52,7 +62,7 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
         "downloadUrl": "https://404.directory/connect",
         "codeRepository": "https://github.com/MM-sheng/404-directory",
         "license": "https://opensource.org/license/mit",
-        "description": "Evidence-backed allow, review, or block decisions for prediction-market actions and third-party Agent tools.",
+        "description": ${JSON.stringify(introduction)},
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       },
       {
@@ -61,7 +71,7 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
           {
             "@type": "Question",
             "name": "What can an AI Agent do with 404.directory?",
-            "acceptedAnswer": { "@type": "Answer", "text": "An Agent can preflight a Polymarket action for settlement and execution risk, or preflight a registered third-party tool, receive an evidence-backed allow, review, or block decision, and later report a bounded outcome." }
+            "acceptedAnswer": { "@type": "Answer", "text": ${JSON.stringify(introduction)} }
           },
           {
             "@type": "Question",
@@ -218,8 +228,8 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
 <body>
   <main>
     <h1>404.directory</h1>
-    <p class="tagline">Risk preflight before an Agent acts.</p>
-    <p class="definition"><strong>404.directory returns an evidence-backed allow, review, or block decision.</strong> The first vertical workflow checks Polymarket settlement wording, timing, liquidity, eligibility, and execution mode without predicting or trading. Registered tool preflight remains available. No account or API key is required.</p>
+    <p class="tagline">${hasPreflight ? "Risk preflight before an Agent acts." : "Tools for real Agent tasks."}</p>
+    <p class="definition">${escapeHtml(introduction)} Public tool access requires no account; outcome reporting requires the one-time receipt token.</p>
     <a class="cta" href="/connect?source=homepage">Connect your Agent →</a>
     <section class="skill-install">
       <h2>Install as an Agent Skill</h2>
@@ -228,21 +238,20 @@ export function renderHomepage(tools: ToolDiscoveryEntry[]): string {
     </section>
     <section class="first-call">
       <h2>Enter the decision path</h2>
-      <code>evaluate_prediction_market</code>
-      <p>Submit one exact Polymarket market, intended Yes/No action, approximate notional, execution mode, and caller-observed eligibility. 404.directory never places the order.</p>
-      <div class="providers">
-        <span>allow</span><span>review</span><span>block</span><span>receipt</span>
-      </div>
+      ${firstTool ? `<a href="/tools/${escapeHtml(firstTool)}"><code>${escapeHtml(firstTool)}</code></a>` : "No service tools are enabled."}
+      <p>${hasPreflight ? "Submit one exact Polymarket market, intended Yes/No action, approximate notional, execution mode, and caller-observed eligibility. 404.directory never places the order." : "Follow the tool metadata link for supported inputs and available invocation routes."}</p>
+      ${hasPreflight ? '<div class="providers"><span>allow</span><span>review</span><span>block</span><span>receipt</span></div>' : ""}
     </section>
-    <p class="definition">Supporting workflows include <code>search_official_docs</code> for current first-party OpenAI, Microsoft Learn, AWS, and Cloudflare documentation, plus structured public deployment and webpage verification.</p>
-    <h2>Built-in web tools</h2>
+    ${has("search_official_docs") ? '<p class="definition">Use <a href="/tools/search_official_docs"><code>search_official_docs</code></a> for first-party documentation, subject to current curated-source availability. This gateway capability is MCP-only.</p>' : ""}
+    <h2>Available 404 service tools</h2>
+    <p>These names are callable through MCP. Each metadata link lists its input contract and any available REST equivalent. ${has("search_tools") ? '<a href="/v1/tools/search">Ecosystem records</a> describe registered targets, including first-party and third-party tools; listing one does not authorize or enable its execution.' : "The ecosystem catalog is not enabled in this instance."}</p>
     <ul>
 ${toolLines}
     </ul>
     <section class="faq">
       <h2>Questions Agents and operators ask</h2>
       <h3>What can an AI Agent do with 404.directory?</h3>
-      <p>Preflight a prediction-market decision for settlement and execution risk, or evaluate a registered third-party tool before use. Inspect the evidence and unknowns, then attach one bounded outcome.</p>
+      <p>${escapeHtml(introduction)}</p>
       <h3>Does it require credentials?</h3>
       <p>No account or API key is currently required. Risk evaluation does not execute the target; outcome reporting writes only bounded enums through a one-time token.</p>
       <h3>What counts as a real external Agent user?</h3>
@@ -265,33 +274,46 @@ ${toolLines}
 </html>`
 }
 
-export function renderDocs(tools: ToolCatalogEntry[]): string {
+export function renderDocs(tools: ServiceToolEntry[]): string {
   const sections = tools
-    .map(
-      (tool) => `## ${tool.name}
-
-${tool.description}
-
-**When to use:** ${tool.use_when}
-
-**Do not use when:** ${tool.do_not_use_when}
-
-- Endpoint: \`${tool.method} ${tool.endpoint}\`
-- Version: \`${tool.version}\`
-- Status: \`${tool.status}\`
-- Read only: \`${tool.read_only}\`
-- Side effects: \`${tool.side_effects.length === 0 ? "none" : tool.side_effects.join(", ")}\`
-- Authentication: \`${tool.requires_auth ? "required" : "not required"}\`
-- Cost: \`${tool.cost}\`
-- Typical latency: \`${tool.typical_latency_ms} ms\`
-- Discovery: \`GET /tools/${tool.name}\`
-`
-    )
+    .map((tool) => {
+      const rest = tool.invocation.rest
+      return [
+        "## " + tool.name,
+        "",
+        tool.description,
+        "",
+        "- Metadata: `GET " + tool.href + "`",
+        "- MCP: `POST /mcp` → `tools/call`, name: `" + tool.name + "`",
+        "- Input schema: `input_schema` in the metadata is the MCP argument contract.",
+        rest
+          ? "- REST: `" +
+            rest.method +
+            " " +
+            rest.path +
+            "` — " +
+            rest.input_mapping
+          : "- REST: not available. Use MCP; no standalone HTTP invocation endpoint exists.",
+        "- Safety annotations: `" +
+          JSON.stringify(tool.annotations ?? {}) +
+          "`",
+        "",
+      ].join("\n")
+    })
     .join("\n")
 
   return `# 404.directory
 
 Tools built for AI agents.
+
+## Two distinct directories
+
+- \`GET /tools\` lists enabled, callable **404 service tools** — the same names as MCP \`tools/list\`.
+- \`GET /v1/tools/search\` lists **registered ecosystem targets**, including first-party and third-party tools, not additional MCP tool names.
+- \`GET /v1/capabilities\` lists ecosystem capability labels, not the 404 service inventory.
+- Discovery never grants execution permission. Remote execution remains subject to curation, lifecycle, ownership, authentication and gateway policy.
+- Some service tools are MCP-only. Follow \`invocation.mcp\` or the explicitly listed \`invocation.rest\`; do not guess an HTTP path.
+- MCP and REST parameter encoding can differ. REST request contracts are documented in \`/openapi.json\`.
 
 Machine discovery:
 
@@ -478,9 +500,22 @@ http_headers = { "X-404-Agent-ID" = "${generatedAgentId}", "X-404-Source" = "${s
   }
 }
 
-export function renderConnectHtml(baseUrl: string, campaign?: string): string {
+export function renderConnectHtml(
+  baseUrl: string,
+  campaign: string | undefined,
+  tools: ServiceToolEntry[]
+): string {
   const connection = createConnectionArtifacts(baseUrl, campaign)
   const source = campaignSource(campaign)
+  const hasPreflight = tools.some(
+    (tool) => tool.name === "evaluate_prediction_market"
+  )
+  const toolLinks = tools
+    .map(
+      (tool) =>
+        `<a href="${escapeHtml(tool.href)}"><code>${escapeHtml(tool.name)}</code></a>`
+    )
+    .join(", ")
 
   return `<!doctype html>
 <html lang="en">
@@ -536,8 +571,9 @@ export function renderConnectHtml(baseUrl: string, campaign?: string): string {
   <main>
     <a class="back" href="/">← 404.directory</a>
     <h1>Connect an Agent</h1>
-    <p class="lead">One MCP connection for risk preflight before an Agent acts in a prediction market or trusts a third-party tool. No account or API key.</p>
-    <div class="badges"><span class="badge">focused toolset</span><span class="badge">allow / review / block</span><span class="badge">privacy-safe identity</span></div>
+    <p class="lead">One MCP connection for the enabled 404 service tools. No account or API key.</p>
+    <p>Enabled on this instance: ${toolLinks || "No tools enabled."} Follow each metadata link for its input contract and invocation routes.</p>
+    <div class="badges"><span class="badge">focused toolset</span>${hasPreflight ? '<span class="badge">allow / review / block</span>' : ""}<span class="badge">privacy-safe identity</span></div>
     <div class="grid">
       <article class="card">
         <h2>Cursor</h2>
@@ -569,19 +605,27 @@ export function renderConnectHtml(baseUrl: string, campaign?: string): string {
       <p class="privacy">Add this configuration to <code>~/.codex/config.toml</code>.</p>
       <pre><code>${escapeHtml(connection.codexToml)}</code></pre>
     </section>
-    <section>
+    ${
+      hasPreflight
+        ? `<section>
       <h2>OpenAI Responses API</h2>
       <p class="privacy">Use this request body with your normal OpenAI API authentication and replace the Polymarket URL before sending. The MCP <code>authorization</code> value is a random, non-personal installation token used only for privacy-safe attribution; it does not grant access. The request limits the MCP surface and forces one real <code>evaluate_prediction_market</code> call. OpenAI model usage may incur charges, while 404.directory itself currently requires no account or API key.</p>
       <pre><code>${escapeHtml(connection.openAiResponsesPayload)}</code></pre>
-    </section>
+    </section>`
+        : ""
+    }
     <section class="first-call">
       <h2>Make the first call useful</h2>
-      <p>Paste an exact market you already care about. Do not use <code>tools/list</code>, a health check, or this homepage as the demo task. If your client exposes MCP Prompts, open <code>preflight-prediction-market</code>.</p>
+      ${
+        hasPreflight
+          ? `<p>Paste an exact market you already care about. Do not use <code>tools/list</code>, a health check, or this homepage as the demo task. If your client exposes MCP Prompts, open <code>preflight-prediction-market</code>.</p>
       <strong>Copy, replace the URL, and run:</strong>
       <pre><code>Before I act, use evaluate_prediction_market on REPLACE_WITH_EXACT_POLYMARKET_URL. Set intended_action=observe, execution_mode=supervised, and geographic_eligibility=unknown. Return Decision → Reasons → Evidence → Unknowns → Next action. Do not predict or trade.</code></pre>
       <strong>Add this Agent policy:</strong>
-      <pre><code>Before a Polymarket observation or contemplated Yes/No action, call evaluate_prediction_market with the exact market, action, approximate notional, execution mode, and the geoblock result from the execution environment. Never treat allow as a prediction. Obey block and pause on review. Report the bounded behavior result with report_prediction_market_outcome.</code></pre>
-      <p>Installation counts only after a non-error tool result. Connection checks, probes, and repeated calls do not count.</p>
+      <pre><code>Before a Polymarket observation or contemplated Yes/No action, call evaluate_prediction_market with the exact market, action, approximate notional, execution mode, and the geoblock result from the execution environment. Never treat allow as a prediction. Obey block and pause on review. Report the bounded behavior result with report_prediction_market_outcome.</code></pre>`
+          : "<p>Choose an enabled tool above only when it fits a real user task. Read its inputs and safety annotations before calling. Do not use connection checks or invented tasks as an activation demo.</p>"
+      }
+      <p>Activation requires a successful business result, not just a non-error protocol response. Empty searches and connection checks do not activate an Agent; later calls do not create additional unique Agents.</p>
     </section>
     <p class="privacy">For the direct configurations above, this page generated <code>${escapeHtml(connection.generatedAgentId)}</code> randomly; keep it stable for that installation. The npm bridge and Claude marketplace plugin create and preserve their own local random IDs. 404.directory stores only an HMAC digest after a successful tool call—never the raw ID, prompt, arguments, or result.</p>
     <nav class="links"><a href="/connect.md${source ? `?source=${escapeHtml(source)}` : ""}">Agent-readable setup</a><a href="https://github.com/MM-sheng/404-directory/issues/1">External Agent pilot</a><a href="/v1/metrics/agents">Live adoption metric</a><a href="/v1/metrics/prediction-market-evaluations">Prediction preflight evidence</a><a href="/v1/metrics/risk-evaluations">Tool preflight evidence</a><a href="/v1/metrics/reliability">Reliability evidence</a><a href="/privacy">Privacy</a><a href="https://github.com/MM-sheng/404-directory">Source</a></nav>
@@ -590,8 +634,13 @@ export function renderConnectHtml(baseUrl: string, campaign?: string): string {
 </html>`
 }
 
-export function renderConnect(baseUrl: string, campaign?: string): string {
+export function renderConnect(
+  baseUrl: string,
+  campaign: string | undefined,
+  tools: ServiceToolEntry[]
+): string {
   const connection = createConnectionArtifacts(baseUrl, campaign)
+  const has = (name: string) => tools.some((tool) => tool.name === name)
   return [
     "# Connect an Agent to 404.directory",
     "",
@@ -602,6 +651,14 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     "below already contain a newly generated ID; keep it stable after installing.",
     "",
     `MCP endpoint: \`${connection.endpoint}\``,
+    "",
+    "## Enabled service tools",
+    "",
+    ...tools.map(
+      (tool) =>
+        `- [\`${tool.name}\`](${baseUrl}${tool.href}) — inputs and invocation routes.`
+    ),
+    ...(tools.length ? [] : ["No tools are enabled on this instance."]),
     "",
     "## Any stdio MCP client",
     "",
@@ -653,48 +710,66 @@ export function renderConnect(baseUrl: string, campaign?: string): string {
     ")",
     "```",
     "",
-    "## OpenAI Responses API",
-    "",
-    "Use this JSON as the request body for `POST https://api.openai.com/v1/responses`",
-    "with your normal OpenAI API authentication. Replace the question before",
-    "sending. The MCP `authorization` value is a random, non-personal",
-    "installation token used only for privacy-safe attribution; it does not",
-    "grant access. The request limits the MCP surface and forces one real",
-    "`evaluate_prediction_market` call. OpenAI model usage may incur charges;",
-    "404.directory itself currently requires no account or API key.",
-    "",
-    "```json",
-    connection.openAiResponsesPayload,
-    "```",
-    "",
+    ...(has("evaluate_prediction_market")
+      ? [
+          "## OpenAI Responses API",
+          "",
+          "Use this JSON as the request body for `POST https://api.openai.com/v1/responses`",
+          "with your normal OpenAI API authentication. Replace the question before",
+          "sending. The MCP `authorization` value is a random, non-personal",
+          "installation token used only for privacy-safe attribution; it does not",
+          "grant access. The request limits the MCP surface and forces one real",
+          "`evaluate_prediction_market` call. OpenAI model usage may incur charges;",
+          "404.directory itself currently requires no account or API key.",
+          "",
+          "```json",
+          connection.openAiResponsesPayload,
+          "```",
+          "",
+        ]
+      : []),
     "## Verify the connection",
     "",
-    "If the client exposes MCP Prompts, open `preflight-prediction-market`",
-    "with an exact market the user already cares about. Supporting prompts",
-    "include `evaluate-agent-tool`, `research-official-docs`, and",
-    "`verify-public-deployment`. Provide one real",
-    "task. Opening a prompt is diagnostic only; it must lead to a successful",
-    "tool call.",
+    "If the client exposes MCP Prompts, choose a currently enabled prompt from",
+    "`prompts/list`. Opening a prompt is diagnostic only; it must lead to a",
+    "successful tool call that answers the user's real task.",
     "",
     "Complete one task the user already needs; never call a tool only to create",
     "traffic. Choose the smallest relevant first call:",
     "",
-    "- Polymarket observation or contemplated Yes/No action: call",
-    "  `evaluate_prediction_market` with the exact market, action, approximate",
-    "  notional, execution mode, and the geoblock result from the actual",
-    "  execution environment. Never treat allow as a forecast or instruction",
-    "  to trade; report bounded behavior with `report_prediction_market_outcome`.",
-    "- Current AI/cloud documentation: call `search_official_docs` with the",
-    "  user's actual technical question and cite the returned first-party URLs.",
-    "- A deployment claim: call `verify_web` with the public URL plus an expected",
-    "  status or release-specific text.",
-    "- Third-party tool installation or first use: call `search_tools` if the",
-    "  exact slug is unknown, then call `evaluate_tool_risk` with the intended",
-    "  action, data sensitivity, execution mode, and every permission. Obey",
-    "  block; pause for human review on review; report the later bounded outcome.",
+    ...(has("evaluate_prediction_market")
+      ? [
+          "- Polymarket observation or contemplated Yes/No action: call",
+          "  `evaluate_prediction_market` with the exact market, action, approximate",
+          "  notional, execution mode, and the geoblock result from the actual",
+          "  execution environment. Never treat allow as a forecast or instruction",
+          "  to trade; report bounded behavior with `report_prediction_market_outcome`.",
+        ]
+      : []),
+    ...(has("search_official_docs")
+      ? [
+          "- Current AI/cloud documentation: call `search_official_docs` with the",
+          "  user's actual technical question and cite the returned first-party URLs.",
+        ]
+      : []),
+    ...(has("verify_web")
+      ? [
+          "- A deployment claim: call `verify_web` with the public URL plus an expected",
+          "  status or release-specific text.",
+        ]
+      : []),
+    ...(has("evaluate_tool_risk")
+      ? [
+          "- Third-party tool installation or first use: call `search_tools` if the",
+          "  exact slug is unknown, then call `evaluate_tool_risk` with the intended",
+          "  action, data sensitivity, execution mode, and every permission. Obey",
+          "  block; pause for human review on review; report the later bounded outcome.",
+        ]
+      : []),
     "",
-    "The connection is activated only after one non-error tool result. One Agent",
-    "counts once toward the public target regardless of later calls.",
+    "Activation requires a successful business result, not just a non-error",
+    "protocol response. Empty searches and connection checks do not activate an",
+    "Agent. One Agent counts once toward the public target regardless of later calls.",
     "",
     `Progress: ${baseUrl}/v1/metrics/agents`,
     `Prediction-market preflight: ${baseUrl}/v1/metrics/prediction-market-evaluations`,
@@ -731,8 +806,29 @@ export function renderMetricsDashboard(
   agents: AgentUsageSummary,
   activation: ActivationFunnelSummary,
   reliability: ReliabilitySummary,
-  risk: RiskEvaluationSummary
+  risk: RiskEvaluationSummary,
+  prediction: PredictionMarketEvaluationSummary
 ): string {
+  const preflightSection = (
+    title: string,
+    summary: RiskEvaluationSummary | PredictionMarketEvaluationSummary
+  ) => {
+    const rows = [
+      ["identified_external", "Identified external installations"],
+      ["anonymous_external", "Anonymous external"],
+      ["internal", "Internal / non-external"],
+      ["unattributed", "Unattributed"],
+      ["total", "All traffic (not adoption)"],
+    ] as const
+    return `<section><h2>${escapeHtml(title)}</h2><table><thead><tr><th>Scope</th><th>Evaluations</th><th>Identified installations</th><th>Allow</th><th>Review</th><th>Block</th><th>Outcome reports</th><th>Reported behavior changes</th></tr></thead><tbody>${rows
+      .map(([scope, label]) => {
+        const row = summary.scopes[scope]
+        return `<tr data-scope="${scope}"><td>${label}</td><td>${row.evaluations}</td><td>${row.identified_external_agents}</td><td>${row.decisions.allow}</td><td>${row.decisions.review}</td><td>${row.decisions.block}</td><td>${row.reported_outcomes} (${percent(row.outcome_report_rate)})</td><td>${row.behavior_changes} (${percent(row.behavior_change_rate)})</td></tr>`
+      })
+      .join(
+        ""
+      )}</tbody></table><p class="muted">${escapeHtml(summary.evidence_notice)}</p><p class="muted">Verified pilot operators: not measured. Identity counts do not prove independent operators or real-task value.</p></section>`
+  }
   const sourceRows = activation.sources
     .slice(0, 12)
     .map(
@@ -791,17 +887,18 @@ export function renderMetricsDashboard(
 </head>
 <body><main>
   <a href="/">← 404.directory</a>
-  <h1>Real Agent evidence</h1>
-  <p class="muted">Only de-duplicated external Agents with a successful tool execution count. Internal tests, probes, anonymous calls and repeated sessions are excluded.</p>
+  <h1>Agent usage evidence</h1>
+  <p class="muted">Identified counts de-duplicate external installation identities with a successful tool execution. Internal tests and known probes are excluded; anonymous calls are shown separately. Installation IDs are not verified independent users.</p>
   <div class="grid">
-    <article class="card"><div class="muted">Qualified Agents</div><div class="value">${agents.identified_external_agents} / ${agents.target_external_agents}</div><div class="progress"><span></span></div></article>
-    <article class="card"><div class="muted">Qualified successes</div><div class="value">${agents.successful_external_invocations}</div></article>
+    <article class="card"><div class="muted">Identified external installations</div><div class="value">${agents.identified_external_agents} / ${agents.target_external_agents}</div><div class="progress"><span></span></div></article>
+    <article class="card"><div class="muted">Identified external successes</div><div class="value">${agents.successful_external_invocations}</div></article>
     <article class="card"><div class="muted">Anonymous successes</div><div class="value">${agents.anonymous_successful_invocations}</div></article>
     <article class="card"><div class="muted">7-day retention</div><div class="value">${percent(agents.retention.day_7.retention_rate)}</div><div class="muted">${agents.retention.day_7.retained_agents}/${agents.retention.day_7.eligible_agents} eligible</div></article>
     <article class="card"><div class="muted">30-day retention</div><div class="value">${percent(agents.retention.day_30.retention_rate)}</div><div class="muted">${agents.retention.day_30.retained_agents}/${agents.retention.day_30.eligible_agents} eligible</div></article>
     <article class="card"><div class="muted">30-day external success rate</div><div class="value">${percent(reliability.overall.success_rate)}</div><div class="muted">${reliability.overall.invocations} observations</div></article>
   </div>
-  <section><h2>Risk preflight</h2><table><thead><tr><th>Evaluations</th><th>External Agents</th><th>Allow</th><th>Review</th><th>Block</th><th>Outcome reports</th><th>Behavior changes</th></tr></thead><tbody><tr><td>${risk.evaluations}</td><td>${risk.identified_external_agents}</td><td>${risk.decisions.allow}</td><td>${risk.decisions.review}</td><td>${risk.decisions.block}</td><td>${risk.reported_outcomes} (${percent(risk.outcome_report_rate)})</td><td>${risk.behavior_changes} (${percent(risk.behavior_change_rate)})</td></tr></tbody></table><p class="muted">${escapeHtml(risk.evidence_notice)}</p></section>
+  ${preflightSection("Risk preflight — by attribution", risk)}
+  ${preflightSection("Prediction-market preflight — by attribution", prediction)}
   <section><h2>Activation by source</h2><table><thead><tr><th>Source</th><th>Views</th><th>Installs</th><th>Initialized Agents</th><th>Prompt-opened Agents</th><th>Calling Agents</th><th>Successful Agents</th><th>Failed Agents</th><th>Call rate</th><th>Call success</th><th>Prompt→success</th><th>Activation</th></tr></thead><tbody>${sourceRows || '<tr><td colspan="12">No evidence yet</td></tr>'}</tbody></table></section>
   <section><h2>Tool reliability — last 30 days</h2><table><thead><tr><th>Tool</th><th>Calls</th><th>Agents</th><th>Success</th><th>P95 ms</th><th>Last observed</th></tr></thead><tbody>${toolRows || '<tr><td colspan="6">No external executions yet</td></tr>'}</tbody></table></section>
   <section><h2>Canonical errors — last 30 days</h2><table><thead><tr><th>Error</th><th>Events</th></tr></thead><tbody>${errorRows || '<tr><td colspan="2">No external failures observed</td></tr>'}</tbody></table></section>

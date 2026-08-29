@@ -1,6 +1,6 @@
 ---
 name: use-404-directory
-description: Use the public 404.directory MCP server as a risk preflight before installing or invoking third-party Agent tools, and to search official documentation, verify deployments, understand webpages, or discover MCP tools. Trigger whenever an Agent is about to use an unfamiliar external tool or needs evidence-backed technical verification.
+description: Preflight a specific Polymarket observation or contemplated Yes/No action for settlement, timing, liquidity, slippage, geoblock, and execution risk; also assess an unfamiliar third-party Agent tool before installation or first use. Use when an exact Polymarket market reference or actual external-tool action is present—not for forecasts, odds, general market research, or ordinary documentation questions alone.
 ---
 
 # Use 404.directory
@@ -33,11 +33,8 @@ local development. No account or API key is required.
 
 ## Choose the workflow
 
-- Before observing or contemplating a Polymarket Yes/No position, call
-  `evaluate_prediction_market` with the exact market, intended action, stated
-  notional, execution mode, and caller-observed geographic eligibility. Obey
-  `block`; pause and resolve unknowns on `review`. This tool never predicts a
-  winner or places an order.
+- For a concrete risk decision about one exact Polymarket market, use
+  `evaluate_prediction_market`. This is the primary workflow.
 - Before installing or first invoking a third-party catalog tool, call
   `evaluate_tool_risk` with the exact action, data sensitivity, execution mode,
   and requested permissions. Obey `block`; pause for human review on `review`.
@@ -66,16 +63,41 @@ local development. No account or API key is required.
 
 ## Preflight a prediction-market action
 
-1. Call `evaluate_prediction_market` immediately before the contemplated
-   Polymarket observation or Yes/No action.
-2. Include approximate notional for size-specific depth and slippage. Get
-   geographic eligibility from Polymarket in the real execution environment;
-   never infer it from the 404.directory server.
-3. Treat `allow` as a bounded risk decision, never as a forecast, guarantee, or
-   instruction to trade. On `review`, pause. On `block`, do not proceed.
-4. After the decision, call `report_prediction_market_outcome` with only the
-   receipt token and bounded behavior/execution enums. Never send wallet data,
-   keys, order payloads, prompts, personal data, or free-form rationale.
+Trigger this workflow when the user supplies an exact Polymarket URL, market ID,
+or slug and at least one of these is true:
+
+- the user wants settlement, timing, liquidity, slippage, eligibility, or
+  execution-risk evidence for that market;
+- the Agent is about to observe the market for a real decision or contemplate
+  `buy_yes`, `buy_no`, `sell_yes`, or `sell_no`;
+- an unattended watcher or trading workflow is deciding whether it may proceed.
+
+Do not trigger it merely for a winner prediction, probability or price lookup,
+general Polymarket education, broad market discovery, or a request without a
+resolvable market reference. This tool does not answer those tasks. If the user
+also needs risk preflight, obtain the exact reference; never invent or silently
+substitute a market.
+
+1. Map the next real action exactly. Use `observe` only for research that will
+   not place an order. Never turn an ambiguous question into a trade action.
+2. Use `supervised` when a human will review this contemplated action and
+   `unattended` when it may proceed without per-action confirmation.
+3. Include `estimated_notional_usd` only when the contemplated order size is
+   known. Never invent a size. Omitting it for a trade correctly creates
+   uncertainty rather than false liquidity confidence.
+4. Set `geographic_eligibility` only from the current Polymarket geoblock result
+   in the actual execution environment. Use `unknown` when it was not checked;
+   never infer eligibility from the 404.directory server or the user's identity.
+5. Call `evaluate_prediction_market` immediately before the decision. Re-run it
+   if the action, size, market state, or execution mode changes, or if its
+   evidence/receipt is stale. Do not loop calls only to obtain `allow`.
+6. Treat `allow` as a bounded risk-policy result, never as a forecast,
+   recommendation, guarantee, or instruction to trade. On `review`, pause and
+   surface the unknowns. On `block`, do not proceed.
+7. Only after the real behavior or execution result is known, call
+   `report_prediction_market_outcome` once with the receipt ID, one-time token,
+   and bounded enums. Never fabricate an outcome or send wallet data, keys,
+   order payloads, prompts, personal data, or free-form rationale.
 
 ## Search official documentation
 

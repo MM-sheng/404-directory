@@ -7,8 +7,48 @@ import type {
   PredictionMarketEvaluationRecord,
 } from "./store.js"
 
-export const PREDICTION_MARKET_POLICY_VERSION = "polymarket-preflight-v1"
+export const PREDICTION_MARKET_POLICY_VERSION = "polymarket-preflight-v2"
 export const PREDICTION_MARKET_RECEIPT_TTL_MS = 60 * 60 * 1_000
+// Conservative policy limits, not claims about provider update guarantees.
+export const MARKET_METADATA_MAX_AGE_MS = 24 * 60 * 60 * 1_000
+export const ORDERBOOK_MAX_AGE_MS = 2 * 60 * 1_000
+export const EVIDENCE_CLOCK_SKEW_MS = 30 * 1_000
+
+function timestampMs(value: string | null, epoch = false): number | null {
+  if (!value?.trim()) return null
+  if (
+    epoch
+      ? !/^\d+$/.test(value)
+      : !z.iso.datetime({ offset: true }).safeParse(value).success
+  )
+    return null
+  const ms = epoch ? Number(value) : Date.parse(value)
+  return Number.isSafeInteger(ms) && ms > 0 && ms <= 8.64e15 ? ms : null
+}
+
+function evidenceFreshness(
+  value: string | null,
+  maxAge: number,
+  now: number,
+  epoch = false
+) {
+  const ms = timestampMs(value, epoch)
+  const status = !value?.trim()
+    ? "missing"
+    : ms === null
+      ? "invalid"
+      : ms > now + EVIDENCE_CLOCK_SKEW_MS
+        ? "future"
+        : now - ms >= maxAge
+          ? "stale"
+          : "fresh"
+  return {
+    status,
+    observed_at: ms === null ? null : new Date(ms).toISOString(),
+    valid_until:
+      status === "fresh" && ms !== null ? Math.min(ms, now) + maxAge : null,
+  }
+}
 
 const MarketActionSchema = z.enum([
   "observe",
@@ -425,6 +465,9 @@ function analyzeDepth(
   action: EvaluatePredictionMarketRequest["intended_action"],
   notional: number | undefined
 ): DepthAnalysis {
+  const observedMs = timestampMs(book.timestamp, true)
+  const observedAt =
+    observedMs === null ? null : new Date(observedMs).toISOString()
   const buying = action.startsWith("buy_")
   const levels = (buying ? book.asks : book.bids)
     .map((level) => ({
@@ -447,9 +490,7 @@ function analyzeDepth(
       estimated_average_price: null,
       estimated_slippage_bps: null,
       best_price: null,
-      observed_at: numberOrNull(book.timestamp)
-        ? new Date(Number(book.timestamp)).toISOString()
-        : null,
+      observed_at: observedAt,
     }
   }
 
@@ -487,9 +528,7 @@ function analyzeDepth(
     estimated_slippage_bps:
       slippage === null ? null : Number(slippage.toFixed(1)),
     best_price: best,
-    observed_at: numberOrNull(book.timestamp)
-      ? new Date(Number(book.timestamp)).toISOString()
-      : null,
+    observed_at: observedAt,
   }
 }
 
@@ -571,7 +610,8 @@ function publicEvaluation(
       "404.directory does not predict the winning outcome and does not place, sign, or custody orders or funds.",
       "Rule-language checks are conservative heuristics and do not replace reading the full current market rules.",
       "Geographic eligibility is caller-supplied; verify it again from the actual execution environment immediately before trading.",
-      "The first policy version does not independently verify off-platform evidence or calibrate third-party signals.",
+      "This policy does not independently verify off-platform evidence or calibrate third-party signals.",
+      "A receipt is not a reusable trading authorization. Re-evaluate immediately before acting; expiry is bounded by the cited evidence freshness.",
     ],
   }
 }
@@ -585,6 +625,7 @@ export async function evaluatePredictionMarket(
   const input = EvaluatePredictionMarketRequestSchema.parse(rawInput)
   const reference = parsePredictionMarketReference(input.market)
   const rawMarket = await dataSource.getMarket(reference)
+  const marketFetchedAt = new Date().toISOString()
   const marketResult = GammaMarketSchema.safeParse(rawMarket)
   if (!marketResult.success) {
     throw new PredictionMarketUpstreamError(
@@ -610,6 +651,7 @@ export async function evaluatePredictionMarket(
 
   let depth: DepthAnalysis | null = null
   let orderBookAvailable = false
+  let bookTimestamp: string | null = null
   if (
     trading &&
     market.enableOrderBook &&
@@ -619,6 +661,7 @@ export async function evaluatePredictionMarket(
     try {
       const rawBook = await dataSource.getOrderBook(tokenIds[targetIndex]!)
       const book = OrderBookSchema.parse(rawBook)
+      bookTimestamp = book.timestamp
       depth = analyzeDepth(
         book,
         input.intended_action,
@@ -631,6 +674,19 @@ export async function evaluatePredictionMarket(
   }
 
   const rules = ruleAnalysis(market)
+  // Evaluate age after all I/O: evidence can expire while another source loads.
+  const now = new Date()
+  const marketFreshness = evidenceFreshness(
+    market.updatedAt,
+    MARKET_METADATA_MAX_AGE_MS,
+    now.getTime()
+  )
+  const bookFreshness = evidenceFreshness(
+    bookTimestamp,
+    ORDERBOOK_MAX_AGE_MS,
+    now.getTime(),
+    true
+  )
   const riskFactors: RiskFactor[] = []
   const reasonCodes = new Set<string>()
   const unknowns: string[] = []
@@ -648,6 +704,27 @@ export async function evaluatePredictionMarket(
     else if (requiredDecision === "review" && decision === "allow") {
       decision = "review"
     }
+  }
+
+  if (marketFreshness.status !== "fresh") {
+    const explanation = `Market metadata update time is ${marketFreshness.status}; this policy requires a valid update within 24 hours with at most 30 seconds of forward clock skew. Re-fetch or review current rules and lifecycle evidence.`
+    unknowns.push(explanation)
+    addRisk(
+      `MARKET_METADATA_${marketFreshness.status.toUpperCase()}`,
+      "high",
+      explanation,
+      "review"
+    )
+  }
+  if (trading && orderBookAvailable && bookFreshness.status !== "fresh") {
+    const explanation = `Order-book observation time is ${bookFreshness.status}; obtain a valid snapshot less than two minutes old before trading (maximum forward clock skew: 30 seconds).`
+    unknowns.push(explanation)
+    addRisk(
+      `ORDERBOOK_${bookFreshness.status.toUpperCase()}`,
+      "critical",
+      explanation,
+      "block"
+    )
   }
 
   if (!market.active || market.closed || (trading && !market.acceptingOrders)) {
@@ -799,7 +876,12 @@ export async function evaluatePredictionMarket(
     unknowns.push(
       "No intended notional was supplied, so size-specific depth was not evaluated."
     )
-    reasonCodes.add("SIZE_SPECIFIC_DEPTH_NOT_EVALUATED")
+    addRisk(
+      "SIZE_SPECIFIC_DEPTH_NOT_EVALUATED",
+      "high",
+      "Supply the intended USD notional and re-evaluate size-specific depth before placing an order.",
+      "review"
+    )
   }
 
   if (decision === "allow") reasonCodes.add("PREFLIGHT_PASSED")
@@ -815,7 +897,8 @@ export async function evaluatePredictionMarket(
     Boolean(market.description),
     rules.sourceStatus !== "missing",
     rules.timeStatus === "specific",
-    !trading || orderBookAvailable,
+    marketFreshness.status === "fresh",
+    !trading || (orderBookAvailable && bookFreshness.status === "fresh"),
     !trading || Boolean(input.estimated_notional_usd),
     !trading || input.geographic_eligibility !== "unknown",
   ]
@@ -828,10 +911,16 @@ export async function evaluatePredictionMarket(
       )
     ).toFixed(4)
   )
-  const now = new Date()
   const createdAt = now.toISOString()
+  const evidenceExpiry = [
+    marketFreshness.valid_until,
+    ...(trading ? [bookFreshness.valid_until] : []),
+  ].filter((value): value is number => value !== null)
   const expiresAt = new Date(
-    now.getTime() + PREDICTION_MARKET_RECEIPT_TTL_MS
+    Math.min(
+      now.getTime() + PREDICTION_MARKET_RECEIPT_TTL_MS,
+      ...evidenceExpiry
+    )
   ).toISOString()
   const outcomeToken = randomBytes(32).toString("base64url")
   const attribution = currentAgentAttribution()
@@ -892,21 +981,29 @@ export async function evaluatePredictionMarket(
               : "warn",
         source: `https://gamma-api.polymarket.com/markets/${market.id}`,
         summary: `Market active=${market.active}, closed=${market.closed}, accepting_orders=${market.acceptingOrders}.`,
-        observed_at: createdAt,
+        observed_at: marketFetchedAt,
+      },
+      {
+        kind: "market_metadata_freshness",
+        status: marketFreshness.status === "fresh" ? "pass" : "unknown",
+        source: `https://gamma-api.polymarket.com/markets/${market.id}`,
+        summary: `Provider updatedAt is ${marketFreshness.status} under the 24-hour policy. Fetch time is separate from source update time.`,
+        observed_at: marketFreshness.observed_at,
       },
       ...rules.evidence,
       ...(trading
         ? [
             {
               kind: "order_book" as const,
-              status: orderBookAvailable
-                ? ("pass" as const)
-                : ("fail" as const),
+              status:
+                orderBookAvailable && bookFreshness.status === "fresh"
+                  ? ("pass" as const)
+                  : ("fail" as const),
               source: "https://clob.polymarket.com/book",
               summary: orderBookAvailable
-                ? `Usable order book found; nearby depth is $${(depth?.available_notional_usd ?? 0).toFixed(2)}.`
+                ? `Order book timestamp is ${bookFreshness.status}; nearby depth is $${(depth?.available_notional_usd ?? 0).toFixed(2)}. Only fresh evidence can support trading.`
                 : "No usable order book was available for the intended outcome.",
-              observed_at: depth?.observed_at ?? createdAt,
+              observed_at: bookFreshness.observed_at,
             },
           ]
         : []),

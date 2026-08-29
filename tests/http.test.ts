@@ -113,15 +113,18 @@ function mockRegistry(): ToolRegistry {
     ],
     inputSchema: UnderstandIn,
     outputSchema: UnderstandOut,
-    handler: async ({ url }) => ({
-      page_type: "homepage",
-      summary: `Homepage at ${url}`,
-      entities: [],
-      state: { login_status: "unknown", properties: {} },
-      actions: [],
-      evidence: [{ source: "url", field: "final_url", raw_value: url }],
-      confidence: 0.5,
-    }),
+    handler: async (input) => {
+      const { url } = UnderstandIn.parse(input)
+      return {
+        page_type: "homepage",
+        summary: `Homepage at ${url}`,
+        entities: [],
+        state: { login_status: "unknown", properties: {} },
+        actions: [],
+        evidence: [{ source: "url", field: "final_url", raw_value: url }],
+        confidence: 0.5,
+      }
+    },
   }
 
   const verify: ToolDefinition = {
@@ -156,16 +159,19 @@ function mockRegistry(): ToolRegistry {
     ],
     inputSchema: VerifyIn,
     outputSchema: VerifyOut,
-    handler: async ({ expected_status }) => ({
-      verified: true,
-      checks: {
-        reachable: true,
-        status: expected_status,
-        https_valid: true,
-        text_found: true,
-      },
-      checked_at: new Date().toISOString(),
-    }),
+    handler: async (input) => {
+      const { expected_status } = VerifyIn.parse(input)
+      return {
+        verified: true,
+        checks: {
+          reachable: true,
+          status: expected_status,
+          https_valid: true,
+          text_found: true,
+        },
+        checked_at: new Date().toISOString(),
+      }
+    },
   }
 
   return new ToolRegistry().register(understand).register(verify)
@@ -228,6 +234,53 @@ describe("HTTP API", () => {
     })
   })
 
+  it("retains the first preflight example when the catalog is enabled", async () => {
+    app = await buildApp(mockRegistry(), loadConfig(), new MemoryCatalogStore())
+    const connect = await app.inject({
+      method: "GET",
+      url: "/connect?source=awesome-remote",
+    })
+    expect(connect.body).toContain("preflight-prediction-market")
+    expect(connect.body).toContain("OpenAI Responses API")
+    expect(connect.body).toContain("evaluate_prediction_market")
+    expect(connect.body).toContain("awesome-remote.openai-responses")
+    expect(connect.body).toContain("authorization")
+    const connectMarkdown = await app.inject({
+      method: "GET",
+      url: "/connect.md?source=agent-reader",
+    })
+    expect(connectMarkdown.body).toContain("## OpenAI Responses API")
+    expect(connectMarkdown.body).toContain('"server_label": "directory_404"')
+    expect(connectMarkdown.body).toContain(
+      '"name": "evaluate_prediction_market"'
+    )
+    expect(connectMarkdown.body).toContain('"authorization": "agent:')
+    expect(connectMarkdown.body).toContain("agent-reader.openai-responses")
+    const openAiPayloadMatch = connectMarkdown.body.match(
+      /## OpenAI Responses API[\s\S]*?```json\n([\s\S]*?)\n```/
+    )
+    expect(openAiPayloadMatch?.[1]).toBeTruthy()
+    const openAiPayload = JSON.parse(openAiPayloadMatch![1]!) as {
+      tools: Array<Record<string, unknown>>
+      tool_choice: Record<string, unknown>
+    }
+    expect(openAiPayload.tools[0]).toMatchObject({
+      type: "mcp",
+      server_url: "https://404.directory/mcp",
+      allowed_tools: ["evaluate_prediction_market"],
+      require_approval: "never",
+    })
+    expect(openAiPayload.tools[0]).not.toHaveProperty("headers")
+    expect(openAiPayload.tools[0]?.authorization).toMatch(
+      /^agent:[0-9a-f-]{36}@agent-reader\.openai-responses$/
+    )
+    expect(openAiPayload.tool_choice).toEqual({
+      type: "mcp",
+      server_label: "directory_404",
+      name: "evaluate_prediction_market",
+    })
+  })
+
   it("serves homepage, health, tools, and OpenAPI", async () => {
     app = await buildApp(mockRegistry(), loadConfig())
 
@@ -236,17 +289,14 @@ describe("HTTP API", () => {
     expect(home.body).toContain("404.directory")
     expect(home.body).toContain("understand_webpage")
     expect(home.body).toContain("verify_web")
-    expect(home.body).toContain("search_official_docs")
+    expect(home.body).not.toContain("search_official_docs") // Gateway is absent in this fixture.
     expect(home.body).toContain("/connect?source=homepage")
     expect(home.body).toContain(
       "npx skills add MM-sheng/404-directory --skill use-404-directory -g -y"
     )
-    expect(home.body).toContain("OpenAI")
-    expect(home.body).toContain("Microsoft Learn")
-    expect(home.body).toContain("AWS")
-    expect(home.body).toContain("Cloudflare")
+    expect(home.body).toContain("Available 404 service tools")
     expect(home.body).toContain(
-      '<meta name="description" content="Evidence-backed allow, review, or block decisions'
+      '<meta name="description" content="Use the enabled service tools listed below.'
     )
     expect(home.body).toContain(
       '<link rel="canonical" href="https://404.directory/"'
@@ -289,11 +339,10 @@ describe("HTTP API", () => {
     expect(connect.body).toContain("@mmvv1638/404-directory-mcp")
     expect(connect.body).toContain("awesome-remote.npx")
     expect(connect.body).toContain("Make the first call useful")
-    expect(connect.body).toContain("preflight-prediction-market")
-    expect(connect.body).toContain("OpenAI Responses API")
-    expect(connect.body).toContain("evaluate_prediction_market")
-    expect(connect.body).toContain("awesome-remote.openai-responses")
-    expect(connect.body).toContain("authorization")
+    expect(connect.body).not.toContain("preflight-prediction-market")
+    expect(connect.body).not.toContain("OpenAI Responses API")
+    expect(connect.body).not.toContain("evaluate_prediction_market")
+    expect(connect.body).toContain("Enabled on this instance")
     expect(connect.body).toContain("/connect.md?source=awesome-remote")
     expect(connect.body).toContain(
       "https://github.com/MM-sheng/404-directory/issues/1"
@@ -317,39 +366,10 @@ describe("HTTP API", () => {
     expect(connectMarkdown.body).toContain(
       "Complete one task the user already needs"
     )
-    expect(connectMarkdown.body).toContain("verify-public-deployment")
-    expect(connectMarkdown.body).toContain("## OpenAI Responses API")
-    expect(connectMarkdown.body).toContain('"server_label": "directory_404"')
-    expect(connectMarkdown.body).toContain(
-      '"name": "evaluate_prediction_market"'
-    )
-    expect(connectMarkdown.body).toContain('"authorization": "agent:')
-    expect(connectMarkdown.body).toContain("agent-reader.openai-responses")
-    const openAiPayloadMatch = connectMarkdown.body.match(
-      /## OpenAI Responses API[\s\S]*?```json\n([\s\S]*?)\n```/
-    )
-    expect(openAiPayloadMatch?.[1]).toBeTruthy()
-    const openAiPayload = JSON.parse(openAiPayloadMatch![1]!) as {
-      tools: Array<Record<string, unknown>>
-      tool_choice: Record<string, unknown>
-    }
-    expect(openAiPayload.tools[0]).toMatchObject({
-      type: "mcp",
-      server_url: "https://404.directory/mcp",
-      allowed_tools: ["evaluate_prediction_market"],
-      require_approval: "never",
-    })
-    expect(openAiPayload.tools[0]).not.toHaveProperty("headers")
-    expect(openAiPayload.tools[0]?.authorization).toMatch(
-      /^agent:[0-9a-f-]{36}@agent-reader\.openai-responses$/
-    )
-    expect(openAiPayload.tool_choice).toEqual({
-      type: "mcp",
-      server_label: "directory_404",
-      name: "evaluate_prediction_market",
-    })
+    expect(connectMarkdown.body).toContain("`prompts/list`")
+    expect(connectMarkdown.body).not.toContain("## OpenAI Responses API")
     expect(connectMarkdown.body).toContain("call `verify_web`")
-    expect(connectMarkdown.body).toContain("call `search_tools`")
+    expect(connectMarkdown.body).not.toContain("call `search_tools`")
     expect(connectMarkdown.body).toContain(
       "https://github.com/MM-sheng/404-directory/issues/1"
     )
@@ -514,6 +534,9 @@ describe("HTTP API", () => {
       positioning: "agent-tool-risk-preflight",
       tools: ["understand_webpage", "verify_web"],
       prompts: ["verify-public-deployment"],
+      service_catalog: "https://404.directory/tools",
+      catalog_semantics:
+        "Service tools are callable MCP names; ecosystem searches return registered target records, not execution permission.",
       discovery_api: null,
     })
 
@@ -672,8 +695,10 @@ describe("HTTP API", () => {
     const dashboard = await app.inject({ method: "GET", url: "/metrics" })
     expect(dashboard.statusCode).toBe(200)
     expect(dashboard.headers["cache-control"]).toBe("no-store")
-    expect(dashboard.body).toContain("Real Agent evidence")
-    expect(dashboard.body).toContain("Qualified Agents")
+    expect(dashboard.body).toContain("Agent usage evidence")
+    expect(dashboard.body).toContain("Identified external installations")
+    expect(dashboard.body).toContain("Verified pilot operators: not measured")
+    expect(dashboard.body).toContain("Prediction-market preflight")
     expect(dashboard.body).toContain("7-day retention")
     expect(dashboard.body).toContain("Risk preflight")
     expect(dashboard.body).toContain("Tool reliability")

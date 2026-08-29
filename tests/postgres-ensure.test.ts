@@ -131,6 +131,14 @@ describe("postgres ensureTool idempotency", () => {
       const store = new PostgresCatalogStore(handle!.db)
       const suffix = Date.now().toString()
       const metricSource = `postgres-test-${suffix}`
+      const metricClient = `${metricSource}-client`
+      const since = new Date(Date.now() - 60_000)
+      // A database can be reused across runs. Verify this run's increment,
+      // rather than assuming there are no earlier events in the window.
+      const before = await store.activationFunnelSummary(since)
+      const priorAttempts = before.stages.find(
+        (stage) => stage.stage === "tool_attempt"
+      )
       const tool = await store.ensureTool(
         {
           name: `metric_tool_${suffix}`,
@@ -158,7 +166,7 @@ describe("postgres ensureTool idempotency", () => {
         latency_ms: 42,
         agent_key: `a1_postgres_${suffix}`,
         agent_identity_kind: "explicit",
-        client_name: "postgres-test-client",
+        client_name: metricClient,
         attribution_source: metricSource,
         is_external: true,
         result_count: 2,
@@ -166,7 +174,7 @@ describe("postgres ensureTool idempotency", () => {
       await store.recordActivationEvent({
         stage: "mcp_initialize",
         source: metricSource,
-        client: "postgres-test-client",
+        client: metricClient,
         agent_key: `a1_postgres_${suffix}`,
         agent_identity_kind: "explicit",
         is_external: true,
@@ -174,29 +182,26 @@ describe("postgres ensureTool idempotency", () => {
       await store.recordActivationEvent({
         stage: "prompt_get",
         source: metricSource,
-        client: "postgres-test-client",
+        client: metricClient,
         agent_key: `a1_postgres_${suffix}`,
         agent_identity_kind: "explicit",
         is_external: true,
       })
 
-      const agents = await store.agentUsageSummary(
-        new Date(Date.now() - 60_000)
-      )
+      const agents = await store.agentUsageSummary(since)
       expect(agents.clients).toContainEqual({
-        client: "postgres-test-client",
+        client: metricClient,
         identified_agents: 1,
         successful_invocations: 1,
       })
 
-      const activation = await store.activationFunnelSummary(
-        new Date(Date.now() - 60_000)
-      )
+      const activation = await store.activationFunnelSummary(since)
       expect(activation.stages).toContainEqual({
         stage: "tool_attempt",
-        events: 1,
-        identified_agents: 1,
-        anonymous_external_events: 0,
+        events: (priorAttempts?.events ?? 0) + 1,
+        identified_agents: (priorAttempts?.identified_agents ?? 0) + 1,
+        anonymous_external_events:
+          priorAttempts?.anonymous_external_events ?? 0,
       })
       expect(activation.sources).toContainEqual(
         expect.objectContaining({
@@ -216,9 +221,7 @@ describe("postgres ensureTool idempotency", () => {
         })
       )
 
-      const reliability = await store.reliabilitySummary(
-        new Date(Date.now() - 60_000)
-      )
+      const reliability = await store.reliabilitySummary(since)
       expect(reliability.providers).toContainEqual(
         expect.objectContaining({
           provider_slug: `metric-provider-${suffix}`,

@@ -27,9 +27,13 @@ import {
   type ReliabilitySummary,
 } from "./metrics.js"
 import { nextVerifyBackoffMs } from "./verification.js"
-import { isDiscoverableStatus } from "./lifecycle.js"
 import { buildRiskEvaluationSummary } from "./risk-metrics.js"
 import { buildPredictionMarketEvaluationSummary } from "./prediction-market-metrics.js"
+import {
+  matchesSearchFilters,
+  rankSearchCandidates,
+  searchRelevance,
+} from "./catalog-search.js"
 
 function slugify(value: string): string {
   return value
@@ -150,58 +154,18 @@ export class MemoryCatalogStore implements CatalogStore {
   }
 
   async searchTools(query: ToolSearchQuery): Promise<CatalogTool[]> {
-    const q = query.q?.toLowerCase()
-    const capability = query.capability?.toLowerCase()
-    const statusFilter = query.status ?? "active"
     const results: MemoryTool[] = []
-
     for (const tool of this.tools.values()) {
-      if (statusFilter === "active" && !isDiscoverableStatus(tool.status)) {
-        continue
-      }
       if (
-        statusFilter !== "all" &&
-        statusFilter !== "active" &&
-        tool.status !== statusFilter
-      ) {
+        !matchesSearchFilters(tool, query) ||
+        searchRelevance(tool, query.q) === null
+      )
         continue
-      }
-      if (statusFilter === "all" && tool.status === "suspended") continue
-      if (query.protocol && tool.protocol !== query.protocol) continue
-      if (query.category && tool.category !== query.category) continue
-      if (
-        capability &&
-        !tool.capabilities.some((c) => c.toLowerCase().includes(capability))
-      ) {
-        continue
-      }
-      if (q) {
-        const hay =
-          `${tool.name} ${tool.description} ${tool.capabilities.join(" ")}`.toLowerCase()
-        if (!hay.includes(q)) continue
-      }
-      const withUsage = await this.withUsage(tool)
-      if (
-        query.trust_threshold !== undefined &&
-        (withUsage.trust?.overall_score ?? 0) < query.trust_threshold
-      ) {
-        continue
-      }
-      results.push(withUsage)
+      results.push(await this.withUsage(tool))
     }
-
-    results.sort((a, b) => {
-      const statusPenalty = (tool: MemoryTool) =>
-        tool.status === "degraded" ? 0.15 : 0
-      const trustDelta =
-        (b.trust?.overall_score ?? 0) -
-        statusPenalty(b) -
-        ((a.trust?.overall_score ?? 0) - statusPenalty(a))
-      if (trustDelta !== 0) return trustDelta
-      return b.usage.invocations_7d - a.usage.invocations_7d
-    })
-
-    return results.slice(0, query.limit).map((t) => this.toPublic(t))
+    return rankSearchCandidates(results, query).map((tool) =>
+      this.toPublic(tool)
+    )
   }
 
   async listToolIdsForVerification(limit = 50): Promise<string[]> {

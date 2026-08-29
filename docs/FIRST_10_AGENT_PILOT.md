@@ -110,8 +110,18 @@ run the local summary with that number:
 PILOT_BASELINE_AGENTS=1 npm run pilot:status
 ```
 
-This calculates progress but cannot prove that operators are independent; the
-manual admission rule remains mandatory.
+This calculates **installation-identity growth**, not verified pilot progress.
+The output uses `identified_usage` and `pilot.identity_growth_threshold_met`.
+`pilot.first_success_gate_met` and `verified_pilot_operators` remain `null`
+because the script has no independent-operator admission evidence. The manual
+admission rule remains mandatory; even ten new IDs do not prove ten operators.
+
+Prediction-market outcomes come only from `scopes.identified_external` in
+`risk-attribution-v2`. Internal and anonymous outcomes are not pilot outcomes.
+An older deployment without that breakdown produces `status: "unavailable"`
+and null values, not fallback to its mixed totals or fabricated zero usage.
+Outcome reports are self-reports, not verified prevented losses or causal
+proof that 404 improved a decision.
 
 The pilot passes when:
 

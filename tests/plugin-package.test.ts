@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises"
 import { describe, expect, it } from "vitest"
+import { EvaluatePredictionMarketRequestSchema } from "../src/domain/prediction-market-risk.js"
 
 type PluginManifest = {
   $schema: string
@@ -136,6 +137,58 @@ describe("Agent Plugins package", () => {
     ).rejects.toMatchObject({ code: "ENOENT" })
   })
 
+  it("keeps the installable Skill aligned with the prediction-market contract", async () => {
+    const [skill, openAiMetadata] = await Promise.all([
+      readFile("skills/use-404-directory/SKILL.md", "utf8"),
+      readFile("skills/use-404-directory/agents/openai.yaml", "utf8"),
+    ])
+    const description = skill.match(/^description:\s*(.+)$/m)?.[1] ?? ""
+
+    expect(description).toMatch(/specific Polymarket observation/i)
+    expect(description).toMatch(/exact Polymarket market reference/i)
+    expect(description).toMatch(/not for forecasts/i)
+    expect(description).not.toMatch(/search official documentation/i)
+    expect(openAiMetadata).toContain(
+      'short_description: "Preflight Polymarket and Agent-tool actions"'
+    )
+    expect(openAiMetadata).toContain(
+      'default_prompt: "Use $use-404-directory to preflight the exact Polymarket market'
+    )
+
+    const actions = [
+      "observe",
+      "buy_yes",
+      "buy_no",
+      "sell_yes",
+      "sell_no",
+    ] as const
+    for (const intended_action of actions) {
+      expect(
+        EvaluatePredictionMarketRequestSchema.safeParse({
+          market: "https://polymarket.com/event/example-market",
+          intended_action,
+          execution_mode:
+            intended_action === "observe" ? "supervised" : "unattended",
+          geographic_eligibility: "unknown",
+          ...(intended_action === "observe"
+            ? {}
+            : { estimated_notional_usd: 100 }),
+        }).success
+      ).toBe(true)
+      expect(skill).toContain(`\`${intended_action}\``)
+    }
+    expect(
+      EvaluatePredictionMarketRequestSchema.safeParse({
+        market: "https://polymarket.com/event/example-market",
+        intended_action: "predict_winner",
+      }).success
+    ).toBe(false)
+    expect(skill).toContain(
+      "Only after the real behavior or execution result is known"
+    )
+    expect(skill).toContain("Never fabricate an outcome")
+  })
+
   it("packages a dependency-free identity-preserving universal bridge", async () => {
     const [rootManifest, proxyManifest] = await Promise.all([
       readJson<{ version: string }>("package.json"),
@@ -218,7 +271,7 @@ describe("Agent Plugins package", () => {
         command: "npx",
         args: [
           "-y",
-          "@mmvv1638/404-directory-mcp@0.10.1",
+          "@mmvv1638/404-directory-mcp@0.10.2",
           "--source",
           "codex-plugin",
         ],

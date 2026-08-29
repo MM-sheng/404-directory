@@ -1,4 +1,12 @@
-import type { RiskEvaluationRecord, RiskEvaluationSummary } from "./store.js"
+import type {
+  RiskEvaluationRecord,
+  RiskEvaluationSummary,
+  RiskEvaluationCohortSummary,
+} from "./store.js"
+import {
+  buildEvaluationAttribution,
+  countIdentifiedExternalAgents,
+} from "./evaluation-metric-scopes.js"
 
 export function buildRiskEvaluationSummary(
   records: RiskEvaluationRecord[],
@@ -7,20 +15,25 @@ export function buildRiskEvaluationSummary(
   const eligible = records.filter(
     (record) => new Date(record.created_at).getTime() >= since.getTime()
   )
+  const attribution = buildEvaluationAttribution(eligible, summarizeRiskCohort)
+  return {
+    metric: "privacy_safe_agent_tool_risk_preflight",
+    definition:
+      "Contextual third-party tool evaluations and bounded outcomes, partitioned by the original evaluation attribution. No raw identities or task content are included.",
+    window_start: since.toISOString(),
+    generated_at: new Date().toISOString(),
+    ...attribution.scopes.total,
+    external_evaluations: attribution.scopes.external.evaluations,
+    ...attribution,
+    evidence_notice:
+      "Outcomes are self-reported unless a receipt explicitly marks evidence_level=observed. Behavior changes do not establish causation, independent users, or prevented losses. Self-reported outcomes do not directly increase Trust scores.",
+  }
+}
+
+function summarizeRiskCohort(
+  eligible: RiskEvaluationRecord[]
+): RiskEvaluationCohortSummary {
   const outcomes = eligible.filter((record) => record.outcome)
-  const identifiedAgents = new Set(
-    eligible
-      .filter(
-        (record) =>
-          record.is_external &&
-          record.agent_identity_kind === "explicit" &&
-          record.agent_key
-      )
-      .map((record) => record.agent_key!)
-  )
-  const externalEvaluations = eligible.filter(
-    (record) => record.is_external
-  ).length
   const decisions = { allow: 0, review: 0, block: 0 }
   const actions = {
     proceeded: 0,
@@ -46,14 +59,8 @@ export function buildRiskEvaluationSummary(
     actions.changed_tool + actions.requested_review + actions.aborted
 
   return {
-    metric: "privacy_safe_agent_tool_risk_preflight",
-    definition:
-      "Contextual third-party tool evaluations and bounded outcomes. No raw Agent IDs, prompts, arguments, outputs, tokens, IPs, or personal data are included.",
-    window_start: since.toISOString(),
-    generated_at: new Date().toISOString(),
     evaluations: eligible.length,
-    external_evaluations: externalEvaluations,
-    identified_external_agents: identifiedAgents.size,
+    identified_external_agents: countIdentifiedExternalAgents(eligible),
     decisions,
     reported_outcomes: outcomes.length,
     outcome_report_rate:
@@ -69,7 +76,5 @@ export function buildRiskEvaluationSummary(
         evaluations,
       }))
       .sort((a, b) => b.evaluations - a.evaluations),
-    evidence_notice:
-      "Outcomes are self-reported unless a future receipt explicitly marks evidence_level=observed. Self-reported outcomes do not directly increase Trust scores.",
   }
 }

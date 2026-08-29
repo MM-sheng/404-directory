@@ -17,6 +17,67 @@ afterEach(async () => {
 })
 
 describe("curated remote MCP gateway", () => {
+  it.each([
+    [{ results: [] }, "empty"],
+    [{ unexpected: { results: [] } }, "unrecognized"],
+  ])(
+    "does not count a response without usable documents as success",
+    async (payload, status) => {
+      const store = new MemoryCatalogStore()
+      await seedCuratedMcpServers(store)
+      const tool = await store.getToolBySlug("microsoft_learn_mcp")
+      await store.setToolStatus(tool!.id, "active")
+      const gateway: RemoteMcpGateway = {
+        inspect: vi.fn(),
+        invoke: vi.fn(async () => ({
+          is_error: false,
+          truncated: false,
+          content: [{ type: "text", text: JSON.stringify(payload) }],
+        })),
+      }
+      const server = createMcpServerFromRegistry(
+        new ToolRegistry(),
+        store,
+        gateway
+      )
+      const client = new Client({ name: "docs-empty-test", version: "1" })
+      const [ct, st] = InMemoryTransport.createLinkedPair()
+      await Promise.all([server.connect(st), client.connect(ct)])
+      clients.push(client)
+      const result = await client.callTool({
+        name: "search_official_docs",
+        arguments: {
+          query: "MCP",
+          sources: ["microsoft"],
+        },
+      })
+      expect(result.isError).toBe(true)
+      expect(result.structuredContent).toMatchObject({
+        successful_sources: [],
+        results: [],
+        recovery: expect.any(String),
+        empty_sources: status === "empty" ? ["microsoft"] : [],
+        failed_sources:
+          status === "unrecognized"
+            ? [
+                expect.objectContaining({
+                  error_type: "response_shape_unrecognized",
+                }),
+              ]
+            : [],
+      })
+      expect(await store.usageStats(tool!.id)).toEqual({
+        invocations: 1,
+        successes: 0,
+      })
+      const invocations = (
+        store as unknown as { invocations: Array<{ success: boolean }> }
+      ).invocations
+      expect(invocations).toHaveLength(2)
+      expect(invocations.every((event) => !event.success)).toBe(true)
+    }
+  )
+
   it("inspects and invokes only approved read-only remote tools", async () => {
     const store = new MemoryCatalogStore()
     await seedCuratedMcpServers(store)
@@ -189,7 +250,7 @@ describe("curated remote MCP gateway", () => {
           content: [
             {
               type: "text",
-              text: `official result from ${remoteToolName}`,
+              text: `official result from ${remoteToolName}: https://developers.openai.com/api/docs/guides/tools-connectors-mcp`,
             },
           ],
           truncated: false,
@@ -328,9 +389,9 @@ describe("curated remote MCP gateway", () => {
       title: "MCP and Connectors",
       url: "https://developers.openai.com/api/docs/guides/tools-connectors-mcp",
     })
-    expect(payload.results[0]?.documents[0]?.snippet?.length).toBeLessThanOrEqual(
-      600
-    )
+    expect(
+      payload.results[0]?.documents[0]?.snippet?.length
+    ).toBeLessThanOrEqual(600)
     expect(payload.results[0]?.truncated).toBe(true)
     expect(JSON.stringify(payload).length).toBeLessThan(2_000)
   })

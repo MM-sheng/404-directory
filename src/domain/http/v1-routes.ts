@@ -62,6 +62,7 @@ import {
 import { trackInvocation } from "../telemetry.js"
 import { refreshTrustForTool } from "../trust.js"
 import { RegisterToolRequestSchema, ToolSearchQuerySchema } from "../types.js"
+import { toolSearchResponse } from "../catalog-search.js"
 import { verifyTool } from "../verification.js"
 import { zodToJsonSchema } from "../../tools/json-schema.js"
 
@@ -391,7 +392,7 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
       schema: {
         summary: "Get privacy-safe prediction-market preflight metrics",
         description:
-          "Aggregate evaluations, identified external Agents, decisions, bounded outcomes, behavior changes, and common reason codes.",
+          "Versioned prediction-market metrics by internal, anonymous external, identified external, and unattributed evaluation cohorts. Legacy top-level aggregates are total traffic; read scopes for external-use evidence. Qualified pilot operators are not inferred from identities.",
       } as FastifySchema,
     },
     async (_request, reply) => {
@@ -432,7 +433,7 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
       schema: {
         summary: "Get privacy-safe risk preflight metrics",
         description:
-          "Aggregate evaluation volume, identified external Agents, decision distribution, outcomes, behavior changes, and policy versions.",
+          "Versioned tool-risk metrics by internal, anonymous external, identified external, and unattributed evaluation cohorts. Legacy top-level aggregates are total traffic; read scopes for external-use evidence. Qualified pilot operators are not inferred from identities.",
       } as FastifySchema,
     },
     async (_request, reply) => {
@@ -491,8 +492,7 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
       const tools = await searchCatalogTools(store, query)
       return {
         query,
-        count: tools.length,
-        tools,
+        ...toolSearchResponse(tools, query),
       }
     } catch (error) {
       return reply.status(400).send(invalidRequest(error))

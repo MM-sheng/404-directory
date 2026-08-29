@@ -9,6 +9,7 @@ import type {
   VerificationCheckRecord,
 } from "./types.js"
 import type { AgentRetentionSummary, ReliabilitySummary } from "./metrics.js"
+import type { EvaluationMetricAttribution } from "./evaluation-metric-scopes.js"
 
 export type ToolStatus = z.infer<typeof ToolStatusSchema>
 
@@ -103,13 +104,8 @@ export type RiskEvaluationRecord = {
   outcome_reported_at: string | null
 }
 
-export type RiskEvaluationSummary = {
-  metric: "privacy_safe_agent_tool_risk_preflight"
-  definition: string
-  window_start: string
-  generated_at: string
+export type RiskEvaluationCohortSummary = {
   evaluations: number
-  external_evaluations: number
   identified_external_agents: number
   decisions: { allow: number; review: number; block: number }
   reported_outcomes: number
@@ -129,8 +125,17 @@ export type RiskEvaluationSummary = {
   behavior_changes: number
   behavior_change_rate: number | null
   policies: Array<{ policy_version: string; evaluations: number }>
-  evidence_notice: string
 }
+
+export type RiskEvaluationSummary = RiskEvaluationCohortSummary &
+  EvaluationMetricAttribution<RiskEvaluationCohortSummary> & {
+    metric: "privacy_safe_agent_tool_risk_preflight"
+    definition: string
+    window_start: string
+    generated_at: string
+    external_evaluations: number
+    evidence_notice: string
+  }
 
 export type PredictionMarketEvaluationOutcome = {
   action_taken:
@@ -223,11 +228,8 @@ export type PredictionMarketEvaluationRecord = {
   outcome_reported_at: string | null
 }
 
-export type PredictionMarketEvaluationSummary = {
-  metric: "privacy_safe_prediction_market_preflight"
-  generated_at: string
+export type PredictionMarketEvaluationCohortSummary = {
   evaluations: number
-  external_evaluations: number
   identified_external_agents: number
   decisions: { allow: number; review: number; block: number }
   reported_outcomes: number
@@ -235,8 +237,17 @@ export type PredictionMarketEvaluationSummary = {
   behavior_changes: number
   behavior_change_rate: number | null
   top_reason_codes: Array<{ reason_code: string; evaluations: number }>
-  evidence_notice: string
 }
+
+export type PredictionMarketEvaluationSummary =
+  PredictionMarketEvaluationCohortSummary &
+    EvaluationMetricAttribution<PredictionMarketEvaluationCohortSummary> & {
+      metric: "privacy_safe_prediction_market_preflight"
+      window_start: string
+      generated_at: string
+      external_evaluations: number
+      evidence_notice: string
+    }
 
 export type AgentUsageSummary = {
   window_start: string

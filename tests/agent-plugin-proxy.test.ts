@@ -1,28 +1,24 @@
-import {
-  mkdtemp,
-  readFile,
-  rm,
-  symlink,
-  writeFile,
-} from "node:fs/promises"
+import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import { Readable } from "node:stream"
 import { afterEach, describe, expect, it } from "vitest"
-import {
-  loadAgentId,
-  parseSseMessages,
-  safeClientLabel as safePluginClientLabel,
-} from "../scripts/agent-plugin-proxy.mjs"
-import {
+// @ts-expect-error The executable JavaScript bridge intentionally has no library API declarations.
+import * as pluginProxy from "../scripts/agent-plugin-proxy.mjs"
+// @ts-expect-error The executable npm binary is runtime-tested, not published as a typed library API.
+import * as universalProxy from "../packages/404-directory-mcp/bin/404-directory-mcp.mjs"
+
+const { loadAgentId, parseSseMessages } = pluginProxy
+const { safeClientLabel: safePluginClientLabel } = pluginProxy
+const {
   defaultDataDirectory,
   identityDirectory,
   invokedAsMain,
-  loadAgentId as loadUniversalAgentId,
+  loadAgentId: loadUniversalAgentId,
   parseCliOptions,
   runProxy,
   safeClientLabel,
-} from "../packages/404-directory-mcp/bin/404-directory-mcp.mjs"
+} = universalProxy
 
 const temporaryDirectories: string[] = []
 
@@ -124,7 +120,9 @@ describe("Agent Plugin identity bridge", () => {
         environment: {},
         homeDirectory: "/tmp/home",
       })
-    ).toBe(path.join("/tmp/home", "Library", "Application Support", "404-directory"))
+    ).toBe(
+      path.join("/tmp/home", "Library", "Application Support", "404-directory")
+    )
 
     const clientDirectory = identityDirectory(
       "/tmp/agent-data/404-directory",
@@ -153,19 +151,27 @@ describe("Agent Plugin identity bridge", () => {
     expect(parseCliOptions(["--source=official-registry"])).toEqual({
       source: "official-registry",
     })
-    expect(() => parseCliOptions(["--source=Personal Email@example.com"]))
-      .toThrow("--source must be a lowercase, non-personal label")
-    expect(() => parseCliOptions(["--source", "Personal Email@example.com"]))
-      .toThrow("--source must be a lowercase, non-personal label")
-    expect(() => parseCliOptions(["--endpoint", "https://example.com"])).toThrow(
-      "Unknown argument: --endpoint"
-    )
+    expect(() =>
+      parseCliOptions(["--source=Personal Email@example.com"])
+    ).toThrow("--source must be a lowercase, non-personal label")
+    expect(() =>
+      parseCliOptions(["--source", "Personal Email@example.com"])
+    ).toThrow("--source must be a lowercase, non-personal label")
+    expect(() =>
+      parseCliOptions(["--endpoint", "https://example.com"])
+    ).toThrow("Unknown argument: --endpoint")
   })
 
-  it("forwards the negotiated protocol version after initialization without requiring a session", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "404-protocol-test-"))
+  it("forwards a prediction preflight with stable identity and negotiated protocol", async () => {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "404-protocol-test-")
+    )
     temporaryDirectories.push(directory)
-    const requests: Array<{ method: string; headers: Record<string, string> }> = []
+    const requests: Array<{
+      method: string
+      headers: Record<string, string>
+      body: Record<string, unknown>
+    }> = []
     const responses = [
       new Response(
         JSON.stringify({
@@ -182,6 +188,16 @@ describe("Agent Plugin identity bridge", () => {
       new Response(null, { status: 202 }),
       new Response(
         JSON.stringify({ jsonrpc: "2.0", id: 2, result: { tools: [] } }),
+        { headers: { "content-type": "application/json" } }
+      ),
+      new Response(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: 3,
+          result: {
+            content: [{ type: "text", text: '{"decision":"review"}' }],
+          },
+        }),
         { headers: { "content-type": "application/json" } }
       ),
     ]
@@ -206,6 +222,20 @@ describe("Agent Plugin identity bridge", () => {
         method: "tools/list",
         params: {},
       })}\n`,
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: {
+          name: "evaluate_prediction_market",
+          arguments: {
+            market: "https://polymarket.com/event/example-market",
+            intended_action: "observe",
+            execution_mode: "supervised",
+            geographic_eligibility: "unknown",
+          },
+        },
+      })}\n`,
     ])
     const output: unknown[] = []
 
@@ -218,6 +248,7 @@ describe("Agent Plugin identity bridge", () => {
         requests.push({
           method: init.method ?? "GET",
           headers: init.headers as Record<string, string>,
+          body: JSON.parse(String(init.body)) as Record<string, unknown>,
         })
         const response = responses.shift()
         if (!response) throw new Error("Unexpected request")
@@ -226,11 +257,28 @@ describe("Agent Plugin identity bridge", () => {
       write: (message: unknown) => output.push(message),
     })
 
-    expect(requests).toHaveLength(3)
+    expect(requests).toHaveLength(4)
     expect(requests[0].headers["MCP-Protocol-Version"]).toBeUndefined()
     expect(requests[1].headers["MCP-Protocol-Version"]).toBe("2025-11-25")
     expect(requests[2].headers["MCP-Protocol-Version"]).toBe("2025-11-25")
-    expect(output).toHaveLength(2)
+    expect(requests[3].headers["MCP-Protocol-Version"]).toBe("2025-11-25")
+    expect(requests[3].headers["X-404-Source"]).toBe("test")
+    expect(requests[3].headers["X-404-Agent-ID"]).toBe(
+      requests[0].headers["X-404-Agent-ID"]
+    )
+    expect(requests[3].headers["X-404-Client-Name"]).toBe("cursor")
+    expect(requests[3].body).toMatchObject({
+      method: "tools/call",
+      params: {
+        name: "evaluate_prediction_market",
+        arguments: {
+          intended_action: "observe",
+          execution_mode: "supervised",
+          geographic_eligibility: "unknown",
+        },
+      },
+    })
+    expect(output).toHaveLength(3)
   })
 
   it("never forwards arbitrary client names into analytics headers", () => {

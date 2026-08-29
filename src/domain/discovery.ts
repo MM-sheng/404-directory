@@ -8,7 +8,7 @@ export type GetCatalogToolOptions = {
 }
 
 /**
- * Agent-facing discovery: rank by trust + usage, filter by capability/protocol.
+ * Agent-facing discovery: lexical relevance first, then trust + usage evidence.
  * Public discovery is active-only — pending tools stay quarantined.
  */
 export async function searchCatalogTools(
