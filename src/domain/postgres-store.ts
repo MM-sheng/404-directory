@@ -43,6 +43,7 @@ import {
 import { nextVerifyBackoffMs } from "./verification.js"
 import { buildRiskEvaluationSummary } from "./risk-metrics.js"
 import { buildPredictionMarketEvaluationSummary } from "./prediction-market-metrics.js"
+import { rankSearchCandidates } from "./catalog-search.js"
 
 function toolMetadata(input: RegisterToolRequest): Record<string, unknown> {
   return {
@@ -413,52 +414,49 @@ export class PostgresCatalogStore implements CatalogStore {
     if (query.category) {
       conditions.push(sql`${tools.category} = ${query.category}`)
     }
-    if (query.capability) {
-      conditions.push(
-        sql`${query.capability} = ANY(${tools.capabilities}) OR EXISTS (
-          SELECT 1 FROM unnest(${tools.capabilities}) AS cap
-          WHERE cap ILIKE ${"%" + query.capability + "%"}
-        )`
-      )
-    }
-    if (query.q) {
-      const pattern = `%${query.q}%`
-      conditions.push(
-        sql`(${tools.name} ILIKE ${pattern} OR ${tools.description} ILIKE ${pattern})`
-      )
-    }
-
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    // Rank lightweight metadata with the same matcher as memory. Do not truncate
+    // before relevance/trust filtering or hydrate every candidate's full receipt.
     const rows = await this.db
-      .select({ id: tools.id })
+      .select({
+        id: tools.id,
+        slug: tools.slug,
+        name: tools.name,
+        description: tools.description,
+        capabilities: tools.capabilities,
+        category: tools.category,
+        protocol: tools.protocol,
+        status: tools.status,
+        providerName: providers.name,
+        providerSlug: providers.slug,
+        overallScore: trustScores.overallScore,
+        invocations7d: sql<number>`(SELECT count(*)::int FROM ${invocations}
+          WHERE ${invocations.toolId} = ${tools.id} AND ${invocations.createdAt} >= ${since.toISOString()}::timestamptz)`,
+      })
       .from(tools)
+      .innerJoin(providers, eq(tools.providerId, providers.id))
+      .leftJoin(trustScores, eq(trustScores.toolId, tools.id))
       .where(and(...conditions))
-      .limit(Math.min(query.limit * 3, 100))
-
-    const hydrated: CatalogTool[] = []
-    for (const row of rows) {
-      const tool = await this.hydrateTool(row.id)
-      if (!tool) continue
-      if (
-        query.trust_threshold !== undefined &&
-        (tool.trust?.overall_score ?? 0) < query.trust_threshold
-      ) {
-        continue
-      }
-      hydrated.push(tool)
-    }
-
-    hydrated.sort((a, b) => {
-      const penalty = (tool: CatalogTool) =>
-        tool.status === "degraded" ? 0.15 : 0
-      const trustDelta =
-        (b.trust?.overall_score ?? 0) -
-        penalty(b) -
-        ((a.trust?.overall_score ?? 0) - penalty(a))
-      if (trustDelta !== 0) return trustDelta
-      return b.usage.invocations_7d - a.usage.invocations_7d
-    })
-
-    return hydrated.slice(0, query.limit)
+    const ranked = rankSearchCandidates(
+      rows.map((row) => ({
+        ...row,
+        provider: { name: row.providerName, slug: row.providerSlug },
+        trust:
+          row.overallScore === null
+            ? null
+            : { overall_score: num(row.overallScore) },
+        usage: { invocations_7d: Number(row.invocations7d) },
+      })),
+      query
+    )
+    const hydrated = await Promise.all(
+      ranked.map((row) => this.hydrateTool(row.id))
+    )
+    // Recheck lifecycle and thresholds if an entry changed while being hydrated.
+    return rankSearchCandidates(
+      hydrated.filter((tool): tool is CatalogTool => tool !== null),
+      query
+    )
   }
 
   async listToolIdsForVerification(limit = 50): Promise<string[]> {

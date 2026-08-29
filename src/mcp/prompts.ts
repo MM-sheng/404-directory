@@ -1,5 +1,40 @@
 import { z } from "zod"
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
+import { RiskPermissionSchema } from "../domain/risk-evaluation.js"
+
+const PermissionListSchema = z.array(RiskPermissionSchema).max(8)
+const PromptPermissionsSchema = z
+  .string()
+  .min(1)
+  .max(512)
+  .transform((value, ctx) => {
+    let parsed: unknown
+    try {
+      parsed = value.trim().startsWith("[")
+        ? JSON.parse(value)
+        : value.split(",").map((item) => item.trim())
+    } catch {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          'Use a JSON permission array, for example ["public_network"], or comma-separated permission names.',
+      })
+      return z.NEVER
+    }
+    const result = PermissionListSchema.safeParse(parsed)
+    if (!result.success) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Provide at most 8 known permissions as JSON or comma-separated names. Use [] only when no permissions are required.",
+      })
+      return z.NEVER
+    }
+    return result.data
+  })
+  .describe(
+    'Every required permission as a JSON array string, e.g. ["public_network","credentials"], or comma-separated names. Use [] explicitly for no permissions; do not omit unknown permissions.'
+  )
 
 export const ACTIVATION_PROMPT_NAMES = [
   "preflight-prediction-market",
@@ -233,24 +268,7 @@ export function registerActivationPrompts(
             .enum(["supervised", "unattended"])
             .default("supervised")
             .describe("Whether a human supervises this action."),
-          permissions: z
-            .array(
-              z.enum([
-                "public_network",
-                "local_files_read",
-                "local_files_write",
-                "credentials",
-                "personal_data",
-                "code_execution",
-                "payments",
-                "destructive_actions",
-              ])
-            )
-            .max(8)
-            .default([])
-            .describe(
-              "Every permission or side effect required by the action."
-            ),
+          permissions: PromptPermissionsSchema,
         },
       },
       ({

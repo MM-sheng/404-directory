@@ -87,6 +87,13 @@ count.
 Anonymous external calls can contribute to aggregate reliability evidence but
 never to the unique-Agent target or Agent retention.
 
+For `search_tools`, a zero-match response remains a valid MCP response but is
+not useful discovery success: its invocation is recorded with
+`success=false`, `error_type=no_matches`, and `result_count=0`, so it cannot
+activate a new identity. It appears in the existing `failed_tool` funnel as a
+no-match outcome, not a transport exception. A subsequent search with real
+candidates may activate the identity. No search text is added to telemetry.
+
 ## Retention definitions
 
 - `repeat_agents_on_later_day`: qualified Agents with another successful call
@@ -112,10 +119,54 @@ count, anonymous invocation count, result-item count, P50/P95 latency and last
 observation time. It is evidence with a time window and sample size, not an
 absolute trust score.
 
-`GET /v1/metrics/risk-evaluations` reports only aggregate preflight volume,
-identified external Agent count, allow/review/block distribution, outcome
-reporting, behavior changes, bounded results, and policy versions. It never
-exposes individual receipts or Agent HMACs.
+`GET /v1/metrics/risk-evaluations` and
+`GET /v1/metrics/prediction-market-evaluations` return attribution breakdowns
+under `metric_definition_version: "risk-attribution-v2"`. They never expose
+individual receipts, Agent HMACs, or outcome tokens.
+
+### Risk metric scopes
+
+Legacy top-level aggregates retain their **total traffic** meaning for
+compatibility, explicitly labeled `legacy_aggregate_scope: "total"`. They are
+not adoption evidence. Consumers must read `scopes`:
+
+| Scope | Admission |
+| --- | --- |
+| `total` | All evaluations in the creation-time window |
+| `internal` | `is_external=false` or identity kind `internal`; includes unclassified local/non-external work |
+| `anonymous_external` | External=true and anonymous identity; never unique-user evidence |
+| `identified_external` | External=true, explicit identity and a nonblank stored Agent HMAC |
+| `unattributed` | Missing or unsupported attribution, including explicit identity without a key; never promoted to external success |
+| `external` | Anonymous external plus identified external, excluding the internal and unattributed groups |
+
+`total = internal + anonymous_external + identified_external + unattributed`.
+`external` is a subtotal, not an additional disjoint group. An internal marker
+wins over an inconsistent external flag. `external_evaluations` uses this
+conservative classifier; inconsistent historical flags may therefore no longer
+count as external. No stored records are rewritten.
+
+Every scope has its own evaluation count, decision distribution, unique
+identified installation count, outcome count, and behavior-change count/rates.
+Tool-risk scopes additionally include actions, results and policy versions;
+prediction scopes include their own top reason codes. Empty denominators return
+`null`, not fabricated 0%/100%. Rates are descriptive, not causal uplift.
+
+The window is based on evaluation creation time (`cohort_basis`), including the
+lower bound. A later report belongs to that original evaluation's cohort and
+attribution, not to the reporter's headers or report date. At most one bounded
+outcome is attached per receipt, so replay does not inflate counts.
+
+`qualified_pilot.status` is `not_measured` and `verified_operators` is `null`.
+The application has no verified independent-operator admission registry; an
+ID, source label, self-report, or repeated call cannot substitute for one.
+`identified_external_agents` counts distinct installation keys, not people.
+The existing invocation-level “qualified” admission rule above is only a
+telemetry rule; it must not be confused with human-verified pilot membership.
+
+The evidence dashboard shows separate rows for both risk domains and labels all
+traffic as not adoption. The pilot script reads only identified-external
+prediction outcomes. Against an older or malformed metric response it reports
+`unavailable` with null values rather than falling back to mixed totals.
 
 ## Storage period
 

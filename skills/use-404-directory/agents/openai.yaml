@@ -1,7 +1,7 @@
 interface:
   display_name: "Use 404.directory"
-  short_description: "Preflight third-party Agent tools with evidence"
-  default_prompt: "Use $use-404-directory to preflight unfamiliar third-party tools before installation or invocation, then report the observed outcome."
+  short_description: "Preflight Polymarket and Agent-tool actions"
+  default_prompt: "Use $use-404-directory to preflight the exact Polymarket market I provide before my real observation or contemplated Yes/No action, without predicting or trading."
 dependencies:
   tools:
     - type: "mcp"

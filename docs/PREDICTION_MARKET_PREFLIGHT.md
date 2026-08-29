@@ -1,7 +1,7 @@
 # Prediction-market risk preflight
 
 404.directory evaluates one public Polymarket market immediately before an AI
-Agent observes or contemplates a Yes/No position. The first policy checks:
+Agent observes or contemplates a Yes/No position. The policy checks:
 
 - whether the market is active and accepting orders;
 - whether the settlement source and timing boundary are explicit;
@@ -9,6 +9,28 @@ Agent observes or contemplates a Yes/No position. The first policy checks:
 - current public order-book availability, nearby depth, spread, and estimated
   slippage for a stated notional;
 - caller-observed geographic eligibility and supervised versus unattended use.
+
+## Evidence freshness (policy `polymarket-preflight-v2`)
+
+- Market metadata must have a valid provider `updatedAt` less than 24 hours
+  old. Missing, invalid, stale, or excessively future-dated metadata requires
+  `review`; a recent fetch alone does not prove a recent source update.
+- Trading requires a usable order book with a valid millisecond timestamp
+  less than two minutes old. Missing, invalid, stale, or excessively
+  future-dated book timestamps cause `block`, not `allow`.
+- At most 30 seconds of forward clock skew is tolerated. Freshness is checked
+  after upstream requests complete, including time spent fetching other data.
+- Trading without `estimated_notional_usd` requires `review` because
+  size-specific depth and slippage have not been evaluated.
+- Receipt expiry is bounded by the remaining lifetime of fresh evidence and
+  a one-hour ceiling. An allowed trading receipt therefore lasts no more than
+  two minutes, often less. Re-evaluate immediately before acting: a receipt
+  is not a reusable trading authorization.
+
+These are conservative 404 policy limits, not provider freshness guarantees.
+Provider update timestamps do not independently prove that rules or book
+contents are correct. This policy intentionally favors review when freshness
+cannot be established; it may reject unchanged but valid older metadata.
 
 It returns `allow`, `review`, or `block`. It does not predict the winning
 outcome, place or sign orders, access wallets, custody funds, or provide legal,
@@ -88,7 +110,7 @@ Agent intent, privacy-safe Agent attribution, the decision, and an optional
 bounded behavior outcome. No wallet address, key, order payload, prompt, IP
 address, personal data, or free-form rationale belongs in this workflow.
 
-Policy v1 does not independently verify off-platform resolution evidence,
+Policy v2 does not independently verify off-platform resolution evidence,
 calibrate third-party signals, or automatically attach the final market
-resolution. Those are explicit later phases and must not be implied by a v1
+resolution. Those are explicit later phases and must not be implied by a v2
 response.

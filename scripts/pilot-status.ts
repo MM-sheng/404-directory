@@ -1,3 +1,8 @@
+import {
+  pilotIdentityProgress,
+  readPilotPredictionEvidence,
+} from "../src/domain/pilot-evidence.js"
+
 const baseUrl = (process.env.PILOT_BASE_URL ?? "https://404.directory").replace(
   /\/$/,
   ""
@@ -43,7 +48,6 @@ const [agents, activation, prediction] = await Promise.all([
 ])
 
 const identifiedAgents = Number(agents.identified_external_agents ?? 0)
-const gainedAgents = Math.max(0, identifiedAgents - baselineAgents)
 const retention = agents.retention as Record<string, unknown> | undefined
 const activationStages = Array.isArray(activation.stages)
   ? (activation.stages as Array<Record<string, unknown>>)
@@ -71,33 +75,24 @@ process.stdout.write(
       generated_at: new Date().toISOString(),
       base_url: baseUrl,
       pilot: {
-        baseline_agents: baselineAgents,
-        target_new_agents: cohortTarget,
-        gained_agents: gainedAgents,
-        remaining_agents: Math.max(0, cohortTarget - gainedAgents),
-        first_success_gate_met: gainedAgents >= cohortTarget,
-        repeat_agents_on_later_day: Number(
-          retention?.repeat_agents_on_later_day ?? 0
+        ...pilotIdentityProgress(
+          baselineAgents,
+          identifiedAgents,
+          cohortTarget
         ),
       },
-      qualified_usage: {
+      identified_usage: {
         identified_external_agents: identifiedAgents,
+        repeat_installations_on_later_day: Number(
+          retention?.repeat_agents_on_later_day ?? 0
+        ),
         successful_external_invocations: Number(
           agents.successful_external_invocations ?? 0
         ),
         sources: agents.sources ?? [],
         clients: agents.clients ?? [],
       },
-      prediction_market: {
-        evaluations: Number(prediction.evaluations ?? 0),
-        external_evaluations: Number(prediction.external_evaluations ?? 0),
-        identified_external_agents: Number(
-          prediction.identified_external_agents ?? 0
-        ),
-        reported_outcomes: Number(prediction.reported_outcomes ?? 0),
-        outcome_report_rate: prediction.outcome_report_rate ?? null,
-        behavior_changes: Number(prediction.behavior_changes ?? 0),
-      },
+      prediction_market: readPilotPredictionEvidence(prediction),
       activation: {
         tools_list: stage("tools_list"),
         tool_attempt: stage("tool_attempt"),

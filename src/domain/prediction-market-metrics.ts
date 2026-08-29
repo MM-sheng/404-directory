@@ -1,7 +1,12 @@
 import type {
   PredictionMarketEvaluationRecord,
   PredictionMarketEvaluationSummary,
+  PredictionMarketEvaluationCohortSummary,
 } from "./store.js"
+import {
+  buildEvaluationAttribution,
+  countIdentifiedExternalAgents,
+} from "./evaluation-metric-scopes.js"
 
 function ratio(numerator: number, denominator: number): number | null {
   return denominator === 0 ? null : Number((numerator / denominator).toFixed(4))
@@ -14,15 +19,25 @@ export function buildPredictionMarketEvaluationSummary(
   const scoped = records.filter(
     (record) => new Date(record.created_at).getTime() >= since.getTime()
   )
-  const external = scoped.filter((record) => record.is_external)
-  const externalAgents = new Set(
-    external
-      .filter(
-        (record) =>
-          record.agent_identity_kind === "explicit" && record.agent_key
-      )
-      .map((record) => record.agent_key!)
+  const attribution = buildEvaluationAttribution(
+    scoped,
+    summarizePredictionCohort
   )
+  return {
+    metric: "privacy_safe_prediction_market_preflight",
+    window_start: since.toISOString(),
+    generated_at: new Date().toISOString(),
+    ...attribution.scopes.total,
+    external_evaluations: attribution.scopes.external.evaluations,
+    ...attribution,
+    evidence_notice:
+      "Behavior outcomes are self-reported and do not prove causation, independent users, prevented losses, profitability, or prediction accuracy. Market resolution calibration is not included. Self-reported outcomes do not directly increase Trust scores.",
+  }
+}
+
+function summarizePredictionCohort(
+  scoped: PredictionMarketEvaluationRecord[]
+): PredictionMarketEvaluationCohortSummary {
   const reported = scoped.filter((record) => record.outcome)
   const behaviorChanges = reported.filter((record) =>
     [
@@ -41,11 +56,8 @@ export function buildPredictionMarketEvaluationSummary(
   }
 
   return {
-    metric: "privacy_safe_prediction_market_preflight",
-    generated_at: new Date().toISOString(),
     evaluations: scoped.length,
-    external_evaluations: external.length,
-    identified_external_agents: externalAgents.size,
+    identified_external_agents: countIdentifiedExternalAgents(scoped),
     decisions: {
       allow: scoped.filter((record) => record.decision === "allow").length,
       review: scoped.filter((record) => record.decision === "review").length,
@@ -59,7 +71,5 @@ export function buildPredictionMarketEvaluationSummary(
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 10)
       .map(([reason_code, evaluations]) => ({ reason_code, evaluations })),
-    evidence_notice:
-      "Behavior outcomes are self-reported and do not prove profitability or prediction accuracy. Market resolution calibration is not included in policy v1.",
   }
 }

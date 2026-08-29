@@ -68,7 +68,7 @@ public deployment verification remain supporting workflows.
 - Adoption telemetry stores only source/client labels and an optional HMAC of a
   random installation ID after successful external use. It stores no raw Agent
   IDs, prompts, arguments, results, IP addresses, emails, or usernames.
-- The production server and public npm bridge are both version `0.10.1`.
+- The production server and public npm bridge are both version `0.10.2`.
 
 ## Suggested review prompts
 
@@ -82,7 +82,7 @@ public deployment verification remain supporting workflows.
 ## Separate Claude Code plugin distribution
 
 The source at
-`https://github.com/MM-sheng/404-directory/tree/v0.10.1/distribution/404-directory`
+`https://github.com/MM-sheng/404-directory/tree/v0.10.2/distribution/404-directory`
 remains valid for direct Claude Code plugin installation and validation. It is
 not a substitute for the Claude Connectors Directory submission, and it should
 not be uploaded to the MCPB desktop-extension form.

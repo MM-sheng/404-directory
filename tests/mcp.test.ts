@@ -3,6 +3,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { afterEach, describe, expect, it } from "vitest"
 import { z } from "zod"
 import { MemoryCatalogStore } from "../src/domain/memory-store.js"
+import type { PredictionMarketDataSource } from "../src/domain/prediction-market-risk.js"
 import { createMcpServerFromRegistry } from "../src/mcp/create-server.js"
 import type { RemoteMcpGateway } from "../src/mcp/remote-gateway.js"
 import { createVerifyWebTool } from "../src/tools/definitions/verify-web.js"
@@ -18,9 +19,15 @@ afterEach(async () => {
 async function connect(
   registry: ToolRegistry,
   catalog?: MemoryCatalogStore,
-  gateway?: RemoteMcpGateway
+  gateway?: RemoteMcpGateway,
+  predictionMarketDataSource?: PredictionMarketDataSource
 ): Promise<Client> {
-  const server = createMcpServerFromRegistry(registry, catalog, gateway)
+  const server = createMcpServerFromRegistry(
+    registry,
+    catalog,
+    gateway,
+    predictionMarketDataSource
+  )
   const client = new Client({ name: "test-client", version: "1.0.0" })
   const [clientTransport, serverTransport] =
     InMemoryTransport.createLinkedPair()
@@ -151,14 +158,84 @@ describe("registry MCP adapter", () => {
 
     const evaluation = await client.getPrompt({
       name: "evaluate-agent-tool",
-      arguments: { capability: "official documentation search" },
+      arguments: {
+        capability: "official documentation search",
+        permissions: "public_network",
+      },
     })
     expect(JSON.stringify(evaluation.messages)).toContain("search_tools")
     expect(JSON.stringify(evaluation.messages)).toContain("evaluate_tool_risk")
+    expect(JSON.stringify(evaluation.messages)).toContain("public_network")
     expect(JSON.stringify(evaluation.messages)).toContain("report_tool_outcome")
     expect((await catalog.agentUsageSummary()).identified_external_agents).toBe(
       0
     )
+  })
+
+  it("completes a real local prediction-market MCP preflight without trading", async () => {
+    const now = new Date().toISOString()
+    const dataSource: PredictionMarketDataSource = {
+      getMarket: async () => ({
+        id: "skill-contract-market",
+        question: "Will the public fixture publish before September 2026?",
+        slug: "public-fixture-before-september-2026",
+        conditionId: `0x${"a".repeat(64)}`,
+        description:
+          "Resolves Yes if the public fixture publishes by August 31, 2026 at 23:59 UTC; otherwise No.",
+        resolutionSource: "https://example.com/public-result",
+        endDate: "2026-09-01T00:00:00Z",
+        updatedAt: now,
+        active: true,
+        closed: false,
+        acceptingOrders: true,
+        enableOrderBook: true,
+        restricted: false,
+        outcomes: '["Yes","No"]',
+        outcomePrices: '["0.40","0.60"]',
+        clobTokenIds: '["yes-token","no-token"]',
+        liquidityNum: 25_000,
+        bestBid: 0.39,
+        bestAsk: 0.4,
+        spread: 0.01,
+      }),
+      getOrderBook: async () => {
+        throw new Error("observe must not fetch an order book")
+      },
+    }
+    const store = new MemoryCatalogStore()
+    const client = await connect(
+      new ToolRegistry(),
+      store,
+      undefined,
+      dataSource
+    )
+
+    const result = await client.callTool({
+      name: "evaluate_prediction_market",
+      arguments: {
+        market: "public-fixture-before-september-2026",
+        intended_action: "observe",
+        execution_mode: "supervised",
+        geographic_eligibility: "unknown",
+      },
+    })
+
+    expect(result.isError).not.toBe(true)
+    expect(result.structuredContent).toMatchObject({
+      market: { slug: "public-fixture-before-september-2026" },
+      intent: {
+        intended_action: "observe",
+        execution_mode: "supervised",
+        geographic_eligibility: "unknown",
+      },
+      decision: expect.stringMatching(/^(allow|review|block)$/),
+      receipt_id: expect.any(String),
+      outcome_token: expect.any(String),
+    })
+    expect(JSON.stringify(result.structuredContent)).not.toContain(
+      "recommended_side"
+    )
+    expect((await store.agentUsageSummary()).identified_external_agents).toBe(0)
   })
 
   it("returns verify_web evidence as structured content", async () => {
