@@ -1,10 +1,37 @@
 # Distribution status
 
-Last audited: 2026-08-29 08:44 UTC
+Last audited: 2026-08-30 04:33 UTC
 
 This tracker separates a submission from a public listing and a public listing
 from a qualified external Agent. A channel is successful only after it produces
 at least one de-duplicated external Agent with a successful tool execution.
+
+## v0.10.3 production release (2026-08-30)
+
+404.directory v0.10.3 is live on Cloud Run revision
+`directory-404-v0103-f974214`, serving 100% of production traffic. The release
+adds evidence-backed admission for independent Agent installations and
+operators, an authoritative verified-Agent metric, privacy-safe HMAC evidence
+digests, revocation, retention, and a hard separation between verified progress
+and unverified traffic diagnostics.
+
+Release evidence:
+
+- GitHub Release: `v0.10.3` from merge commit `f974214`;
+- npm: `@mmvv1638/404-directory-mcp@0.10.3` is `latest`;
+- Official MCP Registry: `io.github.MM-sheng/404-directory` v0.10.3 is active
+  and latest;
+- publish workflow run `33292749936` passed both npm and Registry jobs;
+- production migration, Cloud Run canary, canonical-domain MCP handshake,
+  16-tool discovery, three real read-only tool calls and first-shot activation
+  passed;
+- the previous v0.10.2 revision remains at 0% as a rollback target.
+
+At the audit timestamp, the authoritative metric is 0 verified external Agents,
+0 verified operators and 0 qualifying invocations. The separate unverified
+diagnostic is 2 installation ID digests, 15 successful invocations and 33
+anonymous successes. Those diagnostic values do not count toward the
+1,000-Agent target.
 
 ## v0.10.2 production release (2026-08-29)
 
@@ -48,12 +75,12 @@ or custody funds.
 
 | Surface               | Current public state                                                                                                                      | Prepared state                                                              | Next action                                                                                    | Blocker                                                                                                              |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| GitHub                | v0.10.2 release published from `7ce485a`; v0.10.1 TypeScript v0.1.0 tarball and Python v0.1.0 wheel remain available with SHA-256 digests | Application release and SDK artifacts passed their respective release gates | Use the production MCP service and SDK artifacts for the first 10-Agent pilot                  | None                                                                                                                 |
-| npm MCP bridge        | `@mmvv1638/404-directory-mcp@0.10.2` is the public `latest` version                                                                       | Identity-preserving bridge matches `server.json`                            | Measure successful calls, not downloads                                                        | None                                                                                                                 |
+| GitHub                | v0.10.3 release published from `f974214`; v0.10.1 TypeScript v0.1.0 tarball and Python v0.1.0 wheel remain available with SHA-256 digests | Application release and SDK artifacts passed their respective release gates | Use the production MCP service and SDK artifacts for the first verified-Agent pilot            | None                                                                                                                 |
+| npm MCP bridge        | `@mmvv1638/404-directory-mcp@0.10.3` is the public `latest` version                                                                       | Identity-preserving bridge matches `server.json`                            | Measure verified successful calls, not downloads                                               | None                                                                                                                 |
 | npm risk SDK          | Release tarball is public; registry package is not initialized                                                                            | Trusted-publishing workflow prepared                                        | Owner performs the one-time npm package initialization, then run `Publish risk SDKs` on `main` | npm local authentication is expired and npm requires an existing package before trusted publishing can be configured |
 | PyPI risk SDK         | Release wheel is public; `directory404-risk` is not registered                                                                            | Trusted-publishing workflow prepared                                        | Owner creates a pending PyPI publisher for `publish-risk-sdks.yml`, then run it on `main`      | One-time PyPI account configuration                                                                                  |
-| Official MCP Registry | `io.github.MM-sheng/404-directory` v0.10.2 is public                                                                                      | 16 MCP tools on production                                                  | Measure Registry-attributed successful calls                                                   | None                                                                                                                 |
-| Production            | Cloud Run revision `directory-404-v0102-7ce485a` serves 100% of traffic with v0.10.2 and 16 MCP tools                                     | `directory-404-v0101-f43bf3f` remains available at 0% for rollback          | Recruit and measure 10 independent Agents                                                      | None                                                                                                                 |
+| Official MCP Registry | `io.github.MM-sheng/404-directory` v0.10.3 is active and latest                                                                           | 16 MCP tools on production                                                  | Measure Registry-attributed verified successful calls                                          | None                                                                                                                 |
+| Production            | Cloud Run revision `directory-404-v0103-f974214` serves 100% of traffic with v0.10.3 and 16 MCP tools                                     | `directory-404-v0102-7ce485a` remains available at 0% for rollback          | Recruit and verify the first 10 independent Agents                                             | None                                                                                                                 |
 
 ## Marketplace and directory surfaces
 
