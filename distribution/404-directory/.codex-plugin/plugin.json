@@ -1,6 +1,6 @@
 {
   "name": "404-directory",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "description": "Preflight Polymarket and third-party Agent actions with evidence-backed allow, review, or block decisions.",
   "author": {
     "name": "404.directory",

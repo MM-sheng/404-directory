@@ -271,7 +271,7 @@ describe("Agent Plugins package", () => {
         command: "npx",
         args: [
           "-y",
-          "@mmvv1638/404-directory-mcp@0.10.2",
+          "@mmvv1638/404-directory-mcp@0.10.3",
           "--source",
           "codex-plugin",
         ],

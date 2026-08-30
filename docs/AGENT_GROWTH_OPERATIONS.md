@@ -2,9 +2,10 @@
 
 ## Objective
 
-Reach 1,000 de-duplicated external Agents with at least one successful tool
-execution by 2026-12-31. Never substitute views, installs, initialization,
-anonymous calls, internal smoke or repeated sessions for qualified Agents.
+Reach 1,000 de-duplicated external Agents with independent-operator evidence
+and at least one successful tool execution by 2026-12-31. Never substitute
+views, installs, initialization, anonymous calls, internal smoke or repeated
+sessions for qualified Agents.
 
 ## Daily scoreboard
 
@@ -12,6 +13,7 @@ Read these endpoints and keep a dated snapshot:
 
 ```text
 GET /v1/metrics/agents
+GET /v1/metrics/verified-agents
 GET /v1/metrics/activation
 GET /v1/metrics/reliability?days=7
 GET /v1/metrics/reliability?days=30
@@ -19,7 +21,7 @@ GET /v1/metrics/reliability?days=30
 
 Record:
 
-- cumulative and new qualified Agents;
+- cumulative and new verified qualified Agents and verified operators;
 - remaining Agents and required daily/weekly pace;
 - call rate from identified initialization to any identified tool attempt;
 - prompt exposure and selection from identified `prompts/list` and
@@ -29,7 +31,8 @@ Record:
 - tool success rate from identified attempt to identified success;
 - first-success rate from identified initialization to identified success;
 - 7/30-day retention when the cohort is eligible;
-- qualified Agents by source and client;
+- verified qualified Agents by source, plus unverified installation diagnostics
+  by client;
 - tools/providers with the most evidence and the worst success/latency;
 - top canonical error.
 
@@ -50,7 +53,8 @@ Each pilot participant must:
 6. Share only client/version, task category, failure stage and request ID when
    troubleshooting; never share content or credentials.
 
-Validate each new metric entry before admitting it. The same person reinstalling
+Admit each participant with privacy-safe independent-operator evidence, then
+require a matching successful external execution. The same person reinstalling
 or generating many IDs is not growth.
 
 ## Outreach message

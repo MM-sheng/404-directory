@@ -12,6 +12,9 @@ import type {
   RiskEvaluationOutcome,
   ToolStatus,
   UsageReceiptInput,
+  VerifiedAgentAdmissionInput,
+  VerifiedAgentAdmissionRecord,
+  VerifiedAgentEvidenceSummary,
 } from "./store.js"
 import type {
   CatalogTool,
@@ -82,6 +85,10 @@ export class MemoryCatalogStore implements CatalogStore {
   private readonly predictionMarketEvaluations = new Map<
     string,
     PredictionMarketEvaluationRecord
+  >()
+  private readonly verifiedAgentAdmissions = new Map<
+    string,
+    VerifiedAgentAdmissionRecord
   >()
 
   async registerTool(input: RegisterToolRequest): Promise<CatalogTool> {
@@ -695,6 +702,99 @@ export class MemoryCatalogStore implements CatalogStore {
         .sort(
           (a, b) =>
             b.identified_agents - a.identified_agents ||
+            b.successful_invocations - a.successful_invocations
+        ),
+    }
+  }
+
+  async upsertVerifiedAgentAdmission(
+    input: VerifiedAgentAdmissionInput
+  ): Promise<{ created: boolean; admission: VerifiedAgentAdmissionRecord }> {
+    const existing = this.verifiedAgentAdmissions.get(input.agent_key)
+    const admission: VerifiedAgentAdmissionRecord = {
+      ...input,
+      id: existing?.id ?? randomUUID(),
+      status: "active",
+      verified_at: existing?.verified_at ?? new Date().toISOString(),
+      revoked_at: null,
+    }
+    this.verifiedAgentAdmissions.set(input.agent_key, admission)
+    return { created: !existing, admission: { ...admission } }
+  }
+
+  async revokeVerifiedAgentAdmission(id: string): Promise<boolean> {
+    const admission = [...this.verifiedAgentAdmissions.values()].find(
+      (entry) => entry.id === id && entry.status === "active"
+    )
+    if (!admission) return false
+    admission.status = "revoked"
+    admission.revoked_at = new Date().toISOString()
+    return true
+  }
+
+  async verifiedAgentEvidenceSummary(
+    since = new Date("2026-01-01T00:00:00.000Z")
+  ): Promise<VerifiedAgentEvidenceSummary> {
+    const active = [...this.verifiedAgentAdmissions.values()].filter(
+      (entry) => entry.status === "active"
+    )
+    const byAgent = new Map(active.map((entry) => [entry.agent_key, entry]))
+    const rows = this.invocations.filter(
+      (row) =>
+        row.created_at >= since.getTime() &&
+        row.success &&
+        row.is_external === true &&
+        row.agent_identity_kind === "explicit" &&
+        Boolean(row.agent_key && byAgent.has(row.agent_key))
+    )
+    const qualifiedAgentKeys = new Set(rows.map((row) => row.agent_key!))
+    const qualifiedAdmissions = active.filter((entry) =>
+      qualifiedAgentKeys.has(entry.agent_key)
+    )
+    const operatorKeys = new Set(
+      qualifiedAdmissions.map((entry) => entry.operator_key)
+    )
+    const sourceMap = new Map<
+      string,
+      { agents: Set<string>; operators: Set<string>; invocations: number }
+    >()
+    for (const admission of qualifiedAdmissions) {
+      const entry = sourceMap.get(admission.source) ?? {
+        agents: new Set<string>(),
+        operators: new Set<string>(),
+        invocations: 0,
+      }
+      entry.agents.add(admission.agent_key)
+      entry.operators.add(admission.operator_key)
+      sourceMap.set(admission.source, entry)
+    }
+    for (const row of rows) {
+      const admission = byAgent.get(row.agent_key!)!
+      sourceMap.get(admission.source)!.invocations += 1
+    }
+    const target = 1_000
+    return {
+      window_start: since.toISOString(),
+      generated_at: new Date().toISOString(),
+      target_external_agents: target,
+      active_admissions: active.length,
+      verified_external_agents: qualifiedAgentKeys.size,
+      verified_operators: operatorKeys.size,
+      successful_external_invocations: rows.length,
+      progress_ratio: Number(
+        Math.min(1, qualifiedAgentKeys.size / target).toFixed(4)
+      ),
+      retention: buildAgentRetention(rows),
+      sources: [...sourceMap.entries()]
+        .map(([source, entry]) => ({
+          source,
+          verified_agents: entry.agents.size,
+          verified_operators: entry.operators.size,
+          successful_invocations: entry.invocations,
+        }))
+        .sort(
+          (a, b) =>
+            b.verified_agents - a.verified_agents ||
             b.successful_invocations - a.successful_invocations
         ),
     }

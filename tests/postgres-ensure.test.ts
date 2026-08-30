@@ -124,6 +124,122 @@ describe("postgres ensureTool idempotency", () => {
   )
 
   it.skipIf(!url)(
+    "has the verified Agent evidence table after migrations",
+    async () => {
+      const handle = openDatabase(url)
+      expect(handle).not.toBeNull()
+      const columns = await handle!.sql<Array<{ column_name: string }>>`
+        select column_name
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'verified_agent_admissions'
+          and column_name in (
+            'agent_key',
+            'evidence_ref_hash',
+            'operator_key',
+            'status',
+            'verification_method'
+          )
+        order by column_name
+      `
+
+      expect(columns).toEqual([
+        { column_name: "agent_key" },
+        { column_name: "evidence_ref_hash" },
+        { column_name: "operator_key" },
+        { column_name: "status" },
+        { column_name: "verification_method" },
+      ])
+      await handle!.close()
+    }
+  )
+
+  it.skipIf(!url)(
+    "qualifies admitted successful Agents, de-duplicates operators, and honors revocation",
+    async () => {
+      const handle = openDatabase(url)
+      expect(handle).not.toBeNull()
+      const store = new PostgresCatalogStore(handle!.db)
+      const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`
+      const source = `verified-pg-${suffix}`
+      const operatorKey = `o1_${suffix}`
+      const firstKey = `a1_first-${suffix}`
+      const secondKey = `a1_second-${suffix}`
+      const since = new Date(Date.now() - 1_000)
+      const first = await store.upsertVerifiedAgentAdmission({
+        agent_key: firstKey,
+        operator_key: operatorKey,
+        source,
+        verification_method: "pilot_interview",
+        evidence_ref_hash: `e1_first-${suffix}`,
+      })
+      await store.upsertVerifiedAgentAdmission({
+        agent_key: secondKey,
+        operator_key: operatorKey,
+        source,
+        verification_method: "partner_attested",
+        evidence_ref_hash: `e1_second-${suffix}`,
+      })
+
+      await store.recordInvocation({
+        tool_name: "evaluate_prediction_market",
+        source: "mcp",
+        success: true,
+        latency_ms: 10,
+        agent_key: firstKey,
+        agent_identity_kind: "explicit",
+        client_name: "postgres-verified-pilot",
+        attribution_source: source,
+        is_external: true,
+      })
+      await store.recordInvocation({
+        tool_name: "evaluate_prediction_market",
+        source: "mcp",
+        success: true,
+        latency_ms: 11,
+        agent_key: secondKey,
+        agent_identity_kind: "explicit",
+        client_name: "postgres-verified-pilot",
+        attribution_source: source,
+        is_external: true,
+      })
+      await store.recordInvocation({
+        tool_name: "evaluate_prediction_market",
+        source: "mcp",
+        success: false,
+        latency_ms: 12,
+        agent_key: secondKey,
+        agent_identity_kind: "explicit",
+        client_name: "postgres-verified-pilot",
+        attribution_source: source,
+        is_external: true,
+      })
+
+      expect(
+        (await store.verifiedAgentEvidenceSummary(since)).sources
+      ).toContainEqual({
+        source,
+        verified_agents: 2,
+        verified_operators: 1,
+        successful_invocations: 2,
+      })
+
+      expect(await store.revokeVerifiedAgentAdmission(first.admission.id)).toBe(
+        true
+      )
+      expect(
+        (await store.verifiedAgentEvidenceSummary(since)).sources
+      ).toContainEqual({
+        source,
+        verified_agents: 1,
+        verified_operators: 1,
+        successful_invocations: 1,
+      })
+      await handle!.close()
+    }
+  )
+
+  it.skipIf(!url)(
     "aggregates qualified clients and provider reliability",
     async () => {
       const handle = openDatabase(url)

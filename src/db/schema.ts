@@ -335,6 +335,41 @@ export const activationEvents = pgTable(
 )
 
 /**
+ * Manually admitted independent-Agent evidence. All identity and evidence
+ * references are irreversible, domain-separated HMAC digests.
+ */
+export const verifiedAgentAdmissions = pgTable(
+  "verified_agent_admissions",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .$defaultFn(() => randomUUID()),
+    agentKey: text("agent_key").notNull(),
+    operatorKey: text("operator_key").notNull(),
+    source: text("source").notNull(),
+    verificationMethod: text("verification_method").notNull(),
+    evidenceRefHash: text("evidence_ref_hash").notNull(),
+    status: text("status").notNull().default("active"),
+    verifiedAt: timestamp("verified_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("verified_agent_admissions_agent_uidx").on(table.agentKey),
+    index("verified_agent_admissions_operator_idx").on(table.operatorKey),
+    index("verified_agent_admissions_source_idx").on(table.source),
+    index("verified_agent_admissions_status_idx").on(table.status),
+  ]
+)
+
+/**
  * Append-only usage receipts: discovery → selection → outcome.
  * Never stores prompts or business payload content.
  */
@@ -502,6 +537,8 @@ export type VerificationCheckRow = typeof verificationChecks.$inferSelect
 export type TrustScoreRow = typeof trustScores.$inferSelect
 export type InvocationRow = typeof invocations.$inferSelect
 export type ActivationEventRow = typeof activationEvents.$inferSelect
+export type VerifiedAgentAdmissionRow =
+  typeof verifiedAgentAdmissions.$inferSelect
 export type UsageReceiptRow = typeof usageReceipts.$inferSelect
 export type RiskEvaluationRow = typeof riskEvaluations.$inferSelect
 export type PredictionMarketEvaluationRow =

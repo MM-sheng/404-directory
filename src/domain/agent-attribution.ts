@@ -38,6 +38,21 @@ const CLIENT_SOURCE_FAMILIES: ReadonlyArray<readonly [RegExp, string]> = [
   [/mcp[ /_-]?inspector/i, "mcp-inspector"],
 ]
 
+/**
+ * Convert a validated opt-in Agent installation ID to the exact digest used by
+ * invocation attribution. Raw installation IDs must never be persisted.
+ */
+export function hashAgentInstallationId(
+  rawAgentId: string,
+  salt: string
+): string | null {
+  if (!SAFE_AGENT_ID.test(rawAgentId)) return null
+  return `a1_${createHmac("sha256", salt)
+    .update(rawAgentId)
+    .digest("hex")
+    .slice(0, 40)}`
+}
+
 function firstHeader(headers: AgentHeaders, name: string): string | undefined {
   const wanted = name.toLowerCase()
   const value = Object.entries(headers).find(
@@ -97,12 +112,7 @@ export function agentAttributionFromHeaders(
 
   return {
     agent_key:
-      explicit && rawAgentId
-        ? `a1_${createHmac("sha256", salt)
-            .update(rawAgentId)
-            .digest("hex")
-            .slice(0, 40)}`
-        : null,
+      explicit && rawAgentId ? hashAgentInstallationId(rawAgentId, salt) : null,
     agent_identity_kind: internal
       ? "internal"
       : explicit

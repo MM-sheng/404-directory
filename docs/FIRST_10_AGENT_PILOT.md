@@ -8,17 +8,17 @@ This pilot optimizes repeated useful calls, not directory scans or installs.
 
 ## Frozen baseline
 
-Frozen at 2026-08-27 08:34 UTC, before this pilot implementation is deployed:
+Verified-evidence baseline frozen at 2026-08-29 16:14 UTC:
 
-- 1 identified external Agent and 6 qualified successful invocations;
-- 0 Agents with a successful call on a later UTC day;
-- 24 identified Agents initialized and 23 listed tools, but only 1 identified
-  Agent attempted or completed a tool call;
-- 3 prediction-market evaluations, of which 1 was external but anonymous;
-- 1 prediction-market outcome report.
+- 0 verified external Agents and 0 verified independent operators;
+- 2 unverified installation-ID digests and 15 successful invocations;
+- 0 verified Agents with a successful call on a later UTC day;
+- current unverified activity includes a `curl` client and project-run
+  verification, so none is retroactively admitted;
+- 15 prediction-market evaluations, 9 external, and 0 external outcome reports.
 
-The cohort target is therefore 11 cumulative identified external Agents, with
-10 new independently controlled Agents admitted after this baseline.
+The cohort target is 10 verified external Agents controlled by 10 independently
+verified operators. Unverified installation IDs are diagnostic only.
 
 ## Recruitment pipeline
 
@@ -26,11 +26,11 @@ Prospects and listings do not count as cohort members. This table exists only
 to keep acquisition focused on operators with a real recurring execution
 boundary.
 
-| Target | Why it can produce repeat use | Current action | State |
-| --- | --- | --- | --- |
-| BlockRunAI `polymarket-agent` | Python Agent calls a concrete CLOB executor with market, action, and size available | [Optional seven-day shadow preflight proposed](https://github.com/BlockRunAI/polymarket-agent/issues/5) | Awaiting maintainer decision |
-| `polymarket-agent-mcp` | TypeScript MCP server has one live `TradeExecutor` boundary with slug, side, and amount | [Optional shadow wrapper proposed](https://github.com/demwick/polymarket-agent-mcp/issues/96) | Awaiting maintainer decision |
-| Awesome Prediction Market Tools | Active vertical audience already operates prediction-market Agents and bots | [Accurate open-source AI Agent entry submitted](https://github.com/aarora4/Awesome-Prediction-Market-Tools/pull/194) | Maintainer review |
+| Target                          | Why it can produce repeat use                                                           | Current action                                                                                                       | State                        |
+| ------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| BlockRunAI `polymarket-agent`   | Python Agent calls a concrete CLOB executor with market, action, and size available     | [Optional seven-day shadow preflight proposed](https://github.com/BlockRunAI/polymarket-agent/issues/5)              | Awaiting maintainer decision |
+| `polymarket-agent-mcp`          | TypeScript MCP server has one live `TradeExecutor` boundary with slug, side, and amount | [Tested shadow implementation submitted](https://github.com/demwick/polymarket-agent-mcp/pull/97)                    | Awaiting maintainer review   |
+| Awesome Prediction Market Tools | Active vertical audience already operates prediction-market Agents and bots             | [Accurate open-source AI Agent entry submitted](https://github.com/aarora4/Awesome-Prediction-Market-Tools/pull/194) | Maintainer review            |
 
 Do not post the same pitch across repositories. A project receives a proposal
 only when its public code exposes the exact information needed for a bounded
@@ -49,6 +49,11 @@ An Agent enters the cohort only when all of the following are true:
    shared for troubleshooting.
 
 The same operator creating multiple IDs does not create multiple Agents.
+
+The execution-ready implementation is now
+[polymarket-agent-mcp #97](https://github.com/demwick/polymarket-agent-mcp/pull/97).
+It is fully tested but remains a prospect until an independent maintainer merges,
+enables shadow mode, and produces a successful real-task invocation.
 
 ## Seven-day sequence
 
@@ -80,18 +85,18 @@ The same operator creating multiple IDs does not create multiple Agents.
 
 Do not put names, emails, wallet addresses, prompts, or market positions here.
 
-| Slot | Client family | Integration | First success UTC | Later-day success | Outcome reported | State |
-| ---: | --- | --- | --- | --- | --- | --- |
-| 1 | — | — | — | — | — | recruiting |
-| 2 | — | — | — | — | — | recruiting |
-| 3 | — | — | — | — | — | recruiting |
-| 4 | — | — | — | — | — | recruiting |
-| 5 | — | — | — | — | — | recruiting |
-| 6 | — | — | — | — | — | recruiting |
-| 7 | — | — | — | — | — | recruiting |
-| 8 | — | — | — | — | — | recruiting |
-| 9 | — | — | — | — | — | recruiting |
-| 10 | — | — | — | — | — | recruiting |
+| Slot | Client family | Integration | First success UTC | Later-day success | Outcome reported | State      |
+| ---: | ------------- | ----------- | ----------------- | ----------------- | ---------------- | ---------- |
+|    1 | —             | —           | —                 | —                 | —                | recruiting |
+|    2 | —             | —           | —                 | —                 | —                | recruiting |
+|    3 | —             | —           | —                 | —                 | —                | recruiting |
+|    4 | —             | —           | —                 | —                 | —                | recruiting |
+|    5 | —             | —           | —                 | —                 | —                | recruiting |
+|    6 | —             | —           | —                 | —                 | —                | recruiting |
+|    7 | —             | —           | —                 | —                 | —                | recruiting |
+|    8 | —             | —           | —                 | —                 | —                | recruiting |
+|    9 | —             | —           | —                 | —                 | —                | recruiting |
+|   10 | —             | —           | —                 | —                 | —                | recruiting |
 
 ## Public measurement
 
@@ -99,22 +104,21 @@ Use these public, privacy-safe summaries:
 
 ```text
 https://404.directory/v1/metrics/agents
+https://404.directory/v1/metrics/verified-agents
 https://404.directory/v1/metrics/activation
 https://404.directory/v1/metrics/prediction-market-evaluations
 ```
 
-Freeze the current `identified_external_agents` value before recruitment, then
-run the local summary with that number:
+Run the local summary from the frozen verified baseline:
 
 ```text
-PILOT_BASELINE_AGENTS=1 npm run pilot:status
+PILOT_BASELINE_VERIFIED_AGENTS=0 PILOT_BASELINE_VERIFIED_OPERATORS=0 npm run pilot:status
 ```
 
-This calculates **installation-identity growth**, not verified pilot progress.
-The output uses `identified_usage` and `pilot.identity_growth_threshold_met`.
-`pilot.first_success_gate_met` and `verified_pilot_operators` remain `null`
-because the script has no independent-operator admission evidence. The manual
-admission rule remains mandatory; even ten new IDs do not prove ten operators.
+The output uses `verified_usage` for the pilot and reports installation IDs only
+under `unverified_installation_diagnostics`. A verified Agent must have both an
+active manual evidence admission and a matching successful external explicit
+tool invocation. The first-10 gate also requires 10 verified operators.
 
 Prediction-market outcomes come only from `scopes.identified_external` in
 `risk-attribution-v2`. Internal and anonymous outcomes are not pilot outcomes.
@@ -125,7 +129,8 @@ proof that 404 improved a decision.
 
 The pilot passes when:
 
-- `identified_external_agents` increases by 10 from the frozen baseline;
+- `verified_external_agents` and `verified_operators` each increase by 10 from
+  the frozen baseline;
 - the prediction-market summary shows non-test external evaluations;
 - every admitted Agent has a successful later-day call;
 - outcome reports exist for at least 7 of the 10 Agents;

@@ -3,7 +3,7 @@
   "name": "io.github.MM-sheng/404-directory",
   "title": "404.directory",
   "description": "Risk preflight for AI Agent tool actions and Polymarket settlement and execution checks.",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "websiteUrl": "https://404.directory",
   "icons": [
     {
@@ -22,7 +22,7 @@
     {
       "registryType": "npm",
       "identifier": "@mmvv1638/404-directory-mcp",
-      "version": "0.10.2",
+      "version": "0.10.3",
       "transport": {
         "type": "stdio"
       },

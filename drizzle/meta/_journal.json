@@ -64,6 +64,13 @@
       "when": 1787731200000,
       "tag": "0008_prediction_market_risk",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788062400000,
+      "tag": "0009_verified_agent_evidence",
+      "breakpoints": true
     }
   ]
 }

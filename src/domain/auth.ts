@@ -103,6 +103,16 @@ export function assertProviderAccess(
   throw new ForbiddenError("Provider API key does not match this provider")
 }
 
+export function assertAdminAccess(
+  auth: RegistryAuth
+): asserts auth is { kind: "admin" } {
+  if (auth.kind === "admin") return
+  if (auth.kind === "none") {
+    throw new AuthError("Admin authentication required")
+  }
+  throw new ForbiddenError("Admin authentication required")
+}
+
 export function assertCanRegisterToolSlug(slug: string): void {
   if (RESERVED_TOOL_SLUGS.has(slug.toLowerCase())) {
     throw new ForbiddenError(`Tool slug is reserved: ${slug}`)
