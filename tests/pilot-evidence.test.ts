@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
-  pilotIdentityProgress,
+  pilotVerifiedProgress,
   readPilotPredictionEvidence,
 } from "../src/domain/pilot-evidence.js"
 import { buildPredictionMarketEvaluationSummary } from "../src/domain/prediction-market-metrics.js"
@@ -56,15 +56,19 @@ describe("honest pilot evidence", () => {
     })
   })
 
-  it("does not claim independent operators when the identity growth goal is met", () => {
-    expect(pilotIdentityProgress(2, 12, 10)).toMatchObject({
-      gained_installations: 10,
-      identity_growth_threshold_met: true,
-      first_success_gate_met: null,
-      verified_pilot_operators: null,
-      qualification_status: "manual_verification_required",
+  it("requires both verified successful Agents and independent operators", () => {
+    expect(pilotVerifiedProgress(0, 10, 0, 1, 10)).toMatchObject({
+      gained_verified_agents: 10,
+      gained_verified_operators: 1,
+      first_success_gate_met: true,
+      independent_operator_gate_met: false,
+      qualification_status: "in_progress",
     })
-    expect(pilotIdentityProgress(2, 1, 10).gained_installations).toBe(0)
-    expect(() => pilotIdentityProgress(0, NaN, 10)).toThrow()
+    expect(pilotVerifiedProgress(0, 10, 0, 10, 10)).toMatchObject({
+      independent_operator_gate_met: true,
+      qualification_status: "qualified",
+    })
+    expect(pilotVerifiedProgress(2, 1, 1, 0, 10).gained_verified_agents).toBe(0)
+    expect(() => pilotVerifiedProgress(0, NaN, 0, 0, 10)).toThrow()
   })
 })

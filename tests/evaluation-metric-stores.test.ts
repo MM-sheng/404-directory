@@ -194,7 +194,8 @@ describe("risk attribution through HTTP and persistent stores", () => {
           env: {
             ...process.env,
             PILOT_BASE_URL: baseUrl,
-            PILOT_BASELINE_AGENTS: "0",
+            PILOT_BASELINE_VERIFIED_AGENTS: "0",
+            PILOT_BASELINE_VERIFIED_OPERATORS: "0",
           },
           timeout: 10_000,
         }
@@ -208,12 +209,10 @@ describe("risk attribution through HTTP and persistent stores", () => {
         total_evaluations: 4,
         internal_evaluations: 1,
       })
-      expect(report.pilot.first_success_gate_met).toBeNull()
-      expect(report.pilot.verified_pilot_operators).toBeNull()
-      expect(report).toHaveProperty(
-        "identified_usage.repeat_installations_on_later_day"
-      )
-      expect(report).not.toHaveProperty("qualified_usage")
+      expect(report.pilot.first_success_gate_met).toBe(false)
+      expect(report.pilot.independent_operator_gate_met).toBe(false)
+      expect(report).toHaveProperty("verified_usage.repeat_agents_on_later_day")
+      expect(report).toHaveProperty("unverified_installation_diagnostics")
     } finally {
       await app.close()
     }

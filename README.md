@@ -274,12 +274,12 @@ npm start
 
 The service inventory and the registered ecosystem catalog are distinct:
 
-| Surface | Meaning |
-| --- | --- |
-| MCP `tools/list`, `GET /tools` | The same enabled, callable 404 service tools (16 with the default native tools, catalog and gateway enabled) |
-| `GET /tools/:name` | The actual MCP argument schema, safety annotations, and explicit MCP / REST invocation routes |
-| `GET /v1/tools/search` | Registered target records, including seeded first-party and third-party tools; a match is not permission to execute |
-| `GET /v1/capabilities` | Capability labels for ecosystem records, not a list of callable 404 functions |
+| Surface                        | Meaning                                                                                                             |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| MCP `tools/list`, `GET /tools` | The same enabled, callable 404 service tools (16 with the default native tools, catalog and gateway enabled)        |
+| `GET /tools/:name`             | The actual MCP argument schema, safety annotations, and explicit MCP / REST invocation routes                       |
+| `GET /v1/tools/search`         | Registered target records, including seeded first-party and third-party tools; a match is not permission to execute |
+| `GET /v1/capabilities`         | Capability labels for ecosystem records, not a list of callable 404 functions                                       |
 
 The homepage, installation guides, docs, server card, and discovery metadata
 derive the enabled tool inventory from the real MCP registration at startup.
@@ -336,11 +336,13 @@ remote MCP tool. A copy-ready payload with a privacy-safe installation token is
 available in [`llms-install.md`](./llms-install.md#openai-responses-api); see the
 [official OpenAI MCP guide](https://developers.openai.com/api/docs/guides/tools-connectors-mcp).
 
-To count as a de-duplicated real external Agent, send a stable random,
-non-personal identifier in `X-404-Agent-ID`. The server persists only an HMAC
-digest, never the raw ID, prompts, arguments, or results. `X-404-Source` is an
-optional lowercase attribution label. Public progress is available at
-`GET /v1/metrics/agents`; complete client examples are at
+To become eligible for verified counting, send a stable random, non-personal
+identifier in `X-404-Agent-ID`. The server persists only an HMAC digest, never
+the raw ID, prompts, arguments, or results. A successful call is necessary but
+does not count by itself: independent-operator evidence must be admitted
+separately. `X-404-Source` is an optional lowercase attribution label. Verified
+public progress is available at `GET /v1/metrics/verified-agents`; unverified
+installation diagnostics remain at `GET /v1/metrics/agents`. Complete client examples are at
 `https://404.directory/connect`.
 
 OpenAI Responses does not document arbitrary remote MCP request headers. Its
@@ -355,19 +357,21 @@ clicks plus de-duplicated external Agents that completed MCP `initialize`,
 `tools/list`, `prompts/list`, `prompts/get`, attempted a tool call, failed a tool
 call, or completed a successful tool execution. The per-source output separates
 call rate, call success rate, prompt-to-success rate, and end-to-end activation
-rate. Every stage except successful execution is diagnostic only and never
-counts toward the 1,000-Agent target. Prompt names and arguments are not stored
-in activation events. No raw Agent IDs, IPs, prompts, arguments, or results are
-stored in the funnel.
+rate. Every funnel stage is diagnostic only. Successful execution is necessary
+but does not count toward the 1,000-Agent target without a separate active
+independent-operator evidence admission. Prompt names and arguments are not
+stored in activation events. No raw Agent IDs, IPs, prompts, arguments, or
+results are stored in the funnel.
 
-`GET /v1/metrics/agents` also reports privacy-safe 7/30-day retention cohorts
-and qualified Agent counts by safe client label. An Agent becomes eligible only
-after a complete observation window and is retained only after another success
-on a later UTC day. `GET /v1/metrics/reliability?days=30` aggregates external
+`GET /v1/metrics/verified-agents` reports privacy-safe 7/30-day retention for
+verified Agents. An Agent becomes eligible only after a complete observation
+window and is retained only after another success on a later UTC day.
+`GET /v1/metrics/agents` retains unverified installation diagnostics by safe
+client label. `GET /v1/metrics/reliability?days=30` aggregates external
 execution evidence by tool, registered provider, client, and attribution source,
 including sample size, success rate, P50/P95 latency, result count, and a finite
 error taxonomy. Anonymous external executions can inform reliability but never
-count toward the 1,000 identified-Agent target.
+count toward the 1,000 verified-Agent target.
 
 The official MCP Registry entry also declares `X-404-Agent-ID` as an install
 input and defaults `X-404-Source` to `official-registry`, so compatible clients

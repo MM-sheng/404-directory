@@ -31,7 +31,7 @@ APP_URL="$(gcloud secrets versions access latest --secret=catalog-database-url)"
 echo "==> Pre-check (owner)"
 docker run --rm -e DATABASE_URL="$OWNER_URL" postgres:18-alpine \
   sh -c 'psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
-  -c "SELECT to_regclass('"'"'public.risk_evaluations'"'"') AS risk_table, to_regclass('"'"'public.prediction_market_evaluations'"'"') AS pm_table;"'
+  -c "SELECT to_regclass('"'"'public.risk_evaluations'"'"') AS risk_table, to_regclass('"'"'public.prediction_market_evaluations'"'"') AS pm_table, to_regclass('"'"'public.verified_agent_admissions'"'"') AS verified_agent_table;"'
 
 echo "==> Grant CREATE to app role"
 docker run --rm -e DATABASE_URL="$OWNER_URL" postgres:18-alpine \
@@ -44,7 +44,8 @@ DATABASE_URL="$OWNER_URL" npm run db:migrate
 echo "==> Post-check"
 docker run --rm -e DATABASE_URL="$OWNER_URL" postgres:18-alpine \
   sh -c 'psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
-  -c "SELECT to_regclass('"'"'public.risk_evaluations'"'"') AS risk_table, to_regclass('"'"'public.prediction_market_evaluations'"'"') AS pm_table;" \
+  -c "SELECT to_regclass('"'"'public.risk_evaluations'"'"') AS risk_table, to_regclass('"'"'public.prediction_market_evaluations'"'"') AS pm_table, to_regclass('"'"'public.verified_agent_admissions'"'"') AS verified_agent_table;" \
+  -c "SELECT has_table_privilege('"'"'directory_404_app'"'"', '"'"'public.verified_agent_admissions'"'"', '"'"'SELECT'"'"') AS app_can_select, has_table_privilege('"'"'directory_404_app'"'"', '"'"'public.verified_agent_admissions'"'"', '"'"'INSERT'"'"') AS app_can_insert, has_table_privilege('"'"'directory_404_app'"'"', '"'"'public.verified_agent_admissions'"'"', '"'"'UPDATE'"'"') AS app_can_update;" \
   -c "SELECT count(*) AS migration_rows FROM drizzle.__drizzle_migrations;"'
 
 echo "==> Revoke CREATE from app role"

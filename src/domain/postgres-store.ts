@@ -11,6 +11,7 @@ import {
   toolVersions,
   trustScores,
   usageReceipts,
+  verifiedAgentAdmissions,
   verificationChecks,
 } from "../db/schema.js"
 import type {
@@ -26,6 +27,9 @@ import type {
   RiskEvaluationOutcome,
   ToolStatus,
   UsageReceiptInput,
+  VerifiedAgentAdmissionInput,
+  VerifiedAgentAdmissionRecord,
+  VerifiedAgentEvidenceSummary,
 } from "./store.js"
 import type {
   CatalogTool,
@@ -1301,6 +1305,158 @@ export class PostgresCatalogStore implements CatalogStore {
         .sort(
           (a, b) =>
             b.identified_agents - a.identified_agents ||
+            b.successful_invocations - a.successful_invocations
+        ),
+    }
+  }
+
+  async upsertVerifiedAgentAdmission(
+    input: VerifiedAgentAdmissionInput
+  ): Promise<{ created: boolean; admission: VerifiedAgentAdmissionRecord }> {
+    const [existing] = await this.db
+      .select({ id: verifiedAgentAdmissions.id })
+      .from(verifiedAgentAdmissions)
+      .where(eq(verifiedAgentAdmissions.agentKey, input.agent_key))
+      .limit(1)
+    const now = new Date()
+    const [row] = await this.db
+      .insert(verifiedAgentAdmissions)
+      .values({
+        agentKey: input.agent_key,
+        operatorKey: input.operator_key,
+        source: input.source,
+        verificationMethod: input.verification_method,
+        evidenceRefHash: input.evidence_ref_hash,
+        status: "active",
+        revokedAt: null,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: verifiedAgentAdmissions.agentKey,
+        set: {
+          operatorKey: input.operator_key,
+          source: input.source,
+          verificationMethod: input.verification_method,
+          evidenceRefHash: input.evidence_ref_hash,
+          status: "active",
+          revokedAt: null,
+          updatedAt: now,
+        },
+      })
+      .returning()
+    if (!row) throw new Error("Failed to persist verified Agent admission")
+    return {
+      created: !existing,
+      admission: {
+        id: row.id,
+        agent_key: row.agentKey,
+        operator_key: row.operatorKey,
+        source: row.source,
+        verification_method:
+          row.verificationMethod as VerifiedAgentAdmissionRecord["verification_method"],
+        evidence_ref_hash: row.evidenceRefHash,
+        status: row.status as "active" | "revoked",
+        verified_at: row.verifiedAt.toISOString(),
+        revoked_at: row.revokedAt?.toISOString() ?? null,
+      },
+    }
+  }
+
+  async revokeVerifiedAgentAdmission(id: string): Promise<boolean> {
+    const rows = await this.db
+      .update(verifiedAgentAdmissions)
+      .set({ status: "revoked", revokedAt: new Date(), updatedAt: new Date() })
+      .where(
+        and(
+          eq(verifiedAgentAdmissions.id, id),
+          eq(verifiedAgentAdmissions.status, "active")
+        )
+      )
+      .returning({ id: verifiedAgentAdmissions.id })
+    return rows.length > 0
+  }
+
+  async verifiedAgentEvidenceSummary(
+    since = new Date("2026-01-01T00:00:00.000Z")
+  ): Promise<VerifiedAgentEvidenceSummary> {
+    const [admissionTotal] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(verifiedAgentAdmissions)
+      .where(eq(verifiedAgentAdmissions.status, "active"))
+    const rows = await this.db
+      .select({
+        agentKey: verifiedAgentAdmissions.agentKey,
+        operatorKey: verifiedAgentAdmissions.operatorKey,
+        source: verifiedAgentAdmissions.source,
+        clientName: invocations.clientName,
+        attributionSource: invocations.attributionSource,
+        createdAt: invocations.createdAt,
+      })
+      .from(verifiedAgentAdmissions)
+      .innerJoin(
+        invocations,
+        eq(verifiedAgentAdmissions.agentKey, invocations.agentKey)
+      )
+      .where(
+        and(
+          eq(verifiedAgentAdmissions.status, "active"),
+          gte(invocations.createdAt, since),
+          eq(invocations.success, true),
+          eq(invocations.isExternal, true),
+          eq(invocations.agentIdentityKind, "explicit")
+        )
+      )
+
+    const agents = new Set(rows.map((row) => row.agentKey))
+    const operators = new Set(rows.map((row) => row.operatorKey))
+    const bySource = new Map<
+      string,
+      { agents: Set<string>; operators: Set<string>; invocations: number }
+    >()
+    for (const row of rows) {
+      const entry = bySource.get(row.source) ?? {
+        agents: new Set<string>(),
+        operators: new Set<string>(),
+        invocations: 0,
+      }
+      entry.agents.add(row.agentKey)
+      entry.operators.add(row.operatorKey)
+      entry.invocations += 1
+      bySource.set(row.source, entry)
+    }
+    const target = 1_000
+    return {
+      window_start: since.toISOString(),
+      generated_at: new Date().toISOString(),
+      target_external_agents: target,
+      active_admissions: Number(admissionTotal?.count ?? 0),
+      verified_external_agents: agents.size,
+      verified_operators: operators.size,
+      successful_external_invocations: rows.length,
+      progress_ratio: Number(Math.min(1, agents.size / target).toFixed(4)),
+      retention: buildAgentRetention(
+        rows.map((row) => ({
+          tool_name: "verified_external_execution",
+          success: true,
+          latency_ms: 0,
+          agent_key: row.agentKey,
+          agent_identity_kind: "explicit",
+          client_name: row.clientName,
+          attribution_source: row.attributionSource,
+          is_external: true,
+          created_at: row.createdAt,
+        }))
+      ),
+      sources: [...bySource.entries()]
+        .map(([source, entry]) => ({
+          source,
+          verified_agents: entry.agents.size,
+          verified_operators: entry.operators.size,
+          successful_invocations: entry.invocations,
+        }))
+        .sort(
+          (a, b) =>
+            b.verified_agents - a.verified_agents ||
             b.successful_invocations - a.successful_invocations
         ),
     }

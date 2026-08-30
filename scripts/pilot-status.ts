@@ -1,5 +1,5 @@
 import {
-  pilotIdentityProgress,
+  pilotVerifiedProgress,
   readPilotPredictionEvidence,
 } from "../src/domain/pilot-evidence.js"
 
@@ -7,13 +7,20 @@ const baseUrl = (process.env.PILOT_BASE_URL ?? "https://404.directory").replace(
   /\/$/,
   ""
 )
-const baselineValue = process.env.PILOT_BASELINE_AGENTS
-if (baselineValue === undefined || !/^\d+$/.test(baselineValue)) {
+const baselineAgentValue = process.env.PILOT_BASELINE_VERIFIED_AGENTS
+const baselineOperatorValue = process.env.PILOT_BASELINE_VERIFIED_OPERATORS
+if (
+  baselineAgentValue === undefined ||
+  !/^\d+$/.test(baselineAgentValue) ||
+  baselineOperatorValue === undefined ||
+  !/^\d+$/.test(baselineOperatorValue)
+) {
   throw new Error(
-    "Set PILOT_BASELINE_AGENTS to the frozen identified_external_agents count"
+    "Set PILOT_BASELINE_VERIFIED_AGENTS and PILOT_BASELINE_VERIFIED_OPERATORS to the frozen verified counts"
   )
 }
-const baselineAgents = Number(baselineValue)
+const baselineAgents = Number(baselineAgentValue)
+const baselineOperators = Number(baselineOperatorValue)
 const cohortTarget = Number(process.env.PILOT_TARGET ?? 10)
 
 function assertRecord(
@@ -41,14 +48,16 @@ async function readJson(pathName: string): Promise<Record<string, unknown>> {
   return value
 }
 
-const [agents, activation, prediction] = await Promise.all([
+const [verified, agents, activation, prediction] = await Promise.all([
+  readJson("/v1/metrics/verified-agents"),
   readJson("/v1/metrics/agents"),
   readJson("/v1/metrics/activation"),
   readJson("/v1/metrics/prediction-market-evaluations"),
 ])
 
-const identifiedAgents = Number(agents.identified_external_agents ?? 0)
-const retention = agents.retention as Record<string, unknown> | undefined
+const verifiedAgents = Number(verified.verified_external_agents ?? 0)
+const verifiedOperators = Number(verified.verified_operators ?? 0)
+const retention = verified.retention as Record<string, unknown> | undefined
 const activationStages = Array.isArray(activation.stages)
   ? (activation.stages as Array<Record<string, unknown>>)
   : []
@@ -75,16 +84,29 @@ process.stdout.write(
       generated_at: new Date().toISOString(),
       base_url: baseUrl,
       pilot: {
-        ...pilotIdentityProgress(
+        ...pilotVerifiedProgress(
           baselineAgents,
-          identifiedAgents,
+          verifiedAgents,
+          baselineOperators,
+          verifiedOperators,
           cohortTarget
         ),
       },
-      identified_usage: {
-        identified_external_agents: identifiedAgents,
-        repeat_installations_on_later_day: Number(
+      verified_usage: {
+        verified_external_agents: verifiedAgents,
+        verified_operators: verifiedOperators,
+        active_admissions: Number(verified.active_admissions ?? 0),
+        repeat_agents_on_later_day: Number(
           retention?.repeat_agents_on_later_day ?? 0
+        ),
+        successful_external_invocations: Number(
+          verified.successful_external_invocations ?? 0
+        ),
+        sources: verified.sources ?? [],
+      },
+      unverified_installation_diagnostics: {
+        identified_external_agents: Number(
+          agents.identified_external_agents ?? 0
         ),
         successful_external_invocations: Number(
           agents.successful_external_invocations ?? 0
@@ -101,7 +123,7 @@ process.stdout.write(
         connected_without_calls: connectedWithoutCalls,
       },
       warning:
-        "This report cannot prove operator independence. Admit each pilot Agent only after the manual privacy-safe audit in docs/FIRST_10_AGENT_PILOT.md.",
+        "Only verified_usage counts toward the pilot. Unverified installation diagnostics, listings, probes, and internal tests never count.",
     },
     null,
     2

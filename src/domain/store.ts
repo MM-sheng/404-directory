@@ -270,6 +270,45 @@ export type AgentUsageSummary = {
   }>
 }
 
+export type VerificationMethod =
+  | "maintainer_confirmed"
+  | "partner_attested"
+  | "pilot_interview"
+  | "marketplace_verified"
+
+export type VerifiedAgentAdmissionInput = {
+  agent_key: string
+  operator_key: string
+  source: string
+  verification_method: VerificationMethod
+  evidence_ref_hash: string
+}
+
+export type VerifiedAgentAdmissionRecord = VerifiedAgentAdmissionInput & {
+  id: string
+  status: "active" | "revoked"
+  verified_at: string
+  revoked_at: string | null
+}
+
+export type VerifiedAgentEvidenceSummary = {
+  window_start: string
+  generated_at: string
+  target_external_agents: number
+  active_admissions: number
+  verified_external_agents: number
+  verified_operators: number
+  successful_external_invocations: number
+  progress_ratio: number
+  retention: AgentRetentionSummary
+  sources: Array<{
+    source: string
+    verified_agents: number
+    verified_operators: number
+    successful_invocations: number
+  }>
+}
+
 export type ActivationStage =
   | "connect_view"
   | "install_click"
@@ -413,6 +452,13 @@ export interface CatalogStore {
     sinceMs?: number
   ): Promise<{ invocations: number; successes: number }>
   agentUsageSummary(since?: Date): Promise<AgentUsageSummary>
+  upsertVerifiedAgentAdmission(
+    admission: VerifiedAgentAdmissionInput
+  ): Promise<{ created: boolean; admission: VerifiedAgentAdmissionRecord }>
+  revokeVerifiedAgentAdmission(id: string): Promise<boolean>
+  verifiedAgentEvidenceSummary(
+    since?: Date
+  ): Promise<VerifiedAgentEvidenceSummary>
   reliabilitySummary(since?: Date): Promise<ReliabilitySummary>
   getProviderBySlug(slug: string): Promise<ProviderRecord | null>
   getProviderByApiKeyHash(apiKeyHash: string): Promise<ProviderRecord | null>

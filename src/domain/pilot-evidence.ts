@@ -53,23 +53,34 @@ export function readPilotPredictionEvidence(input: unknown) {
   }
 }
 
-export function pilotIdentityProgress(
-  baseline: number,
-  current: number,
+export function pilotVerifiedProgress(
+  baselineAgents: number,
+  currentAgents: number,
+  baselineOperators: number,
+  currentOperators: number,
   target: number
 ) {
-  count.parse(baseline)
-  count.parse(current)
+  count.parse(baselineAgents)
+  count.parse(currentAgents)
+  count.parse(baselineOperators)
+  count.parse(currentOperators)
   z.number().int().positive().parse(target)
-  const gained = Math.max(0, current - baseline)
+  const gainedAgents = Math.max(0, currentAgents - baselineAgents)
+  const gainedOperators = Math.max(0, currentOperators - baselineOperators)
+  const qualified = gainedAgents >= target && gainedOperators >= target
   return {
-    baseline_installations: baseline,
-    target_new_installations: target,
-    gained_installations: gained,
-    remaining_installations: Math.max(0, target - gained),
-    identity_growth_threshold_met: gained >= target,
-    first_success_gate_met: null,
-    verified_pilot_operators: null,
-    qualification_status: "manual_verification_required" as const,
+    baseline_verified_agents: baselineAgents,
+    baseline_verified_operators: baselineOperators,
+    target_new_verified_agents: target,
+    target_new_verified_operators: target,
+    gained_verified_agents: gainedAgents,
+    gained_verified_operators: gainedOperators,
+    remaining_verified_agents: Math.max(0, target - gainedAgents),
+    remaining_verified_operators: Math.max(0, target - gainedOperators),
+    first_success_gate_met: gainedAgents >= target,
+    independent_operator_gate_met: gainedOperators >= target,
+    qualification_status: qualified
+      ? ("qualified" as const)
+      : ("in_progress" as const),
   }
 }

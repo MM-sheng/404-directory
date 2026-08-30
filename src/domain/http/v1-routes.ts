@@ -10,6 +10,7 @@ import type { AppConfig } from "../../config.js"
 import {
   AuthError,
   ForbiddenError,
+  assertAdminAccess,
   assertCanRegisterProviderSlug,
   assertCanRegisterToolSlug,
   assertProviderAccess,
@@ -65,6 +66,10 @@ import { RegisterToolRequestSchema, ToolSearchQuerySchema } from "../types.js"
 import { toolSearchResponse } from "../catalog-search.js"
 import { verifyTool } from "../verification.js"
 import { zodToJsonSchema } from "../../tools/json-schema.js"
+import {
+  VerifiedAgentAdmissionRequestSchema,
+  verifiedAgentAdmissionDigests,
+} from "../verified-agent-evidence.js"
 
 function invalidRequest(error: unknown): { error: string; message: string } {
   return {
@@ -526,13 +531,106 @@ export const v1Routes: FastifyPluginAsync<V1RoutesOptions> = async (
 
   app.get("/v1/metrics/agents", async () => {
     const metrics = await store.agentUsageSummary()
+    const diagnostic: Partial<typeof metrics> = { ...metrics }
+    delete diagnostic.target_external_agents
+    delete diagnostic.progress_ratio
     return {
-      metric: "identified_external_agents_with_successful_tool_execution",
+      metric:
+        "unverified_agent_installation_ids_with_successful_tool_execution",
       definition:
-        "Unique privacy-safe Agent ID digests from external clients with at least one successful tool execution since 2026-01-01. IDs may arrive through X-404-Agent-ID or a dedicated MCP bearer installation token. Probes, internal tests, anonymous calls, prompts, arguments, and raw identifiers are excluded.",
+        "Unique privacy-safe installation ID digests from external-classified clients with at least one successful tool execution since 2026-01-01. This diagnostic does not prove independent operators or real AI Agents and does not count toward the 1,000-Agent target. Internal and anonymous calls are excluded; prompts, arguments, results, and raw identifiers are never stored.",
+      counts_toward_target: false,
+      verified_target_metric: "/v1/metrics/verified-agents",
+      ...diagnostic,
+    }
+  })
+
+  app.get("/v1/metrics/verified-agents", async () => {
+    const metrics = await store.verifiedAgentEvidenceSummary()
+    return {
+      metric: "verified_independent_external_agents_with_successful_execution",
+      definition:
+        "Unique active, manually admitted Agent installation digests that match at least one successful external explicit tool invocation since 2026-01-01. Admission requires separate evidence for an independent operator; admissions alone, anonymous calls, failures, internal tests, probes, crawlers, and duplicate installation IDs do not count. Operator and evidence references are stored only as domain-separated irreversible HMAC digests.",
+      evidence_status: "manual_admission_v1",
       ...metrics,
     }
   })
+
+  app.post(
+    "/v1/pilot/verified-agents",
+    {
+      schema: {
+        summary: "Admit independently verified Agent evidence (admin only)",
+        description:
+          "Accepts random non-personal Agent/operator IDs plus a public evidence reference. Persists only irreversible HMAC digests. Admission does not count until the Agent has a successful external tool invocation.",
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    async (request, reply) => {
+      try {
+        const auth = await resolveRegistryAuth(request, store, config)
+        assertAdminAccess(auth)
+        const body = VerifiedAgentAdmissionRequestSchema.parse(request.body)
+        const digests = verifiedAgentAdmissionDigests(
+          body,
+          config.AGENT_ANALYTICS_SALT!
+        )
+        const result = await store.upsertVerifiedAgentAdmission({
+          ...digests,
+          source: body.source,
+          verification_method: body.verification_method,
+        })
+        return reply.status(result.created ? 201 : 200).send({
+          created: result.created,
+          admission: result.admission,
+          counts_toward_target: false,
+          next_requirement:
+            "A matching successful external explicit tool invocation is required.",
+        })
+      } catch (error) {
+        if (error instanceof AuthError || error instanceof ForbiddenError) {
+          return reply.status(error.statusCode).send({
+            error: error.name === "AuthError" ? "unauthorized" : "forbidden",
+            message: error.message,
+          })
+        }
+        return reply.status(400).send(invalidRequest(error))
+      }
+    }
+  )
+
+  app.delete(
+    "/v1/pilot/verified-agents/:id",
+    {
+      schema: {
+        summary: "Revoke verified Agent evidence (admin only)",
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    async (request, reply) => {
+      try {
+        const auth = await resolveRegistryAuth(request, store, config)
+        assertAdminAccess(auth)
+        const { id } = z.object({ id: z.uuid() }).strict().parse(request.params)
+        const revoked = await store.revokeVerifiedAgentAdmission(id)
+        if (!revoked) {
+          return reply.status(404).send({
+            error: "not_found",
+            message: "Active verified Agent admission not found",
+          })
+        }
+        return { revoked: true, id }
+      } catch (error) {
+        if (error instanceof AuthError || error instanceof ForbiddenError) {
+          return reply.status(error.statusCode).send({
+            error: error.name === "AuthError" ? "unauthorized" : "forbidden",
+            message: error.message,
+          })
+        }
+        return reply.status(400).send(invalidRequest(error))
+      }
+    }
+  )
 
   app.get("/v1/metrics/activation", async () => {
     const funnel = await store.activationFunnelSummary()

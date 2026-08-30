@@ -673,21 +673,29 @@ export async function buildApp(
           message: "Agent evidence requires the catalog store",
         })
       }
-      const [agents, activation, reliability, risk, prediction] =
-        await Promise.all([
-          catalog.agentUsageSummary(),
-          catalog.activationFunnelSummary(),
-          catalog.reliabilitySummary(
-            new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-          ),
-          catalog.riskEvaluationSummary(),
-          catalog.predictionMarketEvaluationSummary(),
-        ])
+      const [
+        verifiedAgents,
+        agents,
+        activation,
+        reliability,
+        risk,
+        prediction,
+      ] = await Promise.all([
+        catalog.verifiedAgentEvidenceSummary(),
+        catalog.agentUsageSummary(),
+        catalog.activationFunnelSummary(),
+        catalog.reliabilitySummary(
+          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        ),
+        catalog.riskEvaluationSummary(),
+        catalog.predictionMarketEvaluationSummary(),
+      ])
       return reply
         .header("cache-control", "no-store")
         .type("text/html; charset=utf-8")
         .send(
           renderMetricsDashboard(
+            verifiedAgents,
             agents,
             activation,
             reliability,
@@ -1021,7 +1029,8 @@ ${serviceTools.map((tool) => `- [${tool.name} metadata](${config.PUBLIC_BASE_URL
 - [Human installation page](${config.PUBLIC_BASE_URL}/connect): One-click Cursor and VS Code installation plus Claude Code and Codex setup.
 - [Agent-readable connection guide](${config.PUBLIC_BASE_URL}/connect.md): Stable privacy-safe Agent ID configuration for Codex, Claude Code, Cursor, VS Code, and MCP SDK clients.
 - [Installable Agent Skill](https://github.com/MM-sheng/404-directory/tree/main/skills/use-404-directory): Cross-client trigger policy for risk preflight before third-party tool use, plus discovery and verification. Install with \`npx skills add MM-sheng/404-directory --skill use-404-directory -g -y\`.
-- [External Agent progress](${config.PUBLIC_BASE_URL}/v1/metrics/agents): Public, de-duplicated successful external Agent usage metric.
+- [Verified external Agent progress](${config.PUBLIC_BASE_URL}/v1/metrics/verified-agents): Manually admitted independent-Agent evidence joined to successful external execution.
+- [Unverified installation diagnostics](${config.PUBLIC_BASE_URL}/v1/metrics/agents): Successful installation-ID activity; never counts toward the 1,000-Agent target by itself.
 - [Activation funnel](${config.PUBLIC_BASE_URL}/v1/metrics/activation): Diagnostic Connect, install, initialize, tools/list, and successful-tool stages.
 - [Reliability evidence](${config.PUBLIC_BASE_URL}/v1/metrics/reliability?days=30): Privacy-safe tool, provider, client, source, latency, and error aggregates.
 - [Risk preflight funnel](${config.PUBLIC_BASE_URL}/v1/metrics/risk-evaluations): Read scopes.identified_external for external installation evidence; legacy top-level aggregates include internal traffic. Self-reports do not establish verified pilot membership.
@@ -1096,6 +1105,7 @@ Sitemap: ${config.PUBLIC_BASE_URL}/sitemap.xml
         "/v1/capabilities",
         "/v1/graph/capabilities",
         "/v1/metrics/agents",
+        "/v1/metrics/verified-agents",
         "/v1/metrics/activation",
         "/v1/metrics/reliability",
         "/metrics",

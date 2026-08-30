@@ -1,6 +1,6 @@
 {
   "name": "@mmvv1638/404-directory-mcp",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "mcpName": "io.github.MM-sheng/404-directory",
   "description": "Identity-preserving bridge to 404.directory Agent action risk preflight.",
   "type": "module",

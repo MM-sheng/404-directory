@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto"
 import type {
   ActivationFunnelSummary,
   AgentUsageSummary,
+  VerifiedAgentEvidenceSummary,
   RiskEvaluationSummary,
   PredictionMarketEvaluationSummary,
 } from "../domain/store.js"
@@ -255,12 +256,12 @@ ${toolLines}
       <h3>Does it require credentials?</h3>
       <p>No account or API key is currently required. Risk evaluation does not execute the target; outcome reporting writes only bounded enums through a one-time token.</p>
       <h3>What counts as a real external Agent user?</h3>
-      <p>Only a de-duplicated external Agent with a privacy-safe installation identity and at least one successful tool execution. Views, installs, probes, initialization, tool listing, and internal tests do not count.</p>
+      <p>Only a de-duplicated Agent installation with separate independent-operator evidence and at least one successful external tool execution. Views, installs, copied IDs, probes, initialization, tool listing, anonymous calls, failures, and internal tests do not count.</p>
     </section>
     <nav>
       <a href="/connect?source=homepage-nav">Connect</a>
       <a href="/tools">Tools</a>
-      <a href="/v1/metrics/agents">Agent usage</a>
+      <a href="/v1/metrics/verified-agents">Verified Agent usage</a>
       <a href="/v1/metrics/reliability">Reliability</a>
       <a href="/metrics">Dashboard</a>
       <a href="/mcp-info">MCP</a>
@@ -328,7 +329,7 @@ Machine discovery:
 
 Authentication: not currently required.
 
-## Count as a real external Agent
+## Become eligible as a real external Agent
 
 Add a stable, random, non-personal identifier to every MCP request. 404.directory
 stores only an irreversible HMAC digest; prompts, arguments, results, raw Agent
@@ -336,8 +337,9 @@ IDs, and raw IP addresses are not stored in product analytics.
 
 - Header: \`X-404-Agent-ID: agent:<your-stable-random-id>\`
 - Optional attribution: \`X-404-Source: <source>\`
-- Public progress: \`GET /v1/metrics/agents\`
-- Activation and retention: \`GET /v1/metrics/activation\` and \`GET /v1/metrics/agents\`
+- Verified public progress: \`GET /v1/metrics/verified-agents\`
+- Unverified installation diagnostics: \`GET /v1/metrics/agents\`
+- Activation diagnostics: \`GET /v1/metrics/activation\`
 - Tool/provider reliability: \`GET /v1/metrics/reliability?days=30\`
 - Risk preflight funnel: \`GET /v1/metrics/risk-evaluations\`
 - Human setup: \`GET /connect\`
@@ -628,7 +630,7 @@ export function renderConnectHtml(
       <p>Activation requires a successful business result, not just a non-error protocol response. Empty searches and connection checks do not activate an Agent; later calls do not create additional unique Agents.</p>
     </section>
     <p class="privacy">For the direct configurations above, this page generated <code>${escapeHtml(connection.generatedAgentId)}</code> randomly; keep it stable for that installation. The npm bridge and Claude marketplace plugin create and preserve their own local random IDs. 404.directory stores only an HMAC digest after a successful tool call—never the raw ID, prompt, arguments, or result.</p>
-    <nav class="links"><a href="/connect.md${source ? `?source=${escapeHtml(source)}` : ""}">Agent-readable setup</a><a href="https://github.com/MM-sheng/404-directory/issues/1">External Agent pilot</a><a href="/v1/metrics/agents">Live adoption metric</a><a href="/v1/metrics/prediction-market-evaluations">Prediction preflight evidence</a><a href="/v1/metrics/risk-evaluations">Tool preflight evidence</a><a href="/v1/metrics/reliability">Reliability evidence</a><a href="/privacy">Privacy</a><a href="https://github.com/MM-sheng/404-directory">Source</a></nav>
+    <nav class="links"><a href="/connect.md${source ? `?source=${escapeHtml(source)}` : ""}">Agent-readable setup</a><a href="https://github.com/MM-sheng/404-directory/issues/1">External Agent pilot</a><a href="/v1/metrics/verified-agents">Verified adoption metric</a><a href="/v1/metrics/prediction-market-evaluations">Prediction preflight evidence</a><a href="/v1/metrics/risk-evaluations">Tool preflight evidence</a><a href="/v1/metrics/reliability">Reliability evidence</a><a href="/privacy">Privacy</a><a href="https://github.com/MM-sheng/404-directory">Source</a></nav>
   </main>
 </body>
 </html>`
@@ -645,10 +647,12 @@ export function renderConnect(
     "# Connect an Agent to 404.directory",
     "",
     "404.directory is a public Streamable HTTP MCP server. Authentication is not",
-    "required. To count as one real external Agent, generate one stable random ID",
+    "required. To become eligible for verified counting, generate one stable random ID",
     "for that Agent installation and send it as `X-404-Agent-ID`. Do not use an",
     "email address, user name, device name, or other personal value. The examples",
     "below already contain a newly generated ID; keep it stable after installing.",
+    "A successful call is necessary but does not count by itself: the external pilot",
+    "must also establish independent-operator evidence through 404.directory.",
     "",
     `MCP endpoint: \`${connection.endpoint}\``,
     "",
@@ -769,9 +773,11 @@ export function renderConnect(
     "",
     "Activation requires a successful business result, not just a non-error",
     "protocol response. Empty searches and connection checks do not activate an",
-    "Agent. One Agent counts once toward the public target regardless of later calls.",
+    "Agent. After independent verification, one Agent installation counts once",
+    "toward the public target regardless of later calls.",
     "",
-    `Progress: ${baseUrl}/v1/metrics/agents`,
+    `Verified progress: ${baseUrl}/v1/metrics/verified-agents`,
+    `Unverified installation diagnostics: ${baseUrl}/v1/metrics/agents`,
     `Prediction-market preflight: ${baseUrl}/v1/metrics/prediction-market-evaluations`,
     `Risk preflight: ${baseUrl}/v1/metrics/risk-evaluations`,
     `Reliability: ${baseUrl}/v1/metrics/reliability?days=30`,
@@ -803,6 +809,7 @@ function percent(value: number | null): string {
 }
 
 export function renderMetricsDashboard(
+  verifiedAgents: VerifiedAgentEvidenceSummary,
   agents: AgentUsageSummary,
   activation: ActivationFunnelSummary,
   reliability: ReliabilitySummary,
@@ -827,7 +834,7 @@ export function renderMetricsDashboard(
       })
       .join(
         ""
-      )}</tbody></table><p class="muted">${escapeHtml(summary.evidence_notice)}</p><p class="muted">Verified pilot operators: not measured. Identity counts do not prove independent operators or real-task value.</p></section>`
+      )}</tbody></table><p class="muted">${escapeHtml(summary.evidence_notice)}</p><p class="muted">This attribution table is diagnostic. The verified adoption cards above require separate independent-operator evidence plus successful execution.</p></section>`
   }
   const sourceRows = activation.sources
     .slice(0, 12)
@@ -862,7 +869,7 @@ export function renderMetricsDashboard(
         `<tr><td><code>${escapeHtml(error.error_type)}</code></td><td>${error.events}</td></tr>`
     )
     .join("\n")
-  const progress = Math.min(100, agents.progress_ratio * 100)
+  const progress = Math.min(100, verifiedAgents.progress_ratio * 100)
 
   return `<!doctype html>
 <html lang="en">
@@ -888,13 +895,15 @@ export function renderMetricsDashboard(
 <body><main>
   <a href="/">← 404.directory</a>
   <h1>Agent usage evidence</h1>
-  <p class="muted">Identified counts de-duplicate external installation identities with a successful tool execution. Internal tests and known probes are excluded; anonymous calls are shown separately. Installation IDs are not verified independent users.</p>
+  <p class="muted">Verified adoption requires a manually admitted independent operator and a matching successful external Agent execution. Admissions alone, copied IDs, failures, anonymous calls, probes, crawlers, and internal tests do not count.</p>
   <div class="grid">
-    <article class="card"><div class="muted">Identified external installations</div><div class="value">${agents.identified_external_agents} / ${agents.target_external_agents}</div><div class="progress"><span></span></div></article>
-    <article class="card"><div class="muted">Identified external successes</div><div class="value">${agents.successful_external_invocations}</div></article>
-    <article class="card"><div class="muted">Anonymous successes</div><div class="value">${agents.anonymous_successful_invocations}</div></article>
-    <article class="card"><div class="muted">7-day retention</div><div class="value">${percent(agents.retention.day_7.retention_rate)}</div><div class="muted">${agents.retention.day_7.retained_agents}/${agents.retention.day_7.eligible_agents} eligible</div></article>
-    <article class="card"><div class="muted">30-day retention</div><div class="value">${percent(agents.retention.day_30.retention_rate)}</div><div class="muted">${agents.retention.day_30.retained_agents}/${agents.retention.day_30.eligible_agents} eligible</div></article>
+    <article class="card"><div class="muted">Verified external Agents</div><div class="value">${verifiedAgents.verified_external_agents} / ${verifiedAgents.target_external_agents}</div><div class="progress"><span></span></div></article>
+    <article class="card"><div class="muted">Verified independent operators</div><div class="value">${verifiedAgents.verified_operators}</div></article>
+    <article class="card"><div class="muted">Verified successful executions</div><div class="value">${verifiedAgents.successful_external_invocations}</div></article>
+    <article class="card"><div class="muted">Active evidence admissions</div><div class="value">${verifiedAgents.active_admissions}</div><div class="muted">Admissions without successful execution do not count</div></article>
+    <article class="card"><div class="muted">Unverified installation IDs</div><div class="value">${agents.identified_external_agents}</div><div class="muted">Diagnostic only · ${agents.anonymous_successful_invocations} anonymous successes</div></article>
+    <article class="card"><div class="muted">7-day verified retention</div><div class="value">${percent(verifiedAgents.retention.day_7.retention_rate)}</div><div class="muted">${verifiedAgents.retention.day_7.retained_agents}/${verifiedAgents.retention.day_7.eligible_agents} eligible</div></article>
+    <article class="card"><div class="muted">30-day verified retention</div><div class="value">${percent(verifiedAgents.retention.day_30.retention_rate)}</div><div class="muted">${verifiedAgents.retention.day_30.retained_agents}/${verifiedAgents.retention.day_30.eligible_agents} eligible</div></article>
     <article class="card"><div class="muted">30-day external success rate</div><div class="value">${percent(reliability.overall.success_rate)}</div><div class="muted">${reliability.overall.invocations} observations</div></article>
   </div>
   ${preflightSection("Risk preflight — by attribution", risk)}
@@ -902,7 +911,7 @@ export function renderMetricsDashboard(
   <section><h2>Activation by source</h2><table><thead><tr><th>Source</th><th>Views</th><th>Installs</th><th>Initialized Agents</th><th>Prompt-opened Agents</th><th>Calling Agents</th><th>Successful Agents</th><th>Failed Agents</th><th>Call rate</th><th>Call success</th><th>Prompt→success</th><th>Activation</th></tr></thead><tbody>${sourceRows || '<tr><td colspan="12">No evidence yet</td></tr>'}</tbody></table></section>
   <section><h2>Tool reliability — last 30 days</h2><table><thead><tr><th>Tool</th><th>Calls</th><th>Agents</th><th>Success</th><th>P95 ms</th><th>Last observed</th></tr></thead><tbody>${toolRows || '<tr><td colspan="6">No external executions yet</td></tr>'}</tbody></table></section>
   <section><h2>Canonical errors — last 30 days</h2><table><thead><tr><th>Error</th><th>Events</th></tr></thead><tbody>${errorRows || '<tr><td colspan="2">No external failures observed</td></tr>'}</tbody></table></section>
-  <p class="muted">Generated ${escapeHtml(agents.generated_at)}. Raw Agent IDs, session IDs, prompts, arguments and results are never shown.</p>
+  <p class="muted">Generated ${escapeHtml(verifiedAgents.generated_at)}. Raw Agent IDs, operator IDs, evidence references, session IDs, prompts, arguments and results are never shown.</p>
 </main></body></html>`
 }
 

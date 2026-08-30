@@ -193,7 +193,8 @@ describe("privacy-safe Agent attribution", () => {
       identified_external_agents: 1,
       successful_external_invocations: 2,
       anonymous_successful_invocations: 0,
-      progress_ratio: 0.001,
+      counts_toward_target: false,
+      verified_target_metric: "/v1/metrics/verified-agents",
       retention: {
         repeat_agents_on_later_day: 0,
         day_7: {
@@ -217,6 +218,8 @@ describe("privacy-safe Agent attribution", () => {
         },
       ],
     })
+    expect(metrics.json()).not.toHaveProperty("progress_ratio")
+    expect(metrics.json()).not.toHaveProperty("target_external_agents")
 
     const reliability = await app.inject({
       method: "GET",
