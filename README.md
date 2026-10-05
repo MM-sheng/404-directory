@@ -2,22 +2,29 @@
 
 **Risk preflight for AI Agent actions.**
 
-404.directory gives AI Agents an evidence-backed `allow`, `review`, or `block`
-decision before they install or invoke a third-party tool. Discovery, provider
-verification, live checks, privacy-safe usage evidence, and a curated read-only
-MCP gateway support that decision.
+Before an AI Agent uses a third-party tool, 404.directory checks the available evidence and returns an `allow`, `review`, or `block` decision.
 
-The first vertical decision workflow evaluates Polymarket settlement wording,
-timing, public order-book liquidity, caller-observed eligibility, and execution
-mode before an Agent contemplates a Yes/No action. It never predicts the winner
-or places an order.
+**For developers connecting Agents to external tools who want an explicit risk check before execution.** This is an experimental preflight service; its decision depends on the available evidence.
 
-Connect a real Agent in under a minute (Codex, Cursor, Claude Code, or MCP SDK):
-https://404.directory/connect?source=github
+## Start with one action
 
-External users can join the first-10 activation pilot and report only the
-client, task category, and failure stage:
-https://github.com/MM-sheng/404-directory/issues/1
+**[Connect your Agent](https://404.directory/connect?source=github)** using Codex, Cursor, Claude Code, or the MCP SDK.
+
+The tool workflow is:
+
+```text
+A proposed third-party tool action
+  → provider verification + live checks + available usage evidence
+  → allow / review / block
+```
+
+Use `evaluate_tool_risk` for a registered third-party tool action. The separate `evaluate_prediction_market` workflow checks settlement wording, timing, public order-book liquidity, caller-observed eligibility, and execution mode. It does not predict the winner or place an order.
+
+Official documentation search, deployment verification, and the curated read-only MCP gateway are supporting capabilities. See [Product layers](#product-layers) for the complete API map.
+
+**Trying it for the first time?** [Join the first-10 activation pilot](https://github.com/MM-sheng/404-directory/issues/1) and report your client, task category, and failure stage.
+
+## Install
 
 Agent-readable installation instructions: [`llms-install.md`](./llms-install.md)
 
